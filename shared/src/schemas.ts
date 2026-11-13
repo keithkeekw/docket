@@ -91,6 +91,7 @@ export const taskSchema = z.object({
   projectId: z.string().nullable(),
   projectName: z.string().nullable(),
   milestoneId: z.string().nullable(),
+  milestoneName: z.string().nullable(),
   statusId: z.string().min(1),
   statusName: z.string().min(1),
   statusCategory: statusCategorySchema,

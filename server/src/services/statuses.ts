@@ -21,6 +21,20 @@ export function statusExists(db: Db, id: string): boolean {
   return Boolean(db.select({ id: statuses.id }).from(statuses).where(eq(statuses.id, id)).get());
 }
 
+/** `done` is what makes `completed_at` meaningful (FR-4, FR-9). */
+export function statusCategoryOf(
+  db: Db,
+  id: string,
+): 'open' | 'active' | 'done' | null {
+  const row = db
+    .select({ category: statuses.category })
+    .from(statuses)
+    .where(eq(statuses.id, id))
+    .get();
+
+  return row?.category ?? null;
+}
+
 /**
  * Default for a new task and for unticking one (PROGRESS D6): "To do" when it
  * exists, otherwise the first `open` status. Backlog sorts first but is not the

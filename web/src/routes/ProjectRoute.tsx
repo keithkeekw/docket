@@ -1,34 +1,39 @@
 import { useState, type FormEvent } from 'react';
 import { useParams } from 'react-router';
 import { useCreateMilestone, useMilestones, useProject } from '../api/projects';
-import { useCompleteTask, useTasks } from '../api/tasks';
+import { useStatuses } from '../api/statuses';
+import { useCompleteTask, useTasks, useUpdateTask } from '../api/tasks';
 import { Button } from '../components/Button';
-import { EmptyState } from '../components/EmptyState';
 import { Field, Input } from '../components/Field';
 import { InlineError } from '../components/InlineError';
 import { AddMilestonePill, MilestonePill } from '../components/MilestonePill';
 import { PageHeader } from '../components/PageHeader';
-import { TaskListPanel } from '../components/TaskListPanel';
-import { ViewSwitcher, type ViewMode } from '../components/ViewSwitcher';
+import { TaskViewBody } from '../components/TaskViewBody';
+import { ViewSwitcher } from '../components/ViewSwitcher';
 import { modKeyLabel } from '../lib/platform';
 import { useUiStore } from '../store/ui';
+import { useViewStore } from '../store/view';
 
 /**
  * DESIGN §5.2 project detail: breadcrumb, title row, description, milestone
- * pills, toolbar, then the task list. Kanban and Table arrive in M1-S7.
+ * pills, toolbar, then List / Table / Kanban sharing one body (FR-10).
  */
 export function ProjectRoute() {
   const { id } = useParams<{ id: string }>();
   const project = useProject(id);
   const milestones = useMilestones(id);
   const tasks = useTasks({ project: id }, Boolean(id));
+  const statuses = useStatuses();
   const completeTask = useCompleteTask();
+  const updateTask = useUpdateTask();
 
   const openTask = useUiStore((state) => state.openTask);
   const openCapture = useUiStore((state) => state.openCapture);
   const openProjectDialog = useUiStore((state) => state.openProjectDialog);
 
-  const [view, setView] = useState<ViewMode>('list');
+  const view = useViewStore((state) => state.view);
+  const setView = useViewStore((state) => state.setView);
+
   const [milestoneFilter, setMilestoneFilter] = useState<string | null>(null);
   const [addingMilestone, setAddingMilestone] = useState(false);
   const [milestoneName, setMilestoneName] = useState('');
@@ -94,7 +99,7 @@ export function ProjectRoute() {
               >
                 Edit project
               </Button>
-              <Button variant="primary" onClick={() => openCapture(data.id)}>
+              <Button variant="primary" onClick={() => openCapture({ projectId: data.id })}>
                 New task
               </Button>
             </>
@@ -156,27 +161,35 @@ export function ProjectRoute() {
         </p>
       </div>
 
-      {view === 'list' ? (
-        <TaskListPanel
-          groups={[{ label: data.name, tasks: visibleTasks }]}
-          isLoading={tasks.isLoading}
-          error={tasks.error?.message}
-          onRetry={() => {
-            void tasks.refetch();
-          }}
-          emptyMessage={
-            activeMilestone
-              ? `No tasks in ${activeMilestone.name}.`
-              : `No tasks in this project yet. Press ${modKeyLabel()} K to capture.`
-          }
-          onOpen={openTask}
-          onToggle={(taskId, done) => {
-            completeTask.mutate({ id: taskId, done });
-          }}
-        />
-      ) : (
-        <EmptyState message={`${view === 'table' ? 'Table' : 'Kanban'} view arrives in M1-S7.`} />
-      )}
+      <TaskViewBody
+        view={view}
+        tasks={visibleTasks}
+        statuses={statuses.data?.statuses ?? []}
+        isLoading={tasks.isLoading}
+        error={tasks.error?.message}
+        onRetry={() => {
+          void tasks.refetch();
+        }}
+        onOpen={openTask}
+        onToggle={(taskId, done) => {
+          completeTask.mutate({ id: taskId, done });
+        }}
+        onStatusChange={(taskId, statusId) => {
+          updateTask.mutate({ id: taskId, statusId });
+        }}
+        onAddTask={(statusId) => {
+          openCapture({ projectId: data.id, statusId });
+        }}
+        emptyMessage={
+          activeMilestone
+            ? `No tasks in ${activeMilestone.name}.`
+            : `No tasks in this project yet. Press ${modKeyLabel()} K to capture.`
+        }
+        listLabel={data.name}
+        tableFooter={`${visibleTasks.length} ${
+          visibleTasks.length === 1 ? 'task' : 'tasks'
+        } · sorted by due date`}
+      />
     </>
   );
 }

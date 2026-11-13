@@ -7,29 +7,15 @@ import {
   type UpdateTaskBody,
 } from '@app/shared';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import { taskFilterQuery, type TaskFilter } from '../lib/taskFilters';
 import { apiDelete, apiGet, apiMutate } from './client';
 import { navQueryKey } from './nav';
 
-/** Server filter for `GET /api/tasks` (TECHSTACK §5). */
-export type TaskFilter = {
-  /** `none` is the Inbox; any other value is a project id. */
-  project?: 'none' | string;
-  /** Inclusive local date bound, `YYYY-MM-DD`. */
-  dueTo?: string;
-  q?: string;
-};
+export type { TaskFilter };
 
 const TASKS_KEY = ['tasks'] as const;
 
-function queryString(filter: TaskFilter): string {
-  const params = new URLSearchParams();
-  if (filter.project) params.set('project', filter.project);
-  if (filter.dueTo) params.set('due_to', filter.dueTo);
-  if (filter.q) params.set('q', filter.q);
-
-  const search = params.toString();
-  return search ? `?${search}` : '';
-}
+const queryString = taskFilterQuery;
 
 /**
  * The query key is derived from the serialised query string, so two callers

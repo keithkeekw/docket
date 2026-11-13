@@ -108,7 +108,12 @@ export function TaskRow({
 
             {task.priority && <PriorityLabel priority={task.priority} />}
 
-            <DueLabel dueDate={task.dueDate ?? null} dueTime={task.dueTime ?? null} now={now} />
+            <DueLabel
+              dueDate={task.dueDate ?? null}
+              dueTime={task.dueTime ?? null}
+              isDone={task.done ?? false}
+              now={now}
+            />
 
             {task.location && <LocationChip>{task.location}</LocationChip>}
 

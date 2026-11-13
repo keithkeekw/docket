@@ -286,3 +286,94 @@ describe('GET /api/tasks', () => {
     expect(search.body.tasks.map((task) => task.title)).toEqual(['Reply on vendor escalation']);
   });
 });
+
+describe('PATCH /api/tasks/:id status ↔ completion', () => {
+  it('stamps completed_at when the status moves to a done category', async () => {
+    const task = taskResponseSchema.parse(
+      (await createTask({ title: 'Finish by status' })).body,
+    ).task;
+
+    const response = await app.request(`/api/tasks/${task.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ statusId: statusIdByName('Done') }),
+    });
+
+    const done = taskResponseSchema.parse(await response.json()).task;
+    expect(done.statusCategory).toBe('done');
+    expect(done.completedAt).not.toBeNull();
+  });
+
+  it('clears completed_at when the status leaves the done category', async () => {
+    const task = taskResponseSchema.parse(
+      (await createTask({ title: 'Reopen by status' })).body,
+    ).task;
+
+    await app.request(`/api/tasks/${task.id}/complete`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+
+    const response = await app.request(`/api/tasks/${task.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ statusId: statusIdByName('In progress') }),
+    });
+
+    const reopened = taskResponseSchema.parse(await response.json()).task;
+    expect(reopened.statusCategory).toBe('active');
+    expect(reopened.completedAt).toBeNull();
+  });
+});
+
+describe('GET /api/tasks filters', () => {
+  it('filters by status and priority together', async () => {
+    const backlog = statusIdByName('Backlog');
+    const open = statusIdByName('To do');
+
+    await createTask({ title: 'Backlog P1', statusId: backlog, priority: 1 });
+    await createTask({ title: 'To do P1', statusId: open, priority: 1 });
+    await createTask({ title: 'To do P2', statusId: open, priority: 2 });
+
+    const backlogOnly = await listTasks(`?status=${backlog}`);
+    expect(backlogOnly.body.tasks.map((task) => task.title)).toEqual(['Backlog P1']);
+
+    const both = await listTasks(`?status=${backlog},${open}&priority=1`);
+    expect(both.body.tasks.map((task) => task.title)).toEqual(['Backlog P1', 'To do P1']);
+  });
+
+  it('filters by due range and ignores invalid priorities', async () => {
+    await createTask({ title: 'Early', dueDate: '2026-11-10', priority: 1 });
+    await createTask({ title: 'Middle', dueDate: '2026-11-15' });
+    await createTask({ title: 'Late', dueDate: '2026-11-30' });
+    await createTask({ title: 'Undated' });
+
+    const range = await listTasks('?due_from=2026-11-11&due_to=2026-11-20');
+    expect(range.body.tasks.map((task) => task.title)).toEqual(['Middle']);
+
+    const invalidPriority = await listTasks('?priority=9');
+    expect(invalidPriority.body.tasks).toHaveLength(4);
+  });
+
+  it('returns the milestone name for the table column', async () => {
+    const project = db.insert(projects).values({ name: 'Onboarding' }).returning().get();
+    const milestone = db
+      .insert(milestones)
+      .values({ projectId: project.id, name: 'Phase 1' })
+      .returning()
+      .get();
+
+    await createTask({
+      title: 'Scoped work',
+      projectId: project.id,
+      milestoneId: milestone.id,
+    });
+
+    const { body } = await listTasks();
+    expect(body.tasks[0]).toMatchObject({
+      milestoneName: 'Phase 1',
+      projectName: 'Onboarding',
+    });
+  });
+});

@@ -9,7 +9,9 @@ type UiStore = {
   captureOpen: boolean;
   /** When set, captured tasks land in that project instead of the Inbox. */
   captureProjectId: string | null;
-  openCapture: (projectId?: string | null) => void;
+  /** When set, capture opens the task in that status (Kanban column). */
+  captureStatusId: string | null;
+  openCapture: (options?: { projectId?: string | null; statusId?: string | null }) => void;
   closeCapture: () => void;
 
   /** Task shown in the detail drawer (DESIGN §5.5). `null` keeps it closed. */
@@ -30,11 +32,16 @@ type UiStore = {
 export const useUiStore = create<UiStore>((set) => ({
   captureOpen: false,
   captureProjectId: null,
-  openCapture: (projectId = null) => {
-    set({ captureOpen: true, captureProjectId: projectId });
+  captureStatusId: null,
+  openCapture: (options) => {
+    set({
+      captureOpen: true,
+      captureProjectId: options?.projectId ?? null,
+      captureStatusId: options?.statusId ?? null,
+    });
   },
   closeCapture: () => {
-    set({ captureOpen: false, captureProjectId: null });
+    set({ captureOpen: false, captureProjectId: null, captureStatusId: null });
   },
 
   drawerTask: null,

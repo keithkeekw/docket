@@ -12,11 +12,14 @@ export function DueLabel({
   dueDate,
   dueTime = null,
   variant = 'list',
+  isDone = false,
   now,
 }: {
   dueDate: string | null;
   dueTime?: string | null;
   variant?: DueLabelVariant;
+  /** A finished task is never overdue, so its date stays neutral. */
+  isDone?: boolean;
   now?: Date;
 }) {
   if (!dueDate) return null;
@@ -27,7 +30,11 @@ export function DueLabel({
     <span
       className={cx(
         'text-xs',
-        due.overdue ? 'text-orange-700' : variant === 'table' ? 'text-zinc-700' : 'text-zinc-500',
+        due.overdue && !isDone
+          ? 'text-orange-700'
+          : variant === 'table'
+            ? 'text-zinc-700'
+            : 'text-zinc-500',
       )}
       title={due.absolute}
     >

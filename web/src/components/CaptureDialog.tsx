@@ -17,6 +17,7 @@ import { Kbd } from './Kbd';
 export function CaptureDialog() {
   const isOpen = useUiStore((state) => state.captureOpen);
   const captureProjectId = useUiStore((state) => state.captureProjectId);
+  const captureStatusId = useUiStore((state) => state.captureStatusId);
   const openCapture = useUiStore((state) => state.openCapture);
   const closeCapture = useUiStore((state) => state.closeCapture);
 
@@ -54,7 +55,11 @@ export function CaptureDialog() {
     if (!trimmed || createTask.isPending) return;
 
     try {
-      await createTask.mutateAsync({ title: trimmed, projectId: captureProjectId ?? undefined });
+      await createTask.mutateAsync({
+        title: trimmed,
+        projectId: captureProjectId ?? undefined,
+        statusId: captureStatusId ?? undefined,
+      });
       closeCapture();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not save the task');

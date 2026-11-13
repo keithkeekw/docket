@@ -20,7 +20,12 @@ import {
 } from '../db/schema';
 import type { Db } from '../db/types';
 import { ServiceError } from '../lib/errors';
-import { defaultOpenStatusId, firstDoneStatusId, statusExists } from './statuses';
+import {
+  defaultOpenStatusId,
+  firstDoneStatusId,
+  statusCategoryOf,
+  statusExists,
+} from './statuses';
 
 const taskSelection = {
   id: tasks.id,
@@ -29,6 +34,7 @@ const taskSelection = {
   projectId: tasks.projectId,
   projectName: projects.name,
   milestoneId: tasks.milestoneId,
+  milestoneName: milestones.name,
   statusId: tasks.statusId,
   statusName: statuses.name,
   statusCategory: statuses.category,
@@ -49,6 +55,7 @@ type TaskRow = {
   projectId: string | null;
   projectName: string | null;
   milestoneId: string | null;
+  milestoneName: string | null;
   statusId: string;
   statusName: string;
   statusCategory: 'open' | 'active' | 'done';
@@ -152,7 +159,12 @@ function withSummaries(db: Db, rows: TaskRow[]): Task[] {
 export type TaskFilter = {
   /** `none` means Inbox (project_id IS NULL). */
   project?: 'none' | string;
-  /** Inclusive local date bound, `YYYY-MM-DD`. */
+  /** Any of these statuses (FR-11). */
+  statusIds?: string[];
+  /** Any of 1, 2, 3 (FR-11). */
+  priorities?: number[];
+  /** Inclusive local date bounds, `YYYY-MM-DD`. */
+  dueFrom?: string;
   dueTo?: string;
   q?: string;
   /** Exact tag name (FR-30). */
@@ -171,6 +183,18 @@ export function listTasks(db: Db, filter: TaskFilter = {}): Task[] {
     conditions.push(isNull(tasks.projectId));
   } else if (filter.project) {
     conditions.push(eq(tasks.projectId, filter.project));
+  }
+
+  if (filter.statusIds && filter.statusIds.length > 0) {
+    conditions.push(inArray(tasks.statusId, filter.statusIds));
+  }
+
+  if (filter.priorities && filter.priorities.length > 0) {
+    conditions.push(inArray(tasks.priority, filter.priorities));
+  }
+
+  if (filter.dueFrom) {
+    conditions.push(sql`${tasks.dueDate} is not null and ${tasks.dueDate} >= ${filter.dueFrom}`);
   }
 
   if (filter.dueTo) {
@@ -197,6 +221,7 @@ export function listTasks(db: Db, filter: TaskFilter = {}): Task[] {
     .from(tasks)
     .innerJoin(statuses, eq(tasks.statusId, statuses.id))
     .leftJoin(projects, eq(tasks.projectId, projects.id))
+    .leftJoin(milestones, eq(tasks.milestoneId, milestones.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(
       sql`${tasks.completedAt} is not null`,
@@ -216,6 +241,7 @@ export function getTask(db: Db, id: string): Task {
     .from(tasks)
     .innerJoin(statuses, eq(tasks.statusId, statuses.id))
     .leftJoin(projects, eq(tasks.projectId, projects.id))
+    .leftJoin(milestones, eq(tasks.milestoneId, milestones.id))
     .where(eq(tasks.id, id))
     .get();
 
@@ -360,7 +386,20 @@ export function updateTask(db: Db, id: string, body: UpdateTaskBody): Task {
 
   if (body.title !== undefined) patch.title = body.title;
   if (body.notes !== undefined) patch.notes = body.notes;
-  if (body.statusId !== undefined) patch.statusId = body.statusId;
+
+  if (body.statusId !== undefined) {
+    patch.statusId = body.statusId;
+
+    // Completion is a property of the status category, so picking "Done" in the
+    // drawer or dragging a Kanban card there stamps `completed_at` too, and
+    // picking an open status clears it (PROGRESS D6/D8).
+    if (statusCategoryOf(db, body.statusId) === 'done') {
+      patch.completedAt = existing.completedAt ?? new Date().toISOString();
+    } else {
+      patch.completedAt = null;
+    }
+  }
+
   if (body.priority !== undefined) patch.priority = body.priority;
   if (body.dueDate !== undefined) patch.dueDate = body.dueDate;
   if (body.dueTime !== undefined) patch.dueTime = body.dueTime;

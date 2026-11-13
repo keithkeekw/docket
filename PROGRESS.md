@@ -4,7 +4,7 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 `docs/DESIGN.md` at the start of every session.
 
 - **Last updated:** 13 Nov 2026
-- **Current step:** M1-S7 (next) — List / Table / Kanban, shared filters, dnd-kit
+- **Current step:** M1-S8 (next) — statuses settings, recurrence service + tests
 - **Spec sources:** `docs/PRD.md` (behaviour), `docs/TECHSTACK.md` (implementation), `docs/DESIGN.md` (visuals)
 
 ---
@@ -19,8 +19,8 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 | M1-S4 | App shell, sidebar, routing | ✅ Done |
 | M1-S5 | Tasks CRUD + plain capture (`Ctrl/⌘ K`) | ✅ Done |
 | M1-S6 | Projects, milestones, checklist, links, tags, move-to-project | ✅ Done |
-| M1-S7 | List / Table / Kanban + shared filters + dnd-kit | ⬜ Next |
-| M1-S8 | Statuses settings; recurrence service + tests | ⬜ |
+| M1-S7 | List / Table / Kanban + shared filters + dnd-kit | ✅ Done |
+| M1-S8 | Statuses settings; recurrence service + tests | ⬜ Next |
 | M1-S9 | Dashboard endpoint + screen | ⬜ |
 | M1-S10 | Backup / restore | ⬜ |
 | M2-S11–13 | Settings, AI client/proposals, AI capture + breakdown | ⬜ |
@@ -488,6 +488,83 @@ UI, Playwright at 1280 × 860 against the throwaway database:
 
 ---
 
+## M1-S7 — List / Table / Kanban, shared filters, dnd-kit ✅
+
+### Built
+
+- **Server**: `GET /api/tasks` now accepts `status` and `priority` (comma lists)
+  and `due_from`, on top of `project`, `due_to`, `q` and `tag`. Task rows carry
+  `milestoneName` so the Table column needs no extra request.
+- **Status ↔ completion** (D34): `PATCH /api/tasks/:id` derives `completed_at`
+  from the new status category, so the drawer and Kanban produce the same
+  `done` state as the checkbox.
+- **Filter layer** (`lib/taskFilters.ts`): one `TaskFilter` type for the server
+  and the UI, a stable `taskFilterQuery` (sorted lists → stable cache keys),
+  `resolveDueRange` (overdue / today / next 7 days → concrete local dates) and
+  `hasActiveFilters`. 12 unit tests, including a midnight rollover.
+- **`useViewStore`** (Zustand): `view` plus the filter set, so switching views
+  keeps every filter (FR-11, D33).
+- **Components**: `FilterChip` (native disclosure, D32), `DataTable` (DESIGN §4
+  columns, 48 px rows, footer count), `KanbanBoard` (columns = statuses in order,
+  category tags, `+ Add task`, drag overlay) and `TaskViewBody`, which both
+  screens share so the three views cannot drift.
+- **All tasks** (DESIGN §5.3): title + ViewSwitcher, 240 px search with a 200 ms
+  debounce, Status / Priority / Project / Tag / Due chips, "Clear filters", then
+  the shared body.
+- **Project screen**: Table and Kanban are real now; the milestone pills filter
+  all three views, and "+ Add task" on a column captures into that project and
+  status.
+- **dnd-kit** 6.3.1 with `PointerSensor` (6 px activation) and `KeyboardSensor`
+  using a column-aware coordinate getter (D35).
+
+### Verification performed
+
+```bash
+npm run typecheck   # clean
+npm test            # 84 passed (9 db + 5 nav + 11 web lib + 12 filters + 4 client + 16 tasks + 12 projects + 15 task details)
+npm run build       # clean, 554 kB chunk (164 kB gzip) — over Vite's 500 kB warning
+```
+
+API, against a throwaway copy of the database with a project, two milestones and
+seven tasks:
+
+- `GET /api/tasks?status=<backlog>,<todo>&priority=1` returned only the matching
+  rows; `?due_from=&due_to=` bounded the range; `?priority=9` was ignored.
+- `PATCH {statusId: Done}` set `completedAt` and project progress moved to
+  `done=1 total=4 percent=25`; patching back to an open status cleared it.
+- Milestone names came back on rows (`milestoneName: "Phase 1"`).
+
+UI, Playwright at 1280 × 860:
+
+- All tasks: List → Table → Kanban all show the same 7–8 tasks; the Table
+  renders every DESIGN column (Done, Task, Project, Milestone, Status, Priority,
+  Due, Estimate, Repeat, Links) and the footer "8 tasks · sorted by due date".
+- Status: Done → 2 rows, and the filter survived the switch to Table (FR-11).
+  "Clear filters" appears only while a filter is active.
+- Search "zzzz" → "No tasks match these filters."; "venue" → 1 row.
+- Kanban: mouse drag moved *Book the venue* from In progress to To do; dragging
+  *Draft the welcome doc* into Done stamped `completedAt` and the sidebar count
+  dropped 5 → 4.
+- Keyboard: focus a card, Space, ArrowRight, Space moved *Water the plants* from
+  Backlog to To do in one column step.
+- "+ Add task" inside Waiting opened capture and created the task in Waiting.
+- Project screen: pills showed live counts ("Phase 1 2 of 2"), Kanban rendered
+  only that project's tasks, and selecting Phase 2 filtered to its single task.
+- Console clean; the done row's date is neutral instead of orange (D36).
+
+### PRD IDs advanced
+
+- **FR-10 — done.** List, Table and Kanban for All tasks and a project.
+- **FR-11 — done.** Status, project, priority, tag and due-range filters plus
+  search, all preserved across view switches.
+- **FR-12 — done.** Drag between status columns with a keyboard path
+  (Space / arrows / Space) and the drawer's status select as a second route.
+- **FR-30 — done.** Tag filter shipped.
+- **FR-13 — not yet.** Table sorting and grouping stay in M4-S16 as TECHSTACK
+  §11 plans; the Table currently follows the List order by due date.
+
+---
+
 ## Decisions
 
 | # | Decision |
@@ -522,7 +599,12 @@ UI, Playwright at 1280 × 860 against the throwaway database:
 | D28 | `GET /api/tasks/:id` **is** added in M1-S6. The task list row carries a summary (`tags: string[]`, `link` = first link, `checklist: {done,total}`) built from three grouped queries, so a list never does per-row work (NFR-4); the drawer reads the full detail (`links`, `checklistItems`) from the new route. |
 | D29 | DESIGN §5.5 has no projects screen, so project create/edit/archive/delete live in one `ProjectDialog` opened from a sidebar "New project" row or the project screen's "Edit project" button. Delete keeps the work: tasks fall back to the Inbox (D7). |
 | D30 | Milestone management (rename, done, reorder, delete) sits inside `ProjectDialog`. Reordering rewrites `position` to the new index order, which also normalises gaps left by deletes; there is no separate reorder endpoint. |
-| D31 | Capture from a project screen keeps the project: `openCapture(projectId)` stores the target and the capture dialog creates the task there ("Add task" instead of "Add to Inbox"). |
+| D31 | Capture from a project screen keeps the project: `openCapture({projectId})` stores the target and the capture dialog creates the task there ("Add task" instead of "Add to Inbox"). M1-S7 extends the same call with `statusId`, so a Kanban column's "+ Add task" captures into that column. |
+| D32 | `FilterChip` is a native `<details>`/`<summary>` disclosure, not a Preline dropdown. It keeps the DESIGN §4 look and gets keyboard toggling and screen-reader semantics for free; Preline's JS stays out of the bundle (D26). |
+| D33 | One `useViewStore` holds the active view and the All-tasks filter set, so List → Table → Kanban and back keeps every filter (FR-11). The project screen reads the same `view` but takes its scope from the route, not from the filter's `project` — a stale "Project: Inbox" chip can never empty a project screen. The project screen keeps its milestone pill filter local. |
+| D34 | `completed_at` follows the status **category**: PATCHing `statusId` to a `done` status stamps it (or keeps the original stamp), any other status clears it. Before this, picking "Done" in the drawer left the task counted as open in project progress, nav counts and list ordering. `/complete` stays the checkbox path and records the same truth. |
+| D35 | Kanban uses `@dnd-kit/core` 6.3.1 only (no `sortable`/`utilities`). The keyboard path is a custom `KeyboardCoordinateGetter` that jumps to the neighbouring column's centre, because dnd-kit's default moves 25 px per arrow press; Space picks up and drops, Enter still opens the drawer. |
+| D36 | A finished task never shows its due date in `orange-700`; `DueLabel` takes `isDone` and falls back to the neutral tone. Overdue only means something while the work is open. |
 
 ## Follow-ups / known gaps
 
@@ -531,9 +613,16 @@ UI, Playwright at 1280 × 860 against the throwaway database:
 - `preline/non-auto` chunk: **resolved in M1-S4** by removing the bundle (D25).
   The task drawer and quick capture landed on a native `<dialog>` instead of a
   Preline plugin (D26), so no Preline JS is loaded yet.
-- Placeholder bodies remain on Dashboard (S9), All tasks (S7) and Settings (S8),
-  plus the Table/Kanban bodies on a project (S7). Each names its step in the copy
-  and is replaced as that step lands.
+- Placeholder bodies remain on Dashboard (S9) and Settings (S8).
+- The web bundle crossed Vite's 500 kB warning in M1-S7 (554 kB, 164 kB gzip)
+  when dnd-kit landed. Fine for a local app; revisit with route-level
+  `import()` splitting if it keeps growing.
+- The Table's Links column shows the task's first link only — the list payload
+  carries one link per task on purpose (D28).
+- Kanban supports moving between columns, not reordering within a column; the
+  card's `position` is unchanged by a status move.
+- Server-side `sort`/`group` parameters from TECHSTACK §5 are still unwritten;
+  they belong to M4-S16 with FR-13.
 - `npm audit` reports 4 moderate advisories from drizzle-kit's bundled
   `@esbuild-kit/esm-loader` (old esbuild). Dev-only CLI, not shipped, no dev
   server involved; **do not** run `npm audit fix --force` (it would downgrade
@@ -542,12 +631,12 @@ UI, Playwright at 1280 × 860 against the throwaway database:
 - PRD open questions for Keith: Q1 (company AI policy), Q5 (final app name).
   Neither blocks M1.
 
-## Next step — M1-S7
+## Next step — M1-S8
 
-List / Table / Kanban sharing one filter state, plus dnd-kit. Build the real
-All tasks screen (search box, FilterChips for status, project, priority, tag and
-due range), the Table view with the DESIGN §4 DataTable columns, and the Kanban
-board with drag-and-drop between statuses and a keyboard alternative (FR-12).
-The project screen swaps its placeholder views for the real ones. Filters and
-search persist across view switches (FR-11) and `?q=`, `?tag=` are already
-served. Deliverables feed FR-10, FR-11, FR-12, FR-13 and FR-30's filter half.
+Statuses settings and recurrence. The Settings screen gets its *Statuses*
+section (add, rename, recategorise, reorder, delete with the "move tasks first"
+guard from US-10), and the task service gains the FR-15 recurrence path: an
+RRULE string on completion creates the next occurrence, copying title, fields,
+links and checklist (unticked), with `recurrence_parent_id` pointing at the first
+task in the series (TECHSTACK §4). Add `rrule` to the task drawer's Repeat field.
+Deliverables feed FR-14, FR-15.

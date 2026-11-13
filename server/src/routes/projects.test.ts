@@ -134,6 +134,22 @@ describe('GET /api/projects', () => {
     expect(body.progress.nextDueTask).toMatchObject({ title: 'Sooner', dueDate: '2026-11-14' });
   });
 
+  it('counts a task as done when its status is set to Done by PATCH', async () => {
+    const project = await createProject('Onboarding');
+    await post('/api/tasks', { title: 'Only task', projectId: project.id });
+
+    const list = (await (await app.request(`/api/tasks?project=${project.id}`)).json()) as any;
+    const taskId = list.tasks[0].id as string;
+
+    await patch(`/api/tasks/${taskId}`, { statusId: statusIdByName('Done') });
+
+    const body = projectResponseSchema.parse(
+      await (await app.request(`/api/projects/${project.id}`)).json(),
+    ).project;
+
+    expect(body.progress).toMatchObject({ done: 1, total: 1, percent: 100 });
+  });
+
   it('moves to the next milestone once one is completed', async () => {
     const project = await createProject('Onboarding');
     const phaseOne = await createMilestone(project.id, 'Phase 1');
