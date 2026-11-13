@@ -11,6 +11,9 @@ import { Button } from '../components/Button';
 import { Field, Input, Select } from '../components/Field';
 import { InlineError } from '../components/InlineError';
 import { PageHeader } from '../components/PageHeader';
+import { Kbd } from '../components/Kbd';
+import { bindingLabel } from '../lib/platform';
+import { ALL_SHORTCUTS, useKeybindingsStore } from '../store/keybindings';
 
 const CATEGORIES: ReadonlyArray<{ value: StatusCategory; label: string }> = [
   { value: 'open', label: 'Open' },
@@ -32,6 +35,7 @@ export function SettingsRoute() {
 
       <div className="mt-6 max-w-[720px]">
         <StatusesSection />
+        <KeyBindingsSection />
         <AiSection />
         <PrivacySection />
         <DataSection />
@@ -681,6 +685,137 @@ function AiSection() {
       )}
 
       {error && <InlineError message={error} />}
+    </section>
+  );
+}
+
+function KeyBindingsSection() {
+  const { bindings, setBinding, resetBinding, resetAll } = useKeybindingsStore();
+  const [recording, setRecording] = useState<string | null>(null);
+  const [recordingError, setRecordingError] = useState<string | null>(null);
+
+  function startRecording(id: string) {
+    setRecording(id);
+    setRecordingError(null);
+  }
+
+  function handleKeyDown(e: React.KeyboardEvent, id: string) {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const bare = ['Control', 'Meta', 'Alt', 'Shift'];
+    if (bare.includes(e.key)) return;
+
+    const parts: string[] = [];
+    if (e.metaKey || e.ctrlKey) parts.push('mod');
+    if (e.altKey) parts.push('alt');
+    if (e.shiftKey) parts.push('shift');
+
+    const key = e.key.toLowerCase();
+    if (key === 'escape') {
+      setRecording(null);
+      setRecordingError(null);
+      return;
+    }
+    parts.push(key === ' ' ? 'space' : key);
+
+    const newBinding = parts.join('+');
+    if (parts.length === 1 && newBinding.length === 1) {
+      setRecordingError('Include a modifier key (⌘ / Ctrl) to avoid conflicts.');
+      return;
+    }
+
+    setBinding(id, newBinding);
+    setRecording(null);
+    setRecordingError(null);
+  }
+
+  const hasCustom = ALL_SHORTCUTS.some(
+    (s) => s.configurable && bindings[s.id] && bindings[s.id] !== s.defaultBinding,
+  );
+
+  return (
+    <section className="mt-8 border-t border-zinc-200 pt-5">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-[15px] font-semibold text-zinc-900">Key bindings</h2>
+          <p className="mt-1 max-w-[480px] text-xs text-zinc-500">
+            Keyboard shortcuts available in the app. Click a configurable shortcut to change it.
+          </p>
+        </div>
+        {hasCustom && (
+          <button
+            type="button"
+            className="shrink-0 text-xs text-zinc-400 hover:text-zinc-700"
+            onClick={resetAll}
+          >
+            Reset all
+          </button>
+        )}
+      </div>
+
+      <ul className="mt-4 flex flex-col divide-y divide-zinc-100 rounded-xl border border-zinc-200 bg-white">
+        {ALL_SHORTCUTS.map((shortcut) => {
+          const current = shortcut.configurable
+            ? (bindings[shortcut.id] ?? shortcut.defaultBinding)
+            : shortcut.defaultBinding;
+          const isCustom = shortcut.configurable && current !== shortcut.defaultBinding;
+          const isRecording = recording === shortcut.id;
+
+          return (
+            <li key={shortcut.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-zinc-900">{shortcut.label}</p>
+                <p className="text-xs text-zinc-500">{shortcut.description}</p>
+                {isRecording && recordingError && (
+                  <p className="mt-0.5 text-xs text-red-500">{recordingError}</p>
+                )}
+              </div>
+
+              <div className="flex items-center gap-2">
+                {shortcut.configurable ? (
+                  isRecording ? (
+                    <button
+                      type="button"
+                      className="flex min-w-[160px] items-center justify-center rounded-lg border-2 border-blue-400 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 outline-none ring-2 ring-blue-300 ring-offset-1"
+                      onKeyDown={(e) => { handleKeyDown(e, shortcut.id); }}
+                      autoFocus
+                      onBlur={() => { setRecording(null); setRecordingError(null); }}
+                    >
+                      Press keys… (Esc to cancel)
+                    </button>
+                  ) : (
+                    <button
+                      type="button"
+                      className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-white"
+                      onClick={() => { startRecording(shortcut.id); }}
+                      title="Click to change"
+                    >
+                      <Kbd>{bindingLabel(current)}</Kbd>
+                      {isCustom && (
+                        <span className="ml-0.5 rounded bg-blue-100 px-1 py-0.5 text-[10px] font-medium text-blue-700">custom</span>
+                      )}
+                    </button>
+                  )
+                ) : (
+                  <Kbd>{bindingLabel(current)}</Kbd>
+                )}
+
+                {shortcut.configurable && isCustom && !isRecording && (
+                  <button
+                    type="button"
+                    className="text-xs text-zinc-400 hover:text-zinc-600"
+                    onClick={() => { resetBinding(shortcut.id); }}
+                    title="Reset to default"
+                  >
+                    Reset
+                  </button>
+                )}
+              </div>
+            </li>
+          );
+        })}
+      </ul>
     </section>
   );
 }

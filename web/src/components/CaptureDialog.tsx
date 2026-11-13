@@ -4,7 +4,8 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import { ApiError } from '../api/client';
 import { useCaptureWithAi } from '../api/proposals';
 import { useCreateTask } from '../api/tasks';
-import { modKeyLabel } from '../lib/platform';
+import { bindingLabel, matchesBinding } from '../lib/platform';
+import { useKeybindingsStore } from '../store/keybindings';
 import { useUiStore } from '../store/ui';
 import { Button } from './Button';
 import { InlineError } from './InlineError';
@@ -35,12 +36,13 @@ export function CaptureDialog() {
   const createTask = useCreateTask();
   const captureWithAi = useCaptureWithAi();
 
+  const quickCaptureKey = useKeybindingsStore((s) => s.bindings.quickCapture ?? 'mod+k');
+  const aiCaptureKey = useKeybindingsStore((s) => s.bindings.aiCapture ?? 'mod+enter');
+
   // Works from any screen, including while typing in another field.
   useHotkeys(
-    'mod+k',
-    () => {
-      openCapture();
-    },
+    quickCaptureKey,
+    () => { openCapture(); },
     { preventDefault: true, enableOnFormTags: true },
   );
 
@@ -145,7 +147,7 @@ export function CaptureDialog() {
             setError(null);
           }}
           onKeyDown={(event) => {
-            if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+            if (matchesBinding(event, aiCaptureKey)) {
               event.preventDefault();
               void runAi();
             }
@@ -166,7 +168,7 @@ export function CaptureDialog() {
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
           <span className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
-            <Kbd>Enter</Kbd> to add · <Kbd>{modKeyLabel()} Enter</Kbd> for AI · <Kbd>Esc</Kbd> to
+            <Kbd>Enter</Kbd> to add · <Kbd>{bindingLabel(aiCaptureKey)}</Kbd> for AI · <Kbd>Esc</Kbd> to
             close
           </span>
           <Button
@@ -190,9 +192,10 @@ export function CaptureDialog() {
 
 /** The shortcut hint shown beside capture entry points. */
 export function CaptureHint() {
+  const quickCaptureKey = useKeybindingsStore((s) => s.bindings.quickCapture ?? 'mod+k');
   return (
     <span className="flex items-center gap-1.5 text-xs text-zinc-500">
-      <Kbd>{modKeyLabel()} K</Kbd> to capture
+      <Kbd>{bindingLabel(quickCaptureKey)}</Kbd> to capture
     </span>
   );
 }
