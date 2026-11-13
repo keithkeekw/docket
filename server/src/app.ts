@@ -5,7 +5,12 @@ import { cors } from 'hono/cors';
 import { statuses } from './db/schema';
 import type { Db } from './db/types';
 import { ServiceError } from './lib/errors';
+import { registerChecklistRoutes } from './routes/checklist';
+import { registerLinkRoutes } from './routes/links';
+import { registerMilestoneRoutes } from './routes/milestones';
+import { registerProjectRoutes } from './routes/projects';
 import { registerStatusRoutes } from './routes/statuses';
+import { registerTagRoutes } from './routes/tags';
 import { registerTaskRoutes } from './routes/tasks';
 import { getNavSummary } from './services/nav';
 
@@ -52,6 +57,11 @@ export function createApp(db: Db): Hono {
 
   registerTaskRoutes(app, db);
   registerStatusRoutes(app, db);
+  registerProjectRoutes(app, db);
+  registerMilestoneRoutes(app, db);
+  registerChecklistRoutes(app, db);
+  registerLinkRoutes(app, db);
+  registerTagRoutes(app, db);
 
   // Services throw ServiceError with the intended status; anything else is a bug
   // and is logged rather than leaked to the client.

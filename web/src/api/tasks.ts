@@ -39,10 +39,11 @@ export function taskFilterKey(filter: TaskFilter) {
   return [...TASKS_KEY, queryString(filter)] as const;
 }
 
-export function useTasks(filter: TaskFilter) {
+export function useTasks(filter: TaskFilter, enabled = true) {
   return useQuery<TaskList>({
     queryKey: taskFilterKey(filter),
     queryFn: ({ signal }) => apiGet(`/api/tasks${queryString(filter)}`, taskListSchema, signal),
+    enabled,
   });
 }
 
@@ -75,6 +76,11 @@ function dropCachedTask(queryClient: QueryClient, id: string): void {
 /** Counts and project progress change with any task write. */
 function invalidateTaskData(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: TASKS_KEY });
+  // The open drawer reads `['task', id]`; keep it in step with the lists.
+  void queryClient.invalidateQueries({ queryKey: ['task'] });
+  void queryClient.invalidateQueries({ queryKey: ['projects'] });
+  // Milestone pills show task counts, so moving or completing one changes them.
+  void queryClient.invalidateQueries({ queryKey: ['milestones'] });
   void queryClient.invalidateQueries({ queryKey: navQueryKey });
 }
 

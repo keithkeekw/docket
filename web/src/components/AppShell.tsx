@@ -1,5 +1,6 @@
 import { Outlet } from 'react-router';
 import { CaptureDialog } from './CaptureDialog';
+import { ProjectDialog } from './ProjectDialog';
 import { Sidebar } from './Sidebar';
 import { TaskDrawer } from './TaskDrawer';
 
@@ -8,7 +9,7 @@ import { TaskDrawer } from './TaskDrawer';
  * `min-w-0` on the main column is what lets long task titles truncate instead
  * of pushing the layout wider than the viewport.
  *
- * The capture dialog and the task drawer live here so they are mounted once
+ * The capture, task and project dialogs live here so they are mounted once
  * and can be opened from any screen.
  */
 export function AppShell() {
@@ -20,6 +21,7 @@ export function AppShell() {
       </main>
       <CaptureDialog />
       <TaskDrawer />
+      <ProjectDialog />
     </div>
   );
 }

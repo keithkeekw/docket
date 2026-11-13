@@ -1,9 +1,24 @@
-import type { Priority, Task, UpdateTaskBody } from '@app/shared';
+import type { ChecklistItem, Priority, TaskDetail, TaskLink, UpdateTaskBody } from '@app/shared';
 import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react';
+import { useNavSummary } from '../api/nav';
+import { useMilestones } from '../api/projects';
 import { useStatuses } from '../api/statuses';
+import {
+  useAddChecklistItem,
+  useAddLink,
+  useDeleteChecklistItem,
+  useDeleteLink,
+  useSetTaskTags,
+  useTaskDetail,
+  useTags,
+  useUpdateChecklistItem,
+} from '../api/taskDetail';
 import { useDeleteTask, useUpdateTask } from '../api/tasks';
+import { cx } from '../lib/cx';
 import { useUiStore } from '../store/ui';
+import { LinkBadge } from './Badge';
 import { Button } from './Button';
+import { Checkbox } from './Checkbox';
 import { Field, Input, Select, Textarea } from './Field';
 import { InlineError } from './InlineError';
 import { Kbd } from './Kbd';
@@ -16,9 +31,11 @@ type FormState = {
   dueDate: string;
   dueTime: string;
   estimateMinutes: string;
+  projectId: string;
+  milestoneId: string;
 };
 
-function toForm(task: Task): FormState {
+function toForm(task: TaskDetail): FormState {
   return {
     title: task.title,
     notes: task.notes ?? '',
@@ -27,11 +44,13 @@ function toForm(task: Task): FormState {
     dueDate: task.dueDate ?? '',
     dueTime: task.dueTime ?? '',
     estimateMinutes: task.estimateMinutes === null ? '' : String(task.estimateMinutes),
+    projectId: task.projectId ?? '',
+    milestoneId: task.milestoneId ?? '',
   };
 }
 
 /** Only changed fields are sent, so a PATCH stays a true patch. */
-function toPatch(task: Task, form: FormState): UpdateTaskBody {
+function toPatch(task: TaskDetail, form: FormState): UpdateTaskBody {
   const patch: UpdateTaskBody = {};
 
   const title = form.title.trim();
@@ -50,33 +69,47 @@ function toPatch(task: Task, form: FormState): UpdateTaskBody {
   const dueTime = dueDate === null || form.dueTime === '' ? null : form.dueTime;
   if (dueTime !== task.dueTime) patch.dueTime = dueTime;
 
-  const estimate =
-    form.estimateMinutes.trim() === '' ? null : Number(form.estimateMinutes);
+  const estimate = form.estimateMinutes.trim() === '' ? null : Number(form.estimateMinutes);
   if (estimate !== task.estimateMinutes) patch.estimateMinutes = estimate;
+
+  const projectId = form.projectId === '' ? null : form.projectId;
+  const milestoneId = form.milestoneId === '' ? null : form.milestoneId;
+  if (projectId !== task.projectId || milestoneId !== task.milestoneId) {
+    patch.projectId = projectId;
+    patch.milestoneId = milestoneId;
+  }
 
   return patch;
 }
 
 /**
- * DESIGN §5.5 task detail: a 420 px right drawer. M1-S5 covers the plain
- * fields; project, milestone, tags, links and checklist arrive in M1-S6/S7.
- *
- * A native `<dialog>` handles the focus trap, Esc and the backdrop (D26).
+ * DESIGN §5.5 task detail: a 420 px right drawer with every field, checklist
+ * and links. A native `<dialog>` handles the focus trap, Esc and the backdrop
+ * (D26); the fields load from `GET /api/tasks/:id` (D28).
  */
 export function TaskDrawer() {
-  const task = useUiStore((state) => state.drawerTask);
+  const drawerTask = useUiStore((state) => state.drawerTask);
   const closeTask = useUiStore((state) => state.closeTask);
 
   const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const seededRef = useRef<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [confirmingDelete, setConfirmingDelete] = useState(false);
 
+  const detail = useTaskDetail(drawerTask?.id ?? null);
+  const task = detail.data ?? null;
+  const taskId = drawerTask?.id ?? '';
+
   const { data: statusData } = useStatuses();
+  const nav = useNavSummary();
+  const projects = nav.data?.projects ?? [];
+  const milestones = useMilestones(form?.projectId || undefined);
+
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
 
-  const isOpen = task !== null;
+  const isOpen = drawerTask !== null;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -86,14 +119,19 @@ export function TaskDrawer() {
     if (!isOpen && dialog.open) dialog.close();
   }, [isOpen]);
 
-  // Re-seed the form whenever a different task is opened.
+  // Seed once per task so a background refetch cannot wipe typing.
   useEffect(() => {
-    if (!task) return;
+    if (!task || seededRef.current === task.id) return;
 
+    seededRef.current = task.id;
     setForm(toForm(task));
     setError(null);
     setConfirmingDelete(false);
   }, [task]);
+
+  useEffect(() => {
+    if (!isOpen) seededRef.current = null;
+  }, [isOpen]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -159,111 +197,168 @@ export function TaskDrawer() {
             <h2 id="task-drawer-title" className="text-[15px] font-semibold text-zinc-900">
               Task
             </h2>
-            <p className="mt-0.5 truncate text-xs text-zinc-500">{task?.projectName ?? 'Inbox'}</p>
+            <p className="mt-0.5 truncate text-xs text-zinc-500">
+              {task?.projectName ?? 'Inbox'}
+              {task?.milestoneId && milestones.data
+                ? ` · ${milestones.data.milestones.find((m) => m.id === task.milestoneId)?.name ?? ''}`
+                : ''}
+            </p>
           </div>
           <Button onClick={closeTask}>Close</Button>
         </header>
 
-        {form && (
-          <form
-            id="task-drawer-form"
-            className="min-h-0 flex-1 overflow-y-auto px-5 py-4"
-            onSubmit={handleSubmit}
-          >
-            <div className="grid grid-cols-2 gap-3">
-              <div className="col-span-2">
-                <Field label="Title">
-                  <Input
-                    autoFocus
-                    value={form.title}
-                    onChange={(event) => {
-                      setForm({ ...form, title: event.target.value });
-                    }}
-                  />
-                </Field>
-              </div>
+        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
+          {detail.isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
 
-              <div className="col-span-2">
-                <Field label="Notes">
-                  <Textarea
-                    value={form.notes}
-                    onChange={(event) => {
-                      setForm({ ...form, notes: event.target.value });
-                    }}
-                  />
-                </Field>
-              </div>
+          {detail.error && (
+            <InlineError
+              message={detail.error.message}
+              onRetry={() => {
+                void detail.refetch();
+              }}
+            />
+          )}
 
-              <Field label="Status">
-                <Select
-                  value={form.statusId}
-                  onChange={(event) => {
-                    setForm({ ...form, statusId: event.target.value });
-                  }}
-                >
-                  {(statusData?.statuses ?? []).map((status) => (
-                    <option key={status.id} value={status.id}>
-                      {status.name}
-                    </option>
-                  ))}
-                </Select>
-              </Field>
+          {form && task && (
+            <>
+              <form id="task-drawer-form" onSubmit={handleSubmit}>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="col-span-2">
+                    <Field label="Title">
+                      <Input
+                        autoFocus
+                        value={form.title}
+                        onChange={(event) => {
+                          setForm({ ...form, title: event.target.value });
+                        }}
+                      />
+                    </Field>
+                  </div>
 
-              <Field label="Priority">
-                <Select
-                  value={String(form.priority)}
-                  onChange={(event) => {
-                    setForm({ ...form, priority: Number(event.target.value) as Priority });
-                  }}
-                >
-                  <option value="1">P1</option>
-                  <option value="2">P2</option>
-                  <option value="3">P3</option>
-                </Select>
-              </Field>
+                  <div className="col-span-2">
+                    <Field label="Notes">
+                      <Textarea
+                        value={form.notes}
+                        onChange={(event) => {
+                          setForm({ ...form, notes: event.target.value });
+                        }}
+                      />
+                    </Field>
+                  </div>
 
-              <Field label="Due date">
-                <Input
-                  type="date"
-                  value={form.dueDate}
-                  onChange={(event) => {
-                    setForm({ ...form, dueDate: event.target.value });
-                  }}
-                />
-              </Field>
+                  <Field label="Project">
+                    <Select
+                      value={form.projectId}
+                      onChange={(event) => {
+                        // A milestone belongs to its project, so it resets.
+                        setForm({ ...form, projectId: event.target.value, milestoneId: '' });
+                      }}
+                    >
+                      <option value="">Inbox</option>
+                      {projects.map((project) => (
+                        <option key={project.id} value={project.id}>
+                          {project.name}
+                        </option>
+                      ))}
+                      {form.projectId !== '' && !projects.some((p) => p.id === form.projectId) && (
+                        <option value={form.projectId}>{task.projectName ?? 'Current project'}</option>
+                      )}
+                    </Select>
+                  </Field>
 
-              <Field label="Due time">
-                <Input
-                  type="time"
-                  value={form.dueTime}
-                  disabled={form.dueDate === ''}
-                  onChange={(event) => {
-                    setForm({ ...form, dueTime: event.target.value });
-                  }}
-                />
-              </Field>
+                  <Field label="Milestone">
+                    <Select
+                      value={form.milestoneId}
+                      disabled={form.projectId === ''}
+                      onChange={(event) => {
+                        setForm({ ...form, milestoneId: event.target.value });
+                      }}
+                    >
+                      <option value="">None</option>
+                      {(milestones.data?.milestones ?? []).map((milestone) => (
+                        <option key={milestone.id} value={milestone.id}>
+                          {milestone.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
 
-              <Field label="Estimate (minutes)" hint="Blank means no estimate.">
-                <Input
-                  type="number"
-                  min={1}
-                  step={5}
-                  inputMode="numeric"
-                  value={form.estimateMinutes}
-                  onChange={(event) => {
-                    setForm({ ...form, estimateMinutes: event.target.value });
-                  }}
-                />
-              </Field>
-            </div>
+                  <Field label="Status">
+                    <Select
+                      value={form.statusId}
+                      onChange={(event) => {
+                        setForm({ ...form, statusId: event.target.value });
+                      }}
+                    >
+                      {(statusData?.statuses ?? []).map((status) => (
+                        <option key={status.id} value={status.id}>
+                          {status.name}
+                        </option>
+                      ))}
+                    </Select>
+                  </Field>
 
-            {error && <InlineError message={error} />}
+                  <Field label="Priority">
+                    <Select
+                      value={String(form.priority)}
+                      onChange={(event) => {
+                        setForm({ ...form, priority: Number(event.target.value) as Priority });
+                      }}
+                    >
+                      <option value="1">P1</option>
+                      <option value="2">P2</option>
+                      <option value="3">P3</option>
+                    </Select>
+                  </Field>
 
-            <p className="mt-4 flex items-center gap-1.5 text-xs text-zinc-500">
-              <Kbd>Esc</Kbd> to close
-            </p>
-          </form>
-        )}
+                  <Field label="Due date">
+                    <Input
+                      type="date"
+                      value={form.dueDate}
+                      onChange={(event) => {
+                        setForm({ ...form, dueDate: event.target.value });
+                      }}
+                    />
+                  </Field>
+
+                  <Field label="Due time">
+                    <Input
+                      type="time"
+                      value={form.dueTime}
+                      disabled={form.dueDate === ''}
+                      onChange={(event) => {
+                        setForm({ ...form, dueTime: event.target.value });
+                      }}
+                    />
+                  </Field>
+
+                  <Field label="Estimate (minutes)" hint="Blank means no estimate.">
+                    <Input
+                      type="number"
+                      min={1}
+                      step={5}
+                      inputMode="numeric"
+                      value={form.estimateMinutes}
+                      onChange={(event) => {
+                        setForm({ ...form, estimateMinutes: event.target.value });
+                      }}
+                    />
+                  </Field>
+                </div>
+              </form>
+
+              <ChecklistSection taskId={taskId} items={task.checklistItems} />
+              <LinksSection taskId={taskId} links={task.links} />
+              <TagsSection taskId={taskId} tags={task.tags} />
+
+              {error && <InlineError message={error} />}
+
+              <p className="mt-4 flex items-center gap-1.5 text-xs text-zinc-500">
+                <Kbd>Esc</Kbd> to close
+              </p>
+            </>
+          )}
+        </div>
 
         <footer className="flex items-center justify-between gap-2 border-t border-zinc-200 px-5 py-3">
           <div className="flex items-center gap-2">
@@ -285,6 +380,7 @@ export function TaskDrawer() {
                 onClick={() => {
                   setConfirmingDelete(true);
                 }}
+                disabled={!task}
               >
                 Delete
               </Button>
@@ -302,5 +398,236 @@ export function TaskDrawer() {
         </footer>
       </div>
     </dialog>
+  );
+}
+
+function SectionHeading({ title, meta }: { title: string; meta?: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-2">
+      <h3 className="text-xs font-medium text-zinc-500">{title}</h3>
+      {meta && <span className="text-xs text-zinc-500">{meta}</span>}
+    </div>
+  );
+}
+
+function ChecklistSection({ taskId, items }: { taskId: string; items: ChecklistItem[] }) {
+  const addItem = useAddChecklistItem(taskId);
+  const updateItem = useUpdateChecklistItem(taskId);
+  const deleteItem = useDeleteChecklistItem(taskId);
+  const [title, setTitle] = useState('');
+
+  const done = items.filter((item) => item.done).length;
+
+  async function handleAdd(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmed = title.trim();
+    if (!trimmed) return;
+
+    await addItem.mutateAsync({ title: trimmed });
+    setTitle('');
+  }
+
+  return (
+    <section className="mt-5 border-t border-zinc-100 pt-4">
+      <SectionHeading title="Checklist" meta={`${done} of ${items.length}`} />
+
+      {items.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-2">
+          {items.map((item) => (
+            <li key={item.id} className="flex min-h-8 items-center gap-2">
+              <Checkbox
+                checked={item.done}
+                label={`Mark "${item.title}" as ${item.done ? 'not done' : 'done'}`}
+                onChange={(checked) => {
+                  void updateItem.mutateAsync({ id: item.id, done: checked });
+                }}
+              />
+              <span
+                className={cx(
+                  'min-w-0 flex-1 text-sm',
+                  item.done ? 'text-zinc-500 line-through' : 'text-zinc-900',
+                )}
+              >
+                {item.title}
+              </span>
+              <button
+                type="button"
+                aria-label={`Delete checklist item ${item.title}`}
+                className="text-xs text-zinc-500 underline underline-offset-2"
+                onClick={() => {
+                  void deleteItem.mutateAsync({ id: item.id });
+                }}
+              >
+                Delete
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <form className="mt-2 flex items-end gap-2" onSubmit={handleAdd}>
+        <div className="flex-1">
+          <Field label="Add checklist item">
+            <Input
+              value={title}
+              onChange={(event) => {
+                setTitle(event.target.value);
+              }}
+            />
+          </Field>
+        </div>
+        <Button type="submit" disabled={!title.trim()}>
+          Add
+        </Button>
+      </form>
+    </section>
+  );
+}
+
+function LinksSection({ taskId, links }: { taskId: string; links: TaskLink[] }) {
+  const addLink = useAddLink(taskId);
+  const deleteLink = useDeleteLink(taskId);
+  const [url, setUrl] = useState('');
+  const [label, setLabel] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleAdd(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!url.trim()) return;
+
+    try {
+      await addLink.mutateAsync({ url: url.trim(), label: label.trim() || undefined });
+      setUrl('');
+      setLabel('');
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not add the link');
+    }
+  }
+
+  return (
+    <section className="mt-5 border-t border-zinc-100 pt-4">
+      <SectionHeading title="Links" />
+
+      {links.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-2">
+          {links.map((link) => (
+            <li key={link.id} className="flex min-h-8 items-center gap-2">
+              <LinkBadge href={link.url}>{link.label}</LinkBadge>
+              <span className="min-w-0 flex-1 truncate text-xs text-zinc-500">{link.url}</span>
+              <button
+                type="button"
+                aria-label={`Remove link ${link.label}`}
+                className="text-xs text-zinc-500 underline underline-offset-2"
+                onClick={() => {
+                  void deleteLink.mutateAsync({ id: link.id });
+                }}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <form className="mt-2 flex flex-col gap-2" onSubmit={handleAdd}>
+        <Field label="Link URL">
+          <Input
+            type="url"
+            placeholder="https://"
+            value={url}
+            onChange={(event) => {
+              setUrl(event.target.value);
+            }}
+          />
+        </Field>
+        <div className="flex items-end gap-2">
+          <div className="flex-1">
+            <Field label="Badge label" hint="Blank derives it from the URL.">
+              <Input
+                value={label}
+                onChange={(event) => {
+                  setLabel(event.target.value);
+                }}
+              />
+            </Field>
+          </div>
+          <Button type="submit" disabled={!url.trim() || addLink.isPending}>
+            Add link
+          </Button>
+        </div>
+      </form>
+
+      {error && <InlineError message={error} />}
+    </section>
+  );
+}
+
+function TagsSection({ taskId, tags }: { taskId: string; tags: string[] }) {
+  const setTags = useSetTaskTags(taskId);
+  const known = useTags();
+  const [name, setName] = useState('');
+
+  async function addTag(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed || tags.includes(trimmed)) {
+      setName('');
+      return;
+    }
+
+    await setTags.mutateAsync({ tags: [...tags, trimmed] });
+    setName('');
+  }
+
+  return (
+    <section className="mt-5 border-t border-zinc-100 pt-4">
+      <SectionHeading title="Tags" />
+
+      {tags.length > 0 && (
+        <ul className="mt-2 flex flex-wrap gap-1.5">
+          {tags.map((tag) => (
+            <li
+              key={tag}
+              className="inline-flex items-center gap-1 rounded-md bg-zinc-100 px-2 py-0.5 text-xs text-zinc-700"
+            >
+              {tag}
+              <button
+                type="button"
+                aria-label={`Remove tag ${tag}`}
+                className="text-zinc-500"
+                onClick={() => {
+                  void setTags.mutateAsync({ tags: tags.filter((entry) => entry !== tag) });
+                }}
+              >
+                ×
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <form className="mt-2 flex items-end gap-2" onSubmit={addTag}>
+        <div className="flex-1">
+          <Field label="Add tag" hint="Tags are created on the fly.">
+            <Input
+              list="task-drawer-tags"
+              value={name}
+              onChange={(event) => {
+                setName(event.target.value);
+              }}
+            />
+          </Field>
+        </div>
+        <datalist id="task-drawer-tags">
+          {(known.data?.tags ?? []).map((tag) => (
+            <option key={tag.id} value={tag.name} />
+          ))}
+        </datalist>
+        <Button type="submit" disabled={!name.trim()}>
+          Add
+        </Button>
+      </form>
+    </section>
   );
 }

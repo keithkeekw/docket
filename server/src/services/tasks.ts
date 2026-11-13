@@ -1,6 +1,23 @@
-import type { CreateTaskBody, Task, UpdateTaskBody } from '@app/shared';
-import { and, asc, eq, isNull, like, or, sql } from 'drizzle-orm';
-import { milestones, projects, statuses, tasks } from '../db/schema';
+import type {
+  ChecklistItem,
+  CreateTaskBody,
+  MoveTaskBody,
+  Task,
+  TaskDetail,
+  TaskLink,
+  UpdateTaskBody,
+} from '@app/shared';
+import { and, asc, eq, inArray, isNull, like, or, sql } from 'drizzle-orm';
+import {
+  checklistItems,
+  milestones,
+  projects,
+  statuses,
+  tags,
+  taskLinks,
+  taskTags,
+  tasks,
+} from '../db/schema';
 import type { Db } from '../db/types';
 import { ServiceError } from '../lib/errors';
 import { defaultOpenStatusId, firstDoneStatusId, statusExists } from './statuses';
@@ -45,12 +62,92 @@ type TaskRow = {
   updatedAt: string;
 };
 
-function toTask(row: TaskRow): Task {
+type TaskExtras = {
+  tags: string[];
+  link: TaskLink | null;
+  checklist: { done: number; total: number };
+};
+
+const EMPTY_EXTRAS: TaskExtras = { tags: [], link: null, checklist: { done: 0, total: 0 } };
+
+function toTask(row: TaskRow, extras: TaskExtras = EMPTY_EXTRAS): Task {
   return {
     ...row,
     priority: row.priority === 1 || row.priority === 2 ? row.priority : 3,
+    tags: extras.tags,
+    link: extras.link,
+    checklist: extras.checklist,
   };
 }
+
+/**
+ * Tags, first link and checklist counts for a set of tasks, in three queries
+ * rather than three per row (NFR-4).
+ */
+function summariesFor(db: Db, taskIds: string[]): Map<string, TaskExtras> {
+  const result = new Map<string, TaskExtras>();
+  if (taskIds.length === 0) return result;
+
+  for (const id of taskIds) {
+    result.set(id, { tags: [], link: null, checklist: { done: 0, total: 0 } });
+  }
+
+  const tagRows = db
+    .select({ taskId: taskTags.taskId, name: tags.name })
+    .from(taskTags)
+    .innerJoin(tags, eq(taskTags.tagId, tags.id))
+    .where(inArray(taskTags.taskId, taskIds))
+    .orderBy(asc(tags.name))
+    .all();
+
+  for (const row of tagRows) result.get(row.taskId)?.tags.push(row.name);
+
+  const linkRows = db
+    .select({
+      id: taskLinks.id,
+      taskId: taskLinks.taskId,
+      url: taskLinks.url,
+      label: taskLinks.label,
+    })
+    .from(taskLinks)
+    .where(inArray(taskLinks.taskId, taskIds))
+    .orderBy(asc(taskLinks.id))
+    .all();
+
+  // The row badge shows one link; the drawer shows them all.
+  for (const row of linkRows) {
+    const extras = result.get(row.taskId);
+    if (extras && extras.link === null) extras.link = row;
+  }
+
+  const countRows = db
+    .select({
+      taskId: checklistItems.taskId,
+      total: sql<number>`count(*)`,
+      done: sql<number>`sum(case when ${checklistItems.done} then 1 else 0 end)`,
+    })
+    .from(checklistItems)
+    .where(inArray(checklistItems.taskId, taskIds))
+    .groupBy(checklistItems.taskId)
+    .all();
+
+  for (const row of countRows) {
+    const extras = result.get(row.taskId);
+    if (extras) extras.checklist = { done: Number(row.done ?? 0), total: Number(row.total) };
+  }
+
+  return result;
+}
+
+function withSummaries(db: Db, rows: TaskRow[]): Task[] {
+  const summaries = summariesFor(
+    db,
+    rows.map((row) => row.id),
+  );
+
+  return rows.map((row) => toTask(row, summaries.get(row.id) ?? EMPTY_EXTRAS));
+}
+
 
 export type TaskFilter = {
   /** `none` means Inbox (project_id IS NULL). */
@@ -58,6 +155,8 @@ export type TaskFilter = {
   /** Inclusive local date bound, `YYYY-MM-DD`. */
   dueTo?: string;
   q?: string;
+  /** Exact tag name (FR-30). */
+  tag?: string;
 };
 
 /**
@@ -83,6 +182,16 @@ export function listTasks(db: Db, filter: TaskFilter = {}): Task[] {
     conditions.push(or(like(tasks.title, term), like(tasks.notes, term)));
   }
 
+  if (filter.tag) {
+    conditions.push(
+      sql`exists (
+        select 1 from ${taskTags}
+        inner join ${tags} on ${tags.id} = ${taskTags.tagId}
+        where ${taskTags.taskId} = ${tasks.id} and ${tags.name} = ${filter.tag}
+      )`,
+    );
+  }
+
   const rows = db
     .select(taskSelection)
     .from(tasks)
@@ -98,7 +207,7 @@ export function listTasks(db: Db, filter: TaskFilter = {}): Task[] {
     )
     .all();
 
-  return rows.map(toTask);
+  return withSummaries(db, rows);
 }
 
 export function getTask(db: Db, id: string): Task {
@@ -111,7 +220,46 @@ export function getTask(db: Db, id: string): Task {
     .get();
 
   if (!row) throw new ServiceError('Task not found', 404);
-  return toTask(row);
+
+  const [task] = withSummaries(db, [row]);
+  if (!task) throw new ServiceError('Task not found', 404);
+  return task;
+}
+
+/** `GET /api/tasks/:id` — the drawer's view: links and checklist included. */
+export function getTaskDetail(db: Db, id: string): TaskDetail {
+  const task = getTask(db, id);
+
+  const links = db
+    .select({
+      id: taskLinks.id,
+      taskId: taskLinks.taskId,
+      url: taskLinks.url,
+      label: taskLinks.label,
+    })
+    .from(taskLinks)
+    .where(eq(taskLinks.taskId, id))
+    .orderBy(asc(taskLinks.id))
+    .all();
+
+  const checklist = db
+    .select({
+      id: checklistItems.id,
+      taskId: checklistItems.taskId,
+      title: checklistItems.title,
+      done: checklistItems.done,
+      position: checklistItems.position,
+    })
+    .from(checklistItems)
+    .where(eq(checklistItems.taskId, id))
+    .orderBy(asc(checklistItems.position), asc(checklistItems.id))
+    .all();
+
+  return {
+    ...task,
+    links,
+    checklistItems: checklist.map((item): ChecklistItem => ({ ...item, done: Boolean(item.done) })),
+  };
 }
 
 function nextPosition(db: Db, projectId: string | null): number {
@@ -223,6 +371,39 @@ export function updateTask(db: Db, id: string, body: UpdateTaskBody): Task {
   // Moving a task out of a project drops its milestone with it (PROGRESS D7).
   if (body.projectId === null && body.milestoneId === undefined) {
     patch.milestoneId = null;
+  }
+
+  // A task that changes collection joins the end of the new one.
+  if (body.projectId !== undefined && body.projectId !== existing.projectId) {
+    patch.position = nextPosition(db, body.projectId);
+  }
+
+  db.update(tasks).set(patch).where(eq(tasks.id, id)).run();
+
+  return getTask(db, id);
+}
+
+/**
+ * `POST /api/tasks/:id/move` (FR-5, US-3). Inbox, a project or a milestone —
+ * the milestone must belong to the target project (D20).
+ */
+export function moveTask(db: Db, id: string, body: MoveTaskBody): Task {
+  const existing = getTask(db, id);
+
+  const projectId = body.projectId;
+  const milestoneId = body.milestoneId ?? null;
+
+  assertProjectExists(db, projectId);
+  assertMilestoneFitsProject(db, milestoneId, projectId);
+
+  const patch: Partial<typeof tasks.$inferInsert> = {
+    projectId,
+    milestoneId,
+    updatedAt: new Date().toISOString(),
+  };
+
+  if (projectId !== existing.projectId) {
+    patch.position = nextPosition(db, projectId);
   }
 
   db.update(tasks).set(patch).where(eq(tasks.id, id)).run();

@@ -4,7 +4,7 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 `docs/DESIGN.md` at the start of every session.
 
 - **Last updated:** 13 Nov 2026
-- **Current step:** M1-S6 (next) — projects, milestones, checklist, links, tags, move-to-project
+- **Current step:** M1-S7 (next) — List / Table / Kanban, shared filters, dnd-kit
 - **Spec sources:** `docs/PRD.md` (behaviour), `docs/TECHSTACK.md` (implementation), `docs/DESIGN.md` (visuals)
 
 ---
@@ -18,8 +18,8 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 | M1-S3 | Shared components (DESIGN §4) | ✅ Done |
 | M1-S4 | App shell, sidebar, routing | ✅ Done |
 | M1-S5 | Tasks CRUD + plain capture (`Ctrl/⌘ K`) | ✅ Done |
-| M1-S6 | Projects, milestones, checklist, links, tags, move-to-project | ⬜ Next |
-| M1-S7 | List / Table / Kanban + shared filters + dnd-kit | ⬜ |
+| M1-S6 | Projects, milestones, checklist, links, tags, move-to-project | ✅ Done |
+| M1-S7 | List / Table / Kanban + shared filters + dnd-kit | ⬜ Next |
 | M1-S8 | Statuses settings; recurrence service + tests | ⬜ |
 | M1-S9 | Dashboard endpoint + screen | ⬜ |
 | M1-S10 | Backup / restore | ⬜ |
@@ -388,6 +388,106 @@ UI, headless Chrome at 1280 × 820 driven over CDP (no Playwright in the stack):
 
 ---
 
+## M1-S6 — Projects, milestones, checklist, links, tags ✅
+
+### Built
+
+- **Shared contracts**: task rows now carry `tags`, `link` (first link) and
+  `checklist: {done,total}`; `taskDetailSchema` adds `links` and
+  `checklistItems`. New schemas for projects (`projectSummarySchema` with a
+  derived `progress`), milestones (with `done`/`total`), tags, checklist items
+  and links, plus strict bodies for every write.
+- **Projects** (`server/src/services/projects.ts`): list (active or archived),
+  get, create, patch (name, description, target date, archived, aiExcluded,
+  position), delete. Progress is derived per request (D8): done ÷ all tasks,
+  lowest-position incomplete milestone, earliest due open task — three grouped
+  queries for the whole list.
+- **Milestones**: list with task counts, create, patch (name, position,
+  `completedAt`), delete. Deleting leaves tasks in the project (D7).
+- **Checklist, links, tags**: add/rename/toggle/delete items; add a link with a
+  derived label (`KEY-123` → `OPS-112`, Zendesk ticket → `ZD-48213`, else the
+  last path segment) or an explicit one; replace a task's tag set by name,
+  creating tags on the fly and de-duplicating case-insensitively.
+- **`POST /api/tasks/:id/move`** (FR-5) plus `GET /api/tasks/:id` (D28), and a
+  `?tag=` filter on the task list. Moving a task appends it to the end of its
+  new collection.
+- **Web data layer**: `api/projects.ts` (projects, detail, milestones + their
+  mutations), `api/taskDetail.ts` (detail, tags, and the checklist/link/tag
+  mutations that invalidate the row badges too).
+- **Project screen** (DESIGN §5.2): breadcrumb, title + "Edit project"/"New
+  task", description, milestone pills with live "7 of 12" state and the current
+  milestone tinted blue-50, dashed "Add milestone", ViewSwitcher with
+  "Showing: <milestone>", and the task list filtered by the selected pill.
+  Table and Kanban stay placeholders until M1-S7.
+- **`ProjectDialog`** (D29): create and edit, archive/restore, two-step delete,
+  and milestone management (rename on blur, Done, Up/Down, Delete, add).
+  Opened from the sidebar's "New project" row or the project screen.
+- **Task drawer** now covers the whole FR-4 field set: project and milestone
+  selects (milestone resets when the project changes), plus checklist, links and
+  tags sections that save immediately. The checklist count appears on the row.
+- **Field** now renders its hint outside the `<label>` so screen readers do not
+  read "Optional." as part of the field name.
+
+### Verification performed
+
+```bash
+npm run typecheck   # clean
+npm test            # 66 passed (9 db + 5 nav + 11 web lib + 4 api client + 13 tasks + 11 projects + 13 task details)
+npm run build       # clean, 500 kB chunk (148 kB gzip)
+```
+
+API, against a throwaway copy of the database (deleted after; `data/app.db`
+still has 0 tasks and 0 projects):
+
+- Created a project, two milestones, two tasks; `GET /api/projects/:id` reported
+  `done=0 total=2 pct=0 current=Phase 1 next=Book the venue` (earliest due open
+  task).
+- Checklist add → row summary `check=0/2`; link add → `ZD-48213` derived from
+  `https://acme.zendesk.com/agent/tickets/48213`; tags `["Vendor","docs"]` →
+  row `tags=Vendor,docs`; detail returned 1 link and 2 checklist items.
+- `POST /move` between milestones → `milestoneId` changed; deleting the project
+  returned 204 and both tasks came back with `projectId=null`,
+  `milestoneId=null`.
+
+UI, Playwright at 1280 × 860 against the throwaway database:
+
+- Sidebar "New project" → dialog → Create → lands on `/projects/:id`, sidebar
+  lists the project, breadcrumb and description render.
+- "Add milestone" inline → pill appears ("Phase 1 · Not started", blue = current).
+- "New task" opens capture with "Saves to this project." and "Add task"; Enter
+  adds the task to the project (not the Inbox).
+- Task drawer: project preselected, milestone select lists the project's
+  milestones, checklist item and link and tag added live — the row then shows
+  `ZD-48213`, `☑ 0/1` and the tag chips.
+- Selecting a milestone pill filters to "Showing: Phase 2" with an empty state
+  naming that milestone; clicking again clears it.
+- Edit project → Phase 1 marked Done, Phase 2 moved up: pills reorder and read
+  "Phase 2 · Not started" / "Phase 1 · Done".
+- Archive → project disappears from the sidebar, screen still renders with "This
+  project is archived."; Restore brings it back. Delete project → confirm →
+  lands on `/inbox` with all tasks and no project.
+- Fixed during the pass: a nested `<form>` in the project dialog (React logged
+  it as an invalid-DOM error) and project-detail 404 refetches right after a
+  delete. Console is clean afterwards.
+
+### PRD IDs advanced
+
+- **FR-4 — complete.** Title, notes, status, priority, tags, due date, due time,
+  estimate, external links and checklist items all persist. Recurrence is the
+  remaining field (FR-15, M1-S8).
+- **FR-5 — done.** Move between Inbox, project and milestone, in the drawer and
+  through `/move`.
+- **FR-6 — done.** Create, edit, archive, restore and delete projects.
+- **FR-7 — done.** Create, rename, reorder, complete and delete milestones.
+- **FR-8, FR-16, FR-30 — done.** Checklist with row progress, link badges with
+  derived labels, tags created on the fly (API filter ready, UI in S7).
+- **FR-9 — service done**: progress, current milestone, done/total, next due
+  task are exposed on every project; the dashboard cards that render them land
+  in M1-S9.
+- **FR-10 — partial.** Project screen has the List view; Table and Kanban in S7.
+
+---
+
 ## Decisions
 
 | # | Decision |
@@ -418,7 +518,11 @@ UI, headless Chrome at 1280 × 820 driven over CDP (no Playwright in the stack):
 | D24 | The sidebar reads `GET /api/nav` (counts + active projects) instead of calling `/api/tasks` and `/api/projects`. Counts are **open work only** (status category ≠ done); "Today" is overdue + due today. `/api/dashboard` (M1-S9) will reuse the same service functions rather than replace this endpoint. |
 | D25 | Preline's `preline/non-auto` bundle was removed in M1-S4 because no Preline JS plugin is used yet; that drops a 406 kB chunk. When the task drawer, dropdown filters or modal arrive, import only the specific plugin modules (for example `preline/offcanvas`) and re-add `PrelineInit` with route-aware cleanup. `variants.css` and the `@source` scan stay in place. |
 | D26 | Quick capture and the task drawer use a **native `<dialog>`** with `showModal()`, not Preline. Preline 5.1.0 ships no modal/offcanvas plugin (only `overlay`), and its markup contract would need `PrelineInit` plus route-aware teardown to get a focus trap the browser already provides. `showModal()` gives the top layer, focus trap, Esc and `::backdrop`; the only styling needed is `backdrop:bg-zinc-900/50`. Revisit Preline JS only where it earns its place (dropdowns in S7, datepicker if the native one proves too plain). |
-| D27 | The task drawer is seeded from the row's task object instead of a `GET /api/tasks/:id` call, because TECHSTACK §5 defines no such endpoint. Mutation responses replace the local copy, so the drawer stays accurate without an extra route. |
+| D27 | ~~The task drawer is seeded from the row's task object instead of a `GET /api/tasks/:id` call.~~ Superseded by D28 in M1-S6, once the drawer needed links and checklist items. |
+| D28 | `GET /api/tasks/:id` **is** added in M1-S6. The task list row carries a summary (`tags: string[]`, `link` = first link, `checklist: {done,total}`) built from three grouped queries, so a list never does per-row work (NFR-4); the drawer reads the full detail (`links`, `checklistItems`) from the new route. |
+| D29 | DESIGN §5.5 has no projects screen, so project create/edit/archive/delete live in one `ProjectDialog` opened from a sidebar "New project" row or the project screen's "Edit project" button. Delete keeps the work: tasks fall back to the Inbox (D7). |
+| D30 | Milestone management (rename, done, reorder, delete) sits inside `ProjectDialog`. Reordering rewrites `position` to the new index order, which also normalises gaps left by deletes; there is no separate reorder endpoint. |
+| D31 | Capture from a project screen keeps the project: `openCapture(projectId)` stores the target and the capture dialog creates the task there ("Add task" instead of "Add to Inbox"). |
 
 ## Follow-ups / known gaps
 
@@ -427,9 +531,9 @@ UI, headless Chrome at 1280 × 820 driven over CDP (no Playwright in the stack):
 - `preline/non-auto` chunk: **resolved in M1-S4** by removing the bundle (D25).
   The task drawer and quick capture landed on a native `<dialog>` instead of a
   Preline plugin (D26), so no Preline JS is loaded yet.
-- Placeholder bodies remain on Dashboard (S9), All tasks (S7), Project (S6) and
-  Settings (S8). Each names its step in the copy and is replaced as that step
-  lands.
+- Placeholder bodies remain on Dashboard (S9), All tasks (S7) and Settings (S8),
+  plus the Table/Kanban bodies on a project (S7). Each names its step in the copy
+  and is replaced as that step lands.
 - `npm audit` reports 4 moderate advisories from drizzle-kit's bundled
   `@esbuild-kit/esm-loader` (old esbuild). Dev-only CLI, not shipped, no dev
   server involved; **do not** run `npm audit fix --force` (it would downgrade
@@ -438,11 +542,12 @@ UI, headless Chrome at 1280 × 820 driven over CDP (no Playwright in the stack):
 - PRD open questions for Keith: Q1 (company AI policy), Q5 (final app name).
   Neither blocks M1.
 
-## Next step — M1-S6
+## Next step — M1-S7
 
-Projects, milestones, checklist, links and tags, plus move-to-project. Fill in
-the task drawer's remaining fields (project, milestone, tags, links, checklist),
-the Project screen from DESIGN §5.2, and the `/move` endpoint. Keep the
-service-layer rule that a milestone must belong to the task's project (D20) and
-the "delete project → tasks to Inbox" behaviour (D7). Deliverables feed FR-4,
-FR-5, FR-6, FR-7, FR-8, FR-12 and the project half of FR-10.
+List / Table / Kanban sharing one filter state, plus dnd-kit. Build the real
+All tasks screen (search box, FilterChips for status, project, priority, tag and
+due range), the Table view with the DESIGN §4 DataTable columns, and the Kanban
+board with drag-and-drop between statuses and a keyboard alternative (FR-12).
+The project screen swaps its placeholder views for the real ones. Filters and
+search persist across view switches (FR-11) and `?q=`, `?tag=` are already
+served. Deliverables feed FR-10, FR-11, FR-12, FR-13 and FR-30's filter half.

@@ -21,7 +21,13 @@ export function InboxRoute() {
         actions={
           <>
             <CaptureHint />
-            <Button onClick={openCapture}>Capture</Button>
+            <Button
+              onClick={() => {
+                openCapture();
+              }}
+            >
+              Capture
+            </Button>
           </>
         }
       />

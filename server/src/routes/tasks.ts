@@ -1,39 +1,40 @@
 import {
   completeTaskBodySchema,
   createTaskBodySchema,
+  moveTaskBodySchema,
   updateTaskBodySchema,
 } from '@app/shared';
-import type { Context, Hono } from 'hono';
-import type { z } from 'zod';
+import type { Hono } from 'hono';
 import type { Db } from '../db/types';
-import { createTask, deleteTask, listTasks, setTaskDone, updateTask } from '../services/tasks';
-
-function invalidBody(c: Context, error: z.ZodError) {
-  return c.json({ error: 'Invalid request body', issues: error.issues }, 400);
-}
-
-async function readJson(c: Context): Promise<unknown> {
-  try {
-    return await c.req.json();
-  } catch {
-    return undefined;
-  }
-}
+import { invalidBody, readJson } from '../lib/http';
+import {
+  createTask,
+  deleteTask,
+  getTaskDetail,
+  listTasks,
+  moveTask,
+  setTaskDone,
+  updateTask,
+} from '../services/tasks';
 
 export function registerTaskRoutes(app: Hono, db: Db): void {
   app.get('/api/tasks', (c) => {
     const project = c.req.query('project');
     const dueTo = c.req.query('due_to');
     const q = c.req.query('q')?.trim();
+    const tag = c.req.query('tag')?.trim();
 
     return c.json({
       tasks: listTasks(db, {
         project: project === undefined ? undefined : project,
         dueTo: dueTo || undefined,
         q: q || undefined,
+        tag: tag || undefined,
       }),
     });
   });
+
+  app.get('/api/tasks/:id', (c) => c.json({ task: getTaskDetail(db, c.req.param('id')) }));
 
   app.post('/api/tasks', async (c) => {
     const parsed = createTaskBodySchema.safeParse(await readJson(c));
@@ -56,6 +57,13 @@ export function registerTaskRoutes(app: Hono, db: Db): void {
     if (!parsed.success) return invalidBody(c, parsed.error);
 
     return c.json({ task: setTaskDone(db, c.req.param('id'), parsed.data.done) });
+  });
+
+  app.post('/api/tasks/:id/move', async (c) => {
+    const parsed = moveTaskBodySchema.safeParse(await readJson(c));
+    if (!parsed.success) return invalidBody(c, parsed.error);
+
+    return c.json({ task: moveTask(db, c.req.param('id'), parsed.data) });
   });
 
   app.delete('/api/tasks/:id', (c) => {

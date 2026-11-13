@@ -63,6 +63,9 @@ export function TaskListPanel({
                   dueDate: task.dueDate,
                   dueTime: task.dueTime,
                   estimateMinutes: task.estimateMinutes,
+                  tags: task.tags,
+                  link: task.link ? { url: task.link.url, label: task.link.label } : null,
+                  checklist: task.checklist.total > 0 ? task.checklist : null,
                 }}
                 onOpen={() => {
                   onOpen(task);

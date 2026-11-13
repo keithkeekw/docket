@@ -1,6 +1,7 @@
 import { APP_NAME } from '@app/shared';
 import { Link } from 'react-router';
 import { useNavSummary } from '../api/nav';
+import { useUiStore } from '../store/ui';
 import { NavItem } from './NavItem';
 
 /**
@@ -13,6 +14,7 @@ import { NavItem } from './NavItem';
  */
 export function Sidebar() {
   const nav = useNavSummary();
+  const openProjectDialog = useUiStore((state) => state.openProjectDialog);
   const counts = nav.data?.counts;
   const projects = nav.data?.projects ?? [];
 
@@ -56,6 +58,16 @@ export function Sidebar() {
             ))}
           </ul>
         )}
+
+        <button
+          type="button"
+          className="mt-0.5 flex min-h-10 w-full items-center rounded-lg px-3 text-left text-sm text-zinc-600"
+          onClick={() => {
+            openProjectDialog({ mode: 'create' });
+          }}
+        >
+          New project
+        </button>
       </div>
 
       <div className="mt-4 min-[900px]:mt-auto min-[900px]:pt-4">

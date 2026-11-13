@@ -16,6 +16,7 @@ import { Kbd } from './Kbd';
  */
 export function CaptureDialog() {
   const isOpen = useUiStore((state) => state.captureOpen);
+  const captureProjectId = useUiStore((state) => state.captureProjectId);
   const openCapture = useUiStore((state) => state.openCapture);
   const closeCapture = useUiStore((state) => state.closeCapture);
 
@@ -53,7 +54,7 @@ export function CaptureDialog() {
     if (!trimmed || createTask.isPending) return;
 
     try {
-      await createTask.mutateAsync({ title: trimmed });
+      await createTask.mutateAsync({ title: trimmed, projectId: captureProjectId ?? undefined });
       closeCapture();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not save the task');
@@ -82,7 +83,9 @@ export function CaptureDialog() {
         <h2 id="capture-title" className="text-[15px] font-semibold text-zinc-900">
           Quick capture
         </h2>
-        <p className="mt-1 text-xs text-zinc-500">Saves to the Inbox.</p>
+        <p className="mt-1 text-xs text-zinc-500">
+          {captureProjectId ? 'Saves to this project.' : 'Saves to the Inbox.'}
+        </p>
 
         <input
           ref={inputRef}
@@ -103,7 +106,7 @@ export function CaptureDialog() {
             <Kbd>Enter</Kbd> to add · <Kbd>Esc</Kbd> to close
           </span>
           <Button type="submit" variant="primary" disabled={!title.trim() || createTask.isPending}>
-            {createTask.isPending ? 'Saving…' : 'Add to Inbox'}
+            {createTask.isPending ? 'Saving…' : captureProjectId ? 'Add task' : 'Add to Inbox'}
           </Button>
         </div>
       </form>

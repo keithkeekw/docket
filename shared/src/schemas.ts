@@ -51,7 +51,7 @@ export type StatusCategory = z.infer<typeof statusCategorySchema>;
 export type StatusList = z.infer<typeof statusListSchema>;
 
 // ---------------------------------------------------------------------------
-// Tasks (FR-4)
+// Tasks (FR-4), checklist (FR-8), links (FR-16), tags (FR-30)
 // ---------------------------------------------------------------------------
 
 export const prioritySchema = z.union([z.literal(1), z.literal(2), z.literal(3)]);
@@ -61,6 +61,28 @@ export const localDateSchema = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
 
 /** Local wall-clock time, `HH:mm` (PROGRESS D17). */
 export const localTimeSchema = z.string().regex(/^\d{2}:\d{2}$/);
+
+/** One external link on a task; `label` is derived on save but editable. */
+export const taskLinkSchema = z.object({
+  id: z.string().min(1),
+  taskId: z.string().min(1),
+  url: z.string().min(1),
+  label: z.string().min(1),
+});
+
+export const checklistItemSchema = z.object({
+  id: z.string().min(1),
+  taskId: z.string().min(1),
+  title: z.string().min(1),
+  done: z.boolean(),
+  position: z.number().int(),
+});
+
+/** What a TaskRow shows: "☑ 1/4" without shipping the whole checklist. */
+export const checklistProgressSchema = z.object({
+  done: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+});
 
 export const taskSchema = z.object({
   id: z.string().min(1),
@@ -80,6 +102,16 @@ export const taskSchema = z.object({
   completedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
+  tags: z.array(z.string()),
+  /** First link only — enough for the row badge. */
+  link: taskLinkSchema.nullable(),
+  checklist: checklistProgressSchema,
+});
+
+/** `GET /api/tasks/:id` — the drawer needs the full nested records. */
+export const taskDetailSchema = taskSchema.extend({
+  links: z.array(taskLinkSchema),
+  checklistItems: z.array(checklistItemSchema),
 });
 
 export const taskListSchema = z.object({
@@ -90,8 +122,31 @@ export const taskResponseSchema = z.object({
   task: taskSchema,
 });
 
+export const taskDetailResponseSchema = z.object({
+  task: taskDetailSchema,
+});
+
+export const checklistItemListSchema = z.object({
+  items: z.array(checklistItemSchema),
+});
+
+export const checklistItemResponseSchema = z.object({
+  item: checklistItemSchema,
+});
+
+export const taskLinkResponseSchema = z.object({
+  link: taskLinkSchema,
+});
+
+export const taskTagsResponseSchema = z.object({
+  tags: z.array(z.string()),
+});
+
 export type Task = z.infer<typeof taskSchema>;
+export type TaskDetail = z.infer<typeof taskDetailSchema>;
 export type TaskList = z.infer<typeof taskListSchema>;
+export type TaskLink = z.infer<typeof taskLinkSchema>;
+export type ChecklistItem = z.infer<typeof checklistItemSchema>;
 export type Priority = z.infer<typeof prioritySchema>;
 
 /**
@@ -126,5 +181,153 @@ export const completeTaskBodySchema = z.strictObject({
   done: z.boolean().default(true),
 });
 
+/** `POST /api/tasks/:id/move` (FR-5, US-3). */
+export const moveTaskBodySchema = z.strictObject({
+  projectId: z.string().min(1).nullable(),
+  milestoneId: z.string().min(1).nullish(),
+});
+
+export const createChecklistItemBodySchema = z.strictObject({
+  title: z.string().trim().min(1).max(500),
+  position: z.number().int().nonnegative().optional(),
+});
+
+export const updateChecklistItemBodySchema = z.strictObject({
+  title: z.string().trim().min(1).max(500).optional(),
+  done: z.boolean().optional(),
+  position: z.number().int().nonnegative().optional(),
+});
+
+export const createTaskLinkBodySchema = z.strictObject({
+  url: z.url().max(2_000),
+  label: z.string().trim().min(1).max(40).optional(),
+});
+
+/** Tags are addressed by name so they can be created on the fly (FR-30). */
+export const setTaskTagsBodySchema = z.strictObject({
+  tags: z.array(z.string().trim().min(1).max(40)).max(20),
+});
+
 export type CreateTaskBody = z.infer<typeof createTaskBodySchema>;
 export type UpdateTaskBody = z.infer<typeof updateTaskBodySchema>;
+export type MoveTaskBody = z.infer<typeof moveTaskBodySchema>;
+export type CreateChecklistItemBody = z.infer<typeof createChecklistItemBodySchema>;
+export type UpdateChecklistItemBody = z.infer<typeof updateChecklistItemBodySchema>;
+export type CreateTaskLinkBody = z.infer<typeof createTaskLinkBodySchema>;
+
+// ---------------------------------------------------------------------------
+// Projects (FR-6, FR-9) and milestones (FR-7)
+// ---------------------------------------------------------------------------
+
+/**
+ * Derived per request rather than stored (D8): done ÷ all tasks, the
+ * lowest-position incomplete milestone, and the earliest due date still open.
+ */
+export const projectProgressSchema = z.object({
+  done: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+  percent: z.number().int().min(0).max(100),
+  currentMilestone: z.object({ id: z.string().min(1), name: z.string().min(1) }).nullable(),
+  nextDueTask: z
+    .object({ id: z.string().min(1), title: z.string().min(1), dueDate: localDateSchema })
+    .nullable(),
+});
+
+export const projectSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  description: z.string(),
+  targetDate: localDateSchema.nullable(),
+  archived: z.boolean(),
+  aiExcluded: z.boolean(),
+  position: z.number().int(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+
+export const projectSummarySchema = projectSchema.extend({
+  progress: projectProgressSchema,
+});
+
+export const projectListSchema = z.object({
+  projects: z.array(projectSummarySchema),
+});
+
+export const projectResponseSchema = z.object({
+  project: projectSummarySchema,
+});
+
+/** Milestone pill needs its task counts for "7 of 12" (DESIGN §4). */
+export const milestoneSchema = z.object({
+  id: z.string().min(1),
+  projectId: z.string().min(1),
+  name: z.string().min(1),
+  position: z.number().int(),
+  completedAt: z.string().nullable(),
+  createdAt: z.string(),
+  done: z.number().int().nonnegative(),
+  total: z.number().int().nonnegative(),
+});
+
+export const milestoneListSchema = z.object({
+  milestones: z.array(milestoneSchema),
+});
+
+export const milestoneResponseSchema = z.object({
+  milestone: milestoneSchema,
+});
+
+export type Project = z.infer<typeof projectSchema>;
+export type ProjectSummary = z.infer<typeof projectSummarySchema>;
+export type ProjectList = z.infer<typeof projectListSchema>;
+export type ProjectProgress = z.infer<typeof projectProgressSchema>;
+export type Milestone = z.infer<typeof milestoneSchema>;
+export type MilestoneList = z.infer<typeof milestoneListSchema>;
+
+export const createProjectBodySchema = z.strictObject({
+  name: z.string().trim().min(1).max(200),
+  description: z.string().max(5_000).optional(),
+  targetDate: localDateSchema.nullish(),
+});
+
+export const updateProjectBodySchema = z.strictObject({
+  name: z.string().trim().min(1).max(200).optional(),
+  description: z.string().max(5_000).optional(),
+  targetDate: localDateSchema.nullable().optional(),
+  archived: z.boolean().optional(),
+  aiExcluded: z.boolean().optional(),
+  position: z.number().int().nonnegative().optional(),
+});
+
+export const createMilestoneBodySchema = z.strictObject({
+  name: z.string().trim().min(1).max(200),
+  position: z.number().int().nonnegative().optional(),
+});
+
+export const updateMilestoneBodySchema = z.strictObject({
+  name: z.string().trim().min(1).max(200).optional(),
+  position: z.number().int().nonnegative().optional(),
+  completedAt: z.string().nullable().optional(),
+});
+
+export type CreateProjectBody = z.infer<typeof createProjectBodySchema>;
+export type UpdateProjectBody = z.infer<typeof updateProjectBodySchema>;
+export type CreateMilestoneBody = z.infer<typeof createMilestoneBodySchema>;
+export type UpdateMilestoneBody = z.infer<typeof updateMilestoneBodySchema>;
+
+// ---------------------------------------------------------------------------
+// Tags (FR-30)
+// ---------------------------------------------------------------------------
+
+export const tagSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+});
+
+export const tagListSchema = z.object({
+  tags: z.array(tagSchema),
+});
+
+export type Tag = z.infer<typeof tagSchema>;
+export type TagList = z.infer<typeof tagListSchema>;
+

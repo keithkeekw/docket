@@ -28,11 +28,14 @@ export function Field({
   children: ReactNode;
 }) {
   return (
-    <label className="flex flex-col gap-1.5">
-      <span className="text-[11px] text-zinc-500">{label}</span>
-      {children}
+    <div className="flex flex-col gap-1.5">
+      {/* The hint sits outside the label so it is not read as part of the name. */}
+      <label className="flex flex-col gap-1.5">
+        <span className="text-[11px] text-zinc-500">{label}</span>
+        {children}
+      </label>
       {hint && <span className="text-[11px] text-zinc-500">{hint}</span>}
-    </label>
+    </div>
   );
 }
 
