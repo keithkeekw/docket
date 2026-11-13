@@ -1,30 +1,18 @@
-import { fileURLToPath } from 'node:url';
 import { navSummarySchema } from '@app/shared';
-import Database from 'better-sqlite3';
 import { eq } from 'drizzle-orm';
-import { drizzle } from 'drizzle-orm/better-sqlite3';
-import { migrate } from 'drizzle-orm/better-sqlite3/migrator';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from './app';
-import * as schema from './db/schema';
 import { projects, statuses, tasks } from './db/schema';
-import { seedAppSettings, seedStatuses } from './db/seed-data';
 import type { Db } from './db/types';
 import { localDateString } from './lib/dates';
+import { createTestDb } from './test/helpers';
 
-const migrationsFolder = fileURLToPath(new URL('./db/migrations', import.meta.url));
-
-let sqlite: Database.Database;
+let sqlite: ReturnType<typeof createTestDb>['sqlite'];
 let db: Db;
 let app: ReturnType<typeof createApp>;
 
 beforeEach(() => {
-  sqlite = new Database(':memory:');
-  sqlite.pragma('foreign_keys = ON');
-  db = drizzle(sqlite, { schema });
-  migrate(db, { migrationsFolder });
-  seedStatuses(db);
-  seedAppSettings(db);
+  ({ sqlite, db } = createTestDb());
   app = createApp(db);
 });
 

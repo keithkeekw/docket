@@ -12,32 +12,49 @@ export class ApiError extends Error {
 }
 
 /**
- * Typed GET against the local API. Responses are parsed with the shared Zod
+ * One request helper for every call. Responses are parsed with the shared Zod
  * schema, so a drifting server shape fails loudly instead of rendering
  * `undefined` (TECHSTACK §5: the client never trusts the wire).
  */
-export async function apiGet<T>(
-  path: string,
-  schema: ZodType<T>,
-  signal?: AbortSignal,
-): Promise<T> {
+async function request(path: string, init: RequestInit = {}): Promise<Response> {
   let response: Response;
 
   try {
-    response = await fetch(path, { signal, headers: { Accept: 'application/json' } });
+    response = await fetch(path, {
+      ...init,
+      headers: { Accept: 'application/json', ...init.headers },
+    });
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw error;
     throw new ApiError(`Could not reach the local API (${path})`);
   }
 
   if (!response.ok) {
-    throw new ApiError(
-      `Request failed: ${response.status} ${response.statusText}`.trim(),
-      response.status,
-    );
+    let message = `Request failed: ${response.status} ${response.statusText}`.trim();
+
+    try {
+      const payload: unknown = await response.json();
+      if (
+        payload &&
+        typeof payload === 'object' &&
+        'error' in payload &&
+        typeof payload.error === 'string'
+      ) {
+        message = payload.error;
+      }
+    } catch {
+      // Keep the status-based message when the body is not JSON.
+    }
+
+    throw new ApiError(message, response.status);
   }
 
+  return response;
+}
+
+async function parseJson<T>(response: Response, schema: ZodType<T>, path: string): Promise<T> {
   let payload: unknown;
+
   try {
     payload = await response.json();
   } catch {
@@ -50,4 +67,31 @@ export async function apiGet<T>(
   }
 
   return parsed.data;
+}
+
+export async function apiGet<T>(
+  path: string,
+  schema: ZodType<T>,
+  signal?: AbortSignal,
+): Promise<T> {
+  return parseJson(await request(path, { signal }), schema, path);
+}
+
+export async function apiMutate<T>(
+  path: string,
+  method: 'POST' | 'PATCH' | 'PUT',
+  body: unknown,
+  schema: ZodType<T>,
+): Promise<T> {
+  const response = await request(path, {
+    method,
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+
+  return parseJson(response, schema, path);
+}
+
+export async function apiDelete(path: string): Promise<void> {
+  await request(path, { method: 'DELETE' });
 }

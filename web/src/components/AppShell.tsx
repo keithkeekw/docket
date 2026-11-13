@@ -1,10 +1,15 @@
 import { Outlet } from 'react-router';
+import { CaptureDialog } from './CaptureDialog';
 import { Sidebar } from './Sidebar';
+import { TaskDrawer } from './TaskDrawer';
 
 /**
  * DESIGN §3 app shell: sidebar + main content in a wrapping flex row.
  * `min-w-0` on the main column is what lets long task titles truncate instead
  * of pushing the layout wider than the viewport.
+ *
+ * The capture dialog and the task drawer live here so they are mounted once
+ * and can be opened from any screen.
  */
 export function AppShell() {
   return (
@@ -13,6 +18,8 @@ export function AppShell() {
       <main className="min-w-0 flex-1 px-8 pt-6 pb-12">
         <Outlet />
       </main>
+      <CaptureDialog />
+      <TaskDrawer />
     </div>
   );
 }

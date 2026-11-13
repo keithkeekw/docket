@@ -4,7 +4,7 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 `docs/DESIGN.md` at the start of every session.
 
 - **Last updated:** 13 Nov 2026
-- **Current step:** M1-S5 (next) — tasks CRUD + plain capture (`Ctrl/⌘ K`)
+- **Current step:** M1-S6 (next) — projects, milestones, checklist, links, tags, move-to-project
 - **Spec sources:** `docs/PRD.md` (behaviour), `docs/TECHSTACK.md` (implementation), `docs/DESIGN.md` (visuals)
 
 ---
@@ -17,8 +17,8 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 | M1-S2 | Drizzle schema, migrations, seed statuses | ✅ Done |
 | M1-S3 | Shared components (DESIGN §4) | ✅ Done |
 | M1-S4 | App shell, sidebar, routing | ✅ Done |
-| M1-S5 | Tasks CRUD + plain capture (`Ctrl/⌘ K`) | ⬜ Next |
-| M1-S6 | Projects, milestones, checklist, links, tags, move-to-project | ⬜ |
+| M1-S5 | Tasks CRUD + plain capture (`Ctrl/⌘ K`) | ✅ Done |
+| M1-S6 | Projects, milestones, checklist, links, tags, move-to-project | ⬜ Next |
 | M1-S7 | List / Table / Kanban + shared filters + dnd-kit | ⬜ |
 | M1-S8 | Statuses settings; recurrence service + tests | ⬜ |
 | M1-S9 | Dashboard endpoint + screen | ⬜ |
@@ -277,6 +277,117 @@ pattern reused).
 
 ---
 
+## M1-S5 — Tasks CRUD + plain capture ✅
+
+### Built
+
+- **Shared contracts** (`shared/src/schemas.ts`): `statusSchema` /
+  `statusListSchema`, `taskSchema` / `taskListSchema` / `taskResponseSchema`,
+  `prioritySchema`, `localDateSchema` (`YYYY-MM-DD`) and `localTimeSchema`
+  (`HH:mm`). Request bodies are `z.strictObject`, so an unknown field is a 400
+  rather than a silent no-op. `null` clears a field on PATCH; an absent key
+  leaves it alone.
+- **Task service** (`server/src/services/tasks.ts`): list (project / `due_to` /
+  `q` over title + notes), get, create, update, `setDone`, delete. Ordering is
+  the List order: open first, then due date (undated last), then manual
+  position. `milestone_id must belong to project_id` is enforced here (D20), and
+  moving a task out of a project drops its milestone (D7).
+- **Status service** (`server/src/services/statuses.ts`): list in configured
+  order, plus the three lookups that encode D6 — `defaultOpenStatusId` prefers
+  the status named "To do" and falls back to the first `open` status (Backlog
+  sorts first but is not the default), `firstDoneStatusId` for completion.
+- **Routes**: `GET/POST /api/tasks`, `PATCH/DELETE /api/tasks/:id`,
+  `POST /api/tasks/:id/complete` (separate from PATCH because completion stamps
+  `completed_at` and will create the next recurrence in M1-S8) and
+  `GET /api/statuses`. `ServiceError` + `app.onError` map service failures to
+  400/404/500 and log anything unexpected.
+- **Web data layer**: `api/client.ts` (`ApiError`, `apiGet`, `apiMutate`,
+  `apiDelete`, every response parsed with its shared Zod schema),
+  `api/tasks.ts` (`useTasks`, `useCreateTask`, `useUpdateTask`,
+  `useCompleteTask` with an optimistic patch + snapshot revert, `useDeleteTask`),
+  `api/statuses.ts` (`useStatuses`, cached for the session).
+- **UI state**: `store/ui.ts` (Zustand 5.1.0) holds only `captureOpen` and the
+  `drawerTask`; server data stays in TanStack Query.
+- **Form primitives** (the part deferred from M1-S3 by D23):
+  `Field`/`Input`/`Textarea`/`Select` — 11 px zinc-500 captions, 10 px radius,
+  40 px minimum height, zinc-500 placeholders (never zinc-400 text) — and
+  `InlineError` (DESIGN §6: message stays on screen, optional Retry).
+- **`CaptureDialog`** (DESIGN §5.4 plain mode): `Ctrl/⌘ K` from any screen via
+  `react-hotkeys-hook` 5.3.0 (`enableOnFormTags`), Enter saves to the Inbox and
+  closes, Esc closes, kbd hints for both. "Quick capture" title, one dark button.
+- **`TaskDrawer`** (DESIGN §5.5): 420 px right drawer with title, notes, status,
+  priority, due date, due time and estimate. Only changed fields are PATCHed,
+  Enter or Save commits, Esc closes, delete is two-step.
+- **`TaskListPanel`** + real **Inbox** (`GET /api/tasks?project=none`) and
+  **Today** (`due_to=<local today>`, grouped Overdue / Today) screens, with
+  loading, empty and error states from DESIGN §6. Ticking a row calls
+  `/complete`; clicking a title opens the drawer.
+- **Server tests**: `server/src/routes/tasks.test.ts` (create defaults, inbox
+  ordering, strict bodies, milestone/project rule, PATCH clearing, completion
+  round trip, delete, due filter, search) and a shared `createTestDb` helper.
+
+### Notes / deliberate deviations
+
+- **No `GET /api/tasks/:id`**: TECHSTACK §5 does not define one, so the drawer is
+  seeded from the row's task object and refreshed from each mutation response
+  instead of adding an endpoint the spec does not have.
+- **Capture placeholder is "What needs doing?"**, not DESIGN §4's
+  `reply to ZD-48213 tomorrow 10am p1 30m`. That example promises parsing, which
+  only exists once AI capture lands in M2; the AI capture bar gets it then.
+- Deferred to M1-S6/S7: project/milestone/tags/links/checklist in the drawer,
+  move-to-project, and the search box in the UI (`?q=` is already served).
+
+### Verification performed
+
+```bash
+npm run typecheck   # clean (shared + server + web)
+npm test            # 42 passed (9 db + 5 nav + 11 web lib + 4 api client + 13 tasks)
+npm run build       # clean, 476 kB chunk (143 kB gzip)
+```
+
+API, against a throwaway copy of the database (`sqlite3 .backup`, deleted after;
+`data/app.db` still has 0 tasks and 0 projects):
+
+- `POST /api/tasks {"title":"  Reply on vendor escalation  "}` → 201, title
+  trimmed, `statusName: "To do"`, `priority: 3`, no project/milestone, `201`.
+- `POST` with due date, time, P1 and a 30 m estimate → stored and returned
+  unchanged; `{"title":"   "}` → 400; an unknown field → 400.
+- `GET /api/tasks?project=none` → due-date order, undated last.
+- `POST /:id/complete {}` → `Done` / `done` / `completedAt` set; with
+  `{"done":false}` → `To do` / `open` / `completedAt: null`.
+- `PATCH` with `{"dueDate":null,"dueTime":null}` → cleared; `DELETE` → 204, then
+  404; `GET /api/nav` counts followed every write (3 → 2 → 1).
+- `?due_to=` filtered out a task moved off the date; `?q=vendor` matched.
+
+UI, headless Chrome at 1280 × 820 driven over CDP (no Playwright in the stack):
+
+- Inbox renders the three seeded tasks in due-date order with P1 in orange-700.
+- `⌘K` opens Quick capture with focus in the title field; typing and pressing
+  Enter closes the dialog and the new row appears in Inbox.
+- Clicking a title opens the 420 px drawer with every field populated; editing
+  the title and pressing Enter saves, closes and updates the row.
+- Esc closes both dialogs.
+- Ticking a row strikes the title through and sinks it below open work.
+- Delete is two-step ("Delete" → "Confirm delete" / "Cancel") and removes the
+  task; the sidebar count drops with it.
+- Today groups Overdue 1 / Today 1 for an overdue task and one due today.
+- Backdrop sampled at `#8b8b8d` — `zinc-900/50` over `zinc-50`, per DESIGN §2.1.
+
+### PRD IDs advanced
+
+- **FR-1, FR-2 — done.** Global capture, keyboard-opened, Enter saves to Inbox
+  with no AI call.
+- **FR-4 — partial.** Title, notes, status, priority, due date, due time and
+  estimate are real and persisted; tags, links, checklist and recurrence arrive
+  in S6/S8.
+- **FR-5 — API complete, UI in S6.** `projectId`/`milestoneId` are validated and
+  PATCHable; the drawer's project picker lands with the projects step.
+- **FR-10 — partial.** List view for Inbox and Today; Table/Kanban in S7.
+- **NFR-4** (capture is a single write), **NFR-7** (real inputs and labels,
+  40 px targets, shared focus ring, Esc + Enter paths, no zinc-400 text).
+
+---
+
 ## Decisions
 
 | # | Decision |
@@ -306,16 +417,19 @@ pattern reused).
 | D23 | DESIGN §4 defines no form primitives, so Input/Textarea/Select/Field/Drawer/Modal are **deferred to M1-S5**, where the task drawer provides a concrete use case. No form tokens are invented ahead of need. |
 | D24 | The sidebar reads `GET /api/nav` (counts + active projects) instead of calling `/api/tasks` and `/api/projects`. Counts are **open work only** (status category ≠ done); "Today" is overdue + due today. `/api/dashboard` (M1-S9) will reuse the same service functions rather than replace this endpoint. |
 | D25 | Preline's `preline/non-auto` bundle was removed in M1-S4 because no Preline JS plugin is used yet; that drops a 406 kB chunk. When the task drawer, dropdown filters or modal arrive, import only the specific plugin modules (for example `preline/offcanvas`) and re-add `PrelineInit` with route-aware cleanup. `variants.css` and the `@source` scan stay in place. |
+| D26 | Quick capture and the task drawer use a **native `<dialog>`** with `showModal()`, not Preline. Preline 5.1.0 ships no modal/offcanvas plugin (only `overlay`), and its markup contract would need `PrelineInit` plus route-aware teardown to get a focus trap the browser already provides. `showModal()` gives the top layer, focus trap, Esc and `::backdrop`; the only styling needed is `backdrop:bg-zinc-900/50`. Revisit Preline JS only where it earns its place (dropdowns in S7, datepicker if the native one proves too plain). |
+| D27 | The task drawer is seeded from the row's task object instead of a `GET /api/tasks/:id` call, because TECHSTACK §5 defines no such endpoint. Mutation responses replace the local copy, so the drawer stays accurate without an extra route. |
 
 ## Follow-ups / known gaps
 
 - **ESLint + Prettier** not installed yet — decide in M4-S16 (the state audit
   step) or ask Keith sooner if lint drift becomes a problem.
 - `preline/non-auto` chunk: **resolved in M1-S4** by removing the bundle (D25).
-  Preline JS comes back per plugin with the task drawer in M1-S5.
-- Placeholder bodies remain on Dashboard (S9), Inbox/Today (S5), All tasks (S7),
-  Project (S6) and Settings (S8). Each names its step in the copy and is
-  replaced as that step lands.
+  The task drawer and quick capture landed on a native `<dialog>` instead of a
+  Preline plugin (D26), so no Preline JS is loaded yet.
+- Placeholder bodies remain on Dashboard (S9), All tasks (S7), Project (S6) and
+  Settings (S8). Each names its step in the copy and is replaced as that step
+  lands.
 - `npm audit` reports 4 moderate advisories from drizzle-kit's bundled
   `@esbuild-kit/esm-loader` (old esbuild). Dev-only CLI, not shipped, no dev
   server involved; **do not** run `npm audit fix --force` (it would downgrade
@@ -324,13 +438,11 @@ pattern reused).
 - PRD open questions for Keith: Q1 (company AI policy), Q5 (final app name).
   Neither blocks M1.
 
-## Next step — M1-S5
+## Next step — M1-S6
 
-Tasks CRUD + plain capture. Build the task service and routes (`POST /api/tasks`
-with `{ title }` enough, `PATCH`, `POST /:id/complete` handling the Done status,
-`DELETE`), the `Ctrl/⌘ K` capture bar using `react-hotkeys-hook`, and the task
-detail drawer (Preline Offcanvas, per-plugin import per D25) with the form
-primitives deferred from M1-S3 (D23). New tasks default to "To do"; ticking a
-task sets the first `done` status, unticking returns it to "To do" (D6). Inbox
-lists real tasks in the shell built in M1-S4. Deliverables feed FR-1, FR-2,
-FR-4, FR-5, FR-10, FR-13, FR-17, NFR-7.
+Projects, milestones, checklist, links and tags, plus move-to-project. Fill in
+the task drawer's remaining fields (project, milestone, tags, links, checklist),
+the Project screen from DESIGN §5.2, and the `/move` endpoint. Keep the
+service-layer rule that a milestone must belong to the task's project (D20) and
+the "delete project → tasks to Inbox" behaviour (D7). Deliverables feed FR-4,
+FR-5, FR-6, FR-7, FR-8, FR-12 and the project half of FR-10.

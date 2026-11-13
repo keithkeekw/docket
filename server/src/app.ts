@@ -4,6 +4,9 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { statuses } from './db/schema';
 import type { Db } from './db/types';
+import { ServiceError } from './lib/errors';
+import { registerStatusRoutes } from './routes/statuses';
+import { registerTaskRoutes } from './routes/tasks';
 import { getNavSummary } from './services/nav';
 
 /**
@@ -46,6 +49,20 @@ export function createApp(db: Db): Hono {
 
   // App shell: sidebar counts and the active project list.
   app.get('/api/nav', (c) => c.json(getNavSummary(db)));
+
+  registerTaskRoutes(app, db);
+  registerStatusRoutes(app, db);
+
+  // Services throw ServiceError with the intended status; anything else is a bug
+  // and is logged rather than leaked to the client.
+  app.onError((error, c) => {
+    if (error instanceof ServiceError) {
+      return c.json({ error: error.message }, error.status as 400 | 404 | 500);
+    }
+
+    console.error(error);
+    return c.json({ error: 'Internal server error' }, 500);
+  });
 
   app.notFound((c) => c.json({ error: 'Not found' }, 404));
 
