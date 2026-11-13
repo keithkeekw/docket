@@ -52,7 +52,7 @@ export function TaskRow({
   );
 
   const titleClassName = cx(
-    'min-w-[8rem] flex-1 text-left text-sm',
+    'w-full text-left text-sm sm:min-w-[8rem] sm:flex-1',
     task.done ? 'text-zinc-500 line-through' : 'text-zinc-900',
   );
 
@@ -69,7 +69,7 @@ export function TaskRow({
         />
       </span>
 
-      <div className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-x-3 gap-y-1">
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:gap-x-3 sm:gap-y-1">
         {onOpen ? (
           <button
             type="button"

@@ -17,7 +17,7 @@ export function AppShell() {
       </div>
 
       {/* Main content */}
-      <main className="min-w-0 flex-1 px-4 pt-5 pb-20 sm:px-6 sm:pb-10 lg:px-8 lg:pt-6">
+      <main className="min-w-0 flex-1 overflow-x-hidden px-4 pt-5 pb-20 sm:px-6 sm:pb-10 lg:px-8 lg:pt-6">
         <UndoBar />
         <Outlet />
       </main>

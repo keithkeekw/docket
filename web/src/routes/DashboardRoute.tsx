@@ -49,7 +49,7 @@ export function DashboardRoute() {
   return (
     <div className="mx-auto max-w-[1120px]">
       <div className="flex flex-wrap items-center gap-2">
-        <div className="min-w-[16rem] flex-1">
+        <div className="min-w-0 flex-1">
           <CaptureBar />
         </div>
         <Button onClick={openChat}>Ask assistant</Button>
