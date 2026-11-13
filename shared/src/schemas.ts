@@ -645,6 +645,9 @@ export const applyProposalBodySchema = z.strictObject({
 
 export const aiCaptureBodySchema = z.strictObject({
   text: z.string().trim().min(1).max(4_000),
+  /** Capture context from a project or Kanban column. */
+  projectId: z.string().min(1).optional(),
+  statusId: z.string().min(1).optional(),
 });
 
 export const aiBreakdownBodySchema = z.strictObject({

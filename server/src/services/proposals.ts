@@ -129,6 +129,10 @@ const normalise = (value: string): string => value.trim().toLowerCase();
 type ResolveOptions = {
   /** Breakdown fixes the project; capture resolves it from the model's name. */
   project?: { id: string; name: string };
+  /** Capture context used when the model does not name another project. */
+  defaultProject?: { id: string; name: string };
+  defaultStatusId?: string;
+  defaultStatusName?: string;
   /** Milestones proposed in this same proposal, keyed by normalised name. */
   proposedMilestones?: Map<string, string>;
 };
@@ -142,8 +146,8 @@ function resolveTask(
   const { projects: projectRows, milestones: milestoneRows } = lookups;
   const notes: string[] = [];
 
-  let projectId: string | null = null;
-  let projectName: string | null = null;
+  let projectId: string | null = options.defaultProject?.id ?? null;
+  let projectName: string | null = options.defaultProject?.name ?? null;
   let milestoneId: string | null = null;
   let milestoneName: string | null = null;
   let milestoneRef: string | null = null;
@@ -163,9 +167,17 @@ function resolveTask(
       match?.aiExcluded ||
       context.excluded.some((name) => normalise(name) === normalise(task.project ?? ''))
     ) {
-      notes.push(`"${task.project}" is excluded from AI, so this went to the Inbox.`);
+      notes.push(
+        projectName
+          ? `"${task.project}" is excluded from AI — kept in ${projectName}.`
+          : `"${task.project}" is excluded from AI, so this went to the Inbox.`,
+      );
     } else {
-      notes.push(`No project called "${task.project}" — saved to the Inbox.`);
+      notes.push(
+        projectName
+          ? `No project called "${task.project}" — kept in ${projectName}.`
+          : `No project called "${task.project}" — saved to the Inbox.`,
+      );
     }
   }
 
@@ -194,8 +206,8 @@ function resolveTask(
     }
   }
 
-  let statusId: string | undefined;
-  let statusName: string | null = null;
+  let statusId: string | undefined = options.defaultStatusId;
+  let statusName: string | null = options.defaultStatusName ?? null;
   if (task.status) {
     const match = lookups.statuses.find(
       (status) => normalise(status.name) === normalise(task.status ?? ''),
@@ -251,7 +263,14 @@ function resolveTask(
 // Capture
 // ---------------------------------------------------------------------------
 
-export type CaptureOptions = { complete?: Completion; now?: Date };
+export type CaptureOptions = {
+  complete?: Completion;
+  now?: Date;
+  /** Default project when capture starts from a project or project task. */
+  projectId?: string;
+  /** Default status when capture starts from a Kanban column. */
+  statusId?: string;
+};
 
 type AskResult<T> = { ok: true; data: T } | { ok: false; reason: string };
 
@@ -293,6 +312,15 @@ export async function captureProposal(
   const complete = options.complete ?? makeCompletion(db);
   const lookups = loadLookups(db);
   const context = captureContext(options.now ?? new Date(), lookups);
+  const defaultProject = options.projectId
+    ? lookups.projects.find(
+        (project) =>
+          project.id === options.projectId && !project.archived && !project.aiExcluded,
+      )
+    : undefined;
+  const defaultStatus = options.statusId
+    ? lookups.statuses.find((status) => status.id === options.statusId)
+    : undefined;
   const system = loadPrompt(db, 'capture');
   const user = `Data:\n${JSON.stringify(context, null, 2)}\n\nInput: ${trimmed}`;
 
@@ -313,7 +341,15 @@ export async function captureProposal(
     throw new ServiceError('The model returned something unusable. Nothing was saved.', 502);
   }
 
-  const items = second.data.tasks.map((task) => resolveTask(task, context, lookups));
+  const items = second.data.tasks.map((task) =>
+    resolveTask(task, context, lookups, {
+      defaultProject: defaultProject
+        ? { id: defaultProject.id, name: defaultProject.name }
+        : undefined,
+      defaultStatusId: defaultStatus?.id,
+      defaultStatusName: defaultStatus?.name,
+    }),
+  );
   return storeProposal(db, 'capture', trimmed, items);
 }
 

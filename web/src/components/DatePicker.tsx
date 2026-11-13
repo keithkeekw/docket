@@ -145,8 +145,16 @@ export function DatePicker({
       picker = new HSDatepicker(el);
 
       handleChange = (event: Event) => {
-        const detail = (event as CustomEvent<{ selectedDates?: string[] }>).detail;
-        changeRef.current(detail?.selectedDates?.[0] ?? '');
+        // Preline's dispatch helper wraps the payload: { detail: { payload } }.
+        // Accept the direct shape too when the event is dispatched by hand.
+        const detail = (
+          event as CustomEvent<{
+            payload?: { selectedDates?: string[] };
+            selectedDates?: string[];
+          }>
+        ).detail;
+        const selectedDates = detail?.payload?.selectedDates ?? detail?.selectedDates;
+        changeRef.current(selectedDates?.[0] ?? '');
       };
 
       el.addEventListener('change.hs.datepicker', handleChange);

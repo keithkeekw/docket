@@ -115,6 +115,8 @@ export const common: Record<string, string> = {
   'Select a date': '选择日期',
   'Clear date': '清除日期',
 
+  'Current milestone': '当前里程碑',
+
   // Units
   '{count} task': '{count} 个任务',
   '{count} tasks': '{count} 个任务',

@@ -85,7 +85,16 @@ export function Select({
   const ref = useRef<HTMLSelectElement | null>(null);
   const instanceRef = useRef<{ setValue: (value: string | string[]) => void } | null>(null);
   const t = useT();
-  const placeholder = t('Select...');
+  const emptyOption = Children.toArray(children).find(
+    (child) =>
+      isValidElement(child) &&
+      String((child.props as { value?: unknown }).value ?? '') === '',
+  );
+  const emptyLabel =
+    emptyOption && isValidElement(emptyOption)
+      ? String((emptyOption.props as { children?: ReactNode }).children ?? '')
+      : '';
+  const placeholder = emptyLabel || t('Select...');
   const wrapperClasses = wrapperClassName ? `relative ${wrapperClassName}` : 'relative w-full';
 
   const optionsKey = useMemo(

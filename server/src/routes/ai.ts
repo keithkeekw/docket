@@ -13,7 +13,15 @@ export function registerAiRoutes(app: Hono, db: Db, uploadsDir: string): void {
     const parsed = aiCaptureBodySchema.safeParse(await readJson(c));
     if (!parsed.success) return invalidBody(c, parsed.error);
 
-    return c.json({ proposal: await captureProposal(db, parsed.data.text) }, 201);
+    return c.json(
+      {
+        proposal: await captureProposal(db, parsed.data.text, {
+          projectId: parsed.data.projectId,
+          statusId: parsed.data.statusId,
+        }),
+      },
+      201,
+    );
   });
 
   // FR-18. Same preview/confirm path as capture; milestones apply first.

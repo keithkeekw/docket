@@ -7,9 +7,24 @@ import { apiMutate } from './client';
  * the modal's apply step, which is the only path that touches tasks (FR-23).
  */
 export function useCaptureWithAi() {
-  return useMutation<Proposal, Error, { text: string }>({
-    mutationFn: async ({ text }) =>
-      (await apiMutate('/api/ai/capture', 'POST', { text }, proposalResponseSchema)).proposal,
+  return useMutation<
+    Proposal,
+    Error,
+    { text: string; projectId?: string | null; statusId?: string | null }
+  >({
+    mutationFn: async ({ text, projectId, statusId }) =>
+      (
+        await apiMutate(
+          '/api/ai/capture',
+          'POST',
+          {
+            text,
+            ...(projectId ? { projectId } : {}),
+            ...(statusId ? { statusId } : {}),
+          },
+          proposalResponseSchema,
+        )
+      ).proposal,
   });
 }
 

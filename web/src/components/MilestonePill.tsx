@@ -27,11 +27,21 @@ export function MilestonePill({
 
   const className = cx(
     'inline-flex min-h-10 items-center gap-2 rounded-full border px-3.5 text-[13px]',
-    current || selected ? 'border-blue-200 bg-blue-50' : 'border-zinc-200 bg-white',
+    selected ? 'border-blue-300 bg-blue-50' : 'border-zinc-200 bg-white',
   );
 
   const content = (
     <>
+      {current && (
+        <>
+          <span
+            aria-hidden="true"
+            title={t('Current milestone')}
+            className="size-1.5 shrink-0 rounded-full bg-blue-600"
+          />
+          <span className="sr-only">{t('Current milestone')}</span>
+        </>
+      )}
       <span className={cx('font-medium text-zinc-900', milestone.completedAt && 'text-zinc-500')}>
         {milestone.name}
       </span>

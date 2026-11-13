@@ -101,7 +101,11 @@ export function CaptureDialog() {
     setError(null);
 
     try {
-      const proposal = await captureWithAi.mutateAsync({ text: trimmed });
+      const proposal = await captureWithAi.mutateAsync({
+        text: trimmed,
+        projectId: captureProjectId,
+        statusId: captureStatusId,
+      });
       if (closedRef.current) return;
       openProposal(proposal);
       closeCapture();
