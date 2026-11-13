@@ -1,4 +1,5 @@
 import { APP_NAME } from '@app/shared';
+import { serveStatic } from '@hono/node-server/serve-static';
 import { sql } from 'drizzle-orm';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
@@ -26,11 +27,15 @@ import { getNavSummary } from './services/nav';
  * The Hono app is created separately from the HTTP listener so tests can call
  * `app.request(...)` against an in-memory database (PROGRESS D13).
  */
-export function createApp(db: Db, options: { backupsDir?: string } = {}): Hono {
+export function createApp(
+  db: Db,
+  options: { backupsDir?: string; staticDir?: string } = {},
+): Hono {
   const app = new Hono();
 
   // NFR-3: the API is local-only. CORS additionally restricts callers to the dev
-  // server on this machine.
+  // server on this machine. In production the frontend is served from the same
+  // origin so no CORS header is needed, but we keep the dev origins for `npm run dev`.
   app.use(
     '/api/*',
     cors({
@@ -81,6 +86,12 @@ export function createApp(db: Db, options: { backupsDir?: string } = {}): Hono {
   registerExportRoutes(app, db);
   registerUndoRoutes(app, db);
   registerBackupRoutes(app, db, options.backupsDir);
+
+  // Production: serve the built frontend and fall back to index.html for SPA routing.
+  if (options.staticDir) {
+    app.use('/*', serveStatic({ root: options.staticDir }));
+    app.get('/*', serveStatic({ root: options.staticDir, path: 'index.html' }));
+  }
 
   // Services throw ServiceError with the intended status; anything else is a bug
   // and is logged rather than leaked to the client.
