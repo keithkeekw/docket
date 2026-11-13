@@ -88,10 +88,7 @@ export async function createBackup(
   return entryFor(dir, file);
 }
 
-export function readBackup(
-  dir: string,
-  file: string,
-): { data: Buffer; entry: BackupEntry } {
+export function readBackup(dir: string, file: string): { data: Buffer; entry: BackupEntry } {
   const target = resolveBackup(dir, file);
   return { data: fs.readFileSync(target), entry: entryFor(dir, path.basename(target)) };
 }
@@ -122,7 +119,8 @@ export async function restoreBackup(
     raw.exec('BEGIN IMMEDIATE');
 
     for (const table of [...TABLES].reverse()) raw.exec(`DELETE FROM main.${table}`);
-    for (const table of TABLES) raw.exec(`INSERT INTO main.${table} SELECT * FROM restored.${table}`);
+    for (const table of TABLES)
+      raw.exec(`INSERT INTO main.${table} SELECT * FROM restored.${table}`);
 
     raw.exec('COMMIT');
   } catch (cause) {

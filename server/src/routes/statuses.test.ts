@@ -1,4 +1,9 @@
-import { statusListSchema, statusResponseSchema, taskListSchema, taskResponseSchema } from '@app/shared';
+import {
+  statusListSchema,
+  statusResponseSchema,
+  taskListSchema,
+  taskResponseSchema,
+} from '@app/shared';
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createApp } from '../app';
@@ -49,7 +54,12 @@ describe('POST /api/statuses', () => {
 
     expect(response.status).toBe(201);
     const status = statusResponseSchema.parse(body).status;
-    expect(status).toMatchObject({ name: 'Blocked', category: 'active', position: 5, taskCount: 0 });
+    expect(status).toMatchObject({
+      name: 'Blocked',
+      category: 'active',
+      position: 5,
+      taskCount: 0,
+    });
   });
 
   it('rejects a duplicate name regardless of case', async () => {
@@ -58,8 +68,12 @@ describe('POST /api/statuses', () => {
   });
 
   it('rejects an unknown category and an empty name', async () => {
-    expect((await send('POST', '/api/statuses', { name: 'X', category: 'nope' })).response.status).toBe(400);
-    expect((await send('POST', '/api/statuses', { name: '  ', category: 'open' })).response.status).toBe(400);
+    expect(
+      (await send('POST', '/api/statuses', { name: 'X', category: 'nope' })).response.status,
+    ).toBe(400);
+    expect(
+      (await send('POST', '/api/statuses', { name: '  ', category: 'open' })).response.status,
+    ).toBe(400);
   });
 });
 
@@ -80,17 +94,17 @@ describe('PATCH /api/statuses/:id', () => {
 
     await send('PATCH', `/api/statuses/${id}`, { category: 'done' });
 
-    const done = taskListSchema.parse(await (await app.request('/api/tasks')).json()).tasks.find(
-      (entry) => entry.id === task.id,
-    );
+    const done = taskListSchema
+      .parse(await (await app.request('/api/tasks')).json())
+      .tasks.find((entry) => entry.id === task.id);
     expect(done?.statusCategory).toBe('done');
     expect(done?.completedAt).not.toBeNull();
 
     await send('PATCH', `/api/statuses/${id}`, { category: 'active' });
 
-    const reopened = taskListSchema.parse(await (await app.request('/api/tasks')).json()).tasks.find(
-      (entry) => entry.id === task.id,
-    );
+    const reopened = taskListSchema
+      .parse(await (await app.request('/api/tasks')).json())
+      .tasks.find((entry) => entry.id === task.id);
     expect(reopened?.completedAt).toBeNull();
   });
 

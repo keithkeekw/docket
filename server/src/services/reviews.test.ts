@@ -38,11 +38,7 @@ function stubReview(text = '## Friday\n- One thing\n- Another thing'): Completio
 
 describe('buildReviewContext', () => {
   it('aggregates the period, the overdue work and the projects', () => {
-    const project = db
-      .insert(projects)
-      .values({ name: 'Onboarding' })
-      .returning()
-      .get();
+    const project = db.insert(projects).values({ name: 'Onboarding' }).returning().get();
     const open = statusId('To do');
     const done = statusId('Done');
 
@@ -79,7 +75,12 @@ describe('buildReviewContext', () => {
     expect(context.completed.map((task) => task.title)).toEqual(['Finished today']);
     expect(context.overdue.map((task) => task.title)).toEqual(['Overdue']);
     expect(context.dueSoon.map((task) => task.title)).toEqual(['Due today', 'Soon']);
-    expect(context.projects[0]).toMatchObject({ name: 'Onboarding', percent: 100, done: 1, total: 1 });
+    expect(context.projects[0]).toMatchObject({
+      name: 'Onboarding',
+      percent: 100,
+      done: 1,
+      total: 1,
+    });
   });
 
   it('uses a seven-day window for a weekly review', () => {

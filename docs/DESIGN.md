@@ -1,4 +1,4 @@
-# DESIGN — [App name]
+# DESIGN — Docket
 
 Visual and interaction spec for the app. The reference screens are the four concept artboards: **Dashboard**, **Project · Kanban**, **All tasks · Table**, **Quick capture · AI preview**. When building, match those screens; when something isn't covered there, follow the rules below.
 

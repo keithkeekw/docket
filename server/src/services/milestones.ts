@@ -66,7 +66,11 @@ function requireMilestone(db: Db, id: string): MilestoneRow {
 }
 
 export function listMilestones(db: Db, projectId: string): Milestone[] {
-  const project = db.select({ id: projects.id }).from(projects).where(eq(projects.id, projectId)).get();
+  const project = db
+    .select({ id: projects.id })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .get();
   if (!project) throw new ServiceError('Project not found', 404);
 
   const rows: MilestoneRow[] = db
@@ -89,12 +93,12 @@ export function getMilestone(db: Db, id: string): Milestone {
   return toMilestone(row, countsFor(db, [id]).get(id));
 }
 
-export function createMilestone(
-  db: Db,
-  projectId: string,
-  body: CreateMilestoneBody,
-): Milestone {
-  const project = db.select({ id: projects.id }).from(projects).where(eq(projects.id, projectId)).get();
+export function createMilestone(db: Db, projectId: string, body: CreateMilestoneBody): Milestone {
+  const project = db
+    .select({ id: projects.id })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .get();
   if (!project) throw new ServiceError('Project not found', 404);
 
   const positionRow = db

@@ -73,7 +73,11 @@ describe('recurring tasks (FR-15)', () => {
   });
 
   it('copies links and tags, and the checklist unticked', async () => {
-    const task = await createTask({ title: 'Prep the retro', dueDate: '2026-11-13', recurrenceRule: 'FREQ=DAILY' });
+    const task = await createTask({
+      title: 'Prep the retro',
+      dueDate: '2026-11-13',
+      recurrenceRule: 'FREQ=DAILY',
+    });
 
     await send('POST', `/api/tasks/${task.id}/checklist`, { title: 'Collect notes' });
     await send('POST', `/api/tasks/${task.id}/links`, {
@@ -96,7 +100,11 @@ describe('recurring tasks (FR-15)', () => {
   });
 
   it('points the next occurrence at the first task in the series', async () => {
-    const task = await createTask({ title: 'Daily standup', dueDate: '2026-11-13', recurrenceRule: 'FREQ=DAILY' });
+    const task = await createTask({
+      title: 'Daily standup',
+      dueDate: '2026-11-13',
+      recurrenceRule: 'FREQ=DAILY',
+    });
 
     await send('POST', `/api/tasks/${task.id}/complete`, {});
     const second = (await allTasks()).find((entry) => entry.id !== task.id);
@@ -112,7 +120,11 @@ describe('recurring tasks (FR-15)', () => {
   });
 
   it('does not duplicate the occurrence when a task is re-ticked', async () => {
-    const task = await createTask({ title: 'Water plants', dueDate: '2026-11-13', recurrenceRule: 'FREQ=DAILY' });
+    const task = await createTask({
+      title: 'Water plants',
+      dueDate: '2026-11-13',
+      recurrenceRule: 'FREQ=DAILY',
+    });
 
     await send('POST', `/api/tasks/${task.id}/complete`, {});
     await send('POST', `/api/tasks/${task.id}/complete`, { done: false });
@@ -122,7 +134,11 @@ describe('recurring tasks (FR-15)', () => {
   });
 
   it('creates the next occurrence when the status is set to Done instead', async () => {
-    const task = await createTask({ title: 'Monthly report', dueDate: '2026-01-15', recurrenceRule: 'FREQ=MONTHLY' });
+    const task = await createTask({
+      title: 'Monthly report',
+      dueDate: '2026-01-15',
+      recurrenceRule: 'FREQ=MONTHLY',
+    });
 
     await send('PATCH', `/api/tasks/${task.id}`, { statusId: statusIdByName('Done') });
 
@@ -145,7 +161,11 @@ describe('recurring tasks (FR-15)', () => {
   });
 
   it('clears the rule when it is set to null', async () => {
-    const task = await createTask({ title: 'Temporary', dueDate: '2026-11-13', recurrenceRule: 'FREQ=DAILY' });
+    const task = await createTask({
+      title: 'Temporary',
+      dueDate: '2026-11-13',
+      recurrenceRule: 'FREQ=DAILY',
+    });
 
     await send('PATCH', `/api/tasks/${task.id}`, { recurrenceRule: null });
     await send('POST', `/api/tasks/${task.id}/complete`, {});

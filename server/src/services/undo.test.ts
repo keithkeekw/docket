@@ -33,7 +33,11 @@ const baseTask = { title: 'Restorable', statusId: '' };
 
 describe('undo a deleted task', () => {
   it('brings back the task with its tags, links and checklist', () => {
-    const task = createTask(db, { ...baseTask, statusId: statusId('To do'), dueDate: '2026-11-20' });
+    const task = createTask(db, {
+      ...baseTask,
+      statusId: statusId('To do'),
+      dueDate: '2026-11-20',
+    });
     setTaskTags(db, task.id, ['vendor', 'important']);
     addLink(db, task.id, { url: 'https://acme.zendesk.com/agent/tickets/48213' });
     addChecklistItem(db, task.id, { title: 'Outline' });
@@ -63,7 +67,13 @@ describe('undo a deleted task', () => {
     runUndo();
     expect(runUndo()).toBeNull();
     // The slot held the second delete, so that is the one restored.
-    expect(db.select().from(tasks).all().map((task) => task.title)).toEqual(['Second']);
+    expect(
+      db
+        .select()
+        .from(tasks)
+        .all()
+        .map((task) => task.title),
+    ).toEqual(['Second']);
   });
 });
 
@@ -86,7 +96,9 @@ describe('undo a deleted project', () => {
 
     const restored = getProject(db, project.id);
     expect(restored.name).toBe('Onboarding');
-    expect(db.select().from(milestones).where(eq(milestones.projectId, project.id)).all()).toHaveLength(1);
+    expect(
+      db.select().from(milestones).where(eq(milestones.projectId, project.id)).all(),
+    ).toHaveLength(1);
 
     const relinked = db.select().from(tasks).where(eq(tasks.id, task.id)).get();
     expect(relinked?.projectId).toBe(project.id);

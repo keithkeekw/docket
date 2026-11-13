@@ -109,11 +109,7 @@ export function DashboardRoute() {
               <div className="mt-3 overflow-hidden rounded-xl border border-zinc-200 bg-white pb-1">
                 {groups.map((group) => (
                   <section key={group.label}>
-                    <GroupHeader
-                      label={group.label}
-                      count={group.tasks.length}
-                      tone={group.tone}
-                    />
+                    <GroupHeader label={group.label} count={group.tasks.length} tone={group.tone} />
                     <ul>
                       {group.tasks.map((task) => (
                         <TaskRow

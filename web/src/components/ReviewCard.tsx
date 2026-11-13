@@ -1,7 +1,8 @@
 import type { Review } from '@app/shared';
 import { format, parseISO } from 'date-fns';
 import { Link } from 'react-router';
-import { Button, buttonClassName } from './Button';
+import { buttonClassName } from '../lib/button';
+import { Button } from './Button';
 
 const KIND_LABEL: Record<Review['kind'], string> = {
   daily: 'Daily review',

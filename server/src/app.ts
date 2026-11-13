@@ -41,7 +41,10 @@ export function createApp(db: Db, options: { backupsDir?: string } = {}): Hono {
 
   function databaseHealth(): { ready: boolean; statuses?: number; error?: string } {
     try {
-      const row = db.select({ count: sql<number>`count(*)` }).from(statuses).get();
+      const row = db
+        .select({ count: sql<number>`count(*)` })
+        .from(statuses)
+        .get();
       return { ready: true, statuses: Number(row?.count ?? 0) };
     } catch (error) {
       return {

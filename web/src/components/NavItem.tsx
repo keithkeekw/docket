@@ -32,9 +32,7 @@ export function NavItem({
     >
       {dot && <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-zinc-400" />}
       <span className="min-w-0 flex-1 truncate">{label}</span>
-      {count !== undefined && count > 0 && (
-        <span className="text-xs text-zinc-500">{count}</span>
-      )}
+      {count !== undefined && count > 0 && <span className="text-xs text-zinc-500">{count}</span>}
     </NavLink>
   );
 }

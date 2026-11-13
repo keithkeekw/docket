@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+data/
+mockups/
+package-lock.json
+docs/
+PROGRESS.md
+README.md
+.env
+.env.example
+server/src/db/migrations/

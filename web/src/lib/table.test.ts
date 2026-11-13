@@ -38,11 +38,9 @@ describe('sortTasks', () => {
   });
 
   it('sorts by title and reverses on desc', () => {
-    expect(sortTasks([undated, beta, alpha], { key: 'title', dir: 'asc' }).map((t) => t.title)).toEqual([
-      'Alpha',
-      'Beta',
-      'Charlie',
-    ]);
+    expect(
+      sortTasks([undated, beta, alpha], { key: 'title', dir: 'asc' }).map((t) => t.title),
+    ).toEqual(['Alpha', 'Beta', 'Charlie']);
     expect(sortTasks([alpha, beta], { key: 'title', dir: 'desc' }).map((t) => t.title)).toEqual([
       'Beta',
       'Alpha',
@@ -50,22 +48,18 @@ describe('sortTasks', () => {
   });
 
   it('keeps undated tasks last in both directions', () => {
-    expect(sortTasks([undated, alpha, beta], { key: 'due', dir: 'asc' }).map((t) => t.title)).toEqual([
-      'Beta',
-      'Alpha',
-      'Charlie',
-    ]);
-    expect(sortTasks([undated, alpha, beta], { key: 'due', dir: 'desc' }).map((t) => t.title)).toEqual([
-      'Charlie',
-      'Alpha',
-      'Beta',
-    ]);
+    expect(
+      sortTasks([undated, alpha, beta], { key: 'due', dir: 'asc' }).map((t) => t.title),
+    ).toEqual(['Beta', 'Alpha', 'Charlie']);
+    expect(
+      sortTasks([undated, alpha, beta], { key: 'due', dir: 'desc' }).map((t) => t.title),
+    ).toEqual(['Charlie', 'Alpha', 'Beta']);
   });
 
   it('sorts by priority numerically', () => {
-    expect(sortTasks([undated, alpha, beta], { key: 'priority', dir: 'asc' }).map((t) => t.priority)).toEqual([
-      1, 2, 3,
-    ]);
+    expect(
+      sortTasks([undated, alpha, beta], { key: 'priority', dir: 'asc' }).map((t) => t.priority),
+    ).toEqual([1, 2, 3]);
   });
 
   it('treats a missing estimate as the largest value', () => {
@@ -77,7 +71,12 @@ describe('sortTasks', () => {
 });
 
 describe('groupTasks', () => {
-  const projectTask = task({ id: 'p', title: 'Project work', projectId: 'proj', projectName: 'Onboarding' });
+  const projectTask = task({
+    id: 'p',
+    title: 'Project work',
+    projectId: 'proj',
+    projectName: 'Onboarding',
+  });
   const inboxTask = task({ id: 'i', title: 'Inbox work' });
 
   it('returns one unnamed group when grouping is off', () => {
@@ -92,13 +91,27 @@ describe('groupTasks', () => {
   });
 
   it('groups by status and priority', () => {
-    const done = task({ id: 'd', title: 'Done work', statusId: 'done', statusName: 'Done', statusCategory: 'done' });
-    expect(groupTasks([projectTask, done], 'status').map((group) => group.label)).toEqual(['To do', 'Done']);
+    const done = task({
+      id: 'd',
+      title: 'Done work',
+      statusId: 'done',
+      statusName: 'Done',
+      statusCategory: 'done',
+    });
+    expect(groupTasks([projectTask, done], 'status').map((group) => group.label)).toEqual([
+      'To do',
+      'Done',
+    ]);
     expect(groupTasks([alpha, beta], 'priority').map((group) => group.label)).toEqual(['P2', 'P1']);
   });
 
   it('keeps the order inside a group', () => {
-    const second = task({ id: 'p2', title: 'Second', projectId: 'proj', projectName: 'Onboarding' });
+    const second = task({
+      id: 'p2',
+      title: 'Second',
+      projectId: 'proj',
+      projectName: 'Onboarding',
+    });
     const groups = groupTasks([projectTask, second], 'project');
     expect(groups[0]?.tasks.map((entry) => entry.title)).toEqual(['Project work', 'Second']);
   });

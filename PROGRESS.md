@@ -1,10 +1,10 @@
-# PROGRESS — [App name]
+# PROGRESS — Docket
 
 Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 `docs/DESIGN.md` at the start of every session.
 
 - **Last updated:** 13 Nov 2026
-- **Current step:** M1–M4 complete — see "Remaining work" for the open questions
+- **Current step:** M1–M4 complete; Docket is named, AI is live on DeepSeek, lint is on
 - **Spec sources:** `docs/PRD.md` (behaviour), `docs/TECHSTACK.md` (implementation), `docs/DESIGN.md` (visuals)
 
 ---
@@ -29,6 +29,7 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 | M3-S14 | Review generation, scheduler, Reviews screen | ✅ Done |
 | M3-S15 | Chat drawer with read-only tools | ✅ Done |
 | M4-S16 | Undo, export, sort/group, state audit, perf fixture | ✅ Done |
+| Post-M4 | Docket name + logo, live DeepSeek, ESLint + Prettier | ✅ Done |
 
 ---
 
@@ -1223,6 +1224,9 @@ Functional checks in the browser:
 | D67 | NFR-4 failed on a real fixture: the List view painted 5,000 tasks in ~580 ms, the dashboard in ~110 ms, but the 10-column Table needed 5–10 s. The Table now sorts the whole set and renders the first 300 rows, with "showing first 300 of 5,000" in the footer — 187 ms afterwards. Lists are untouched because they already meet the budget. |
 | D68 | Export is a plain `GET /api/export?format=json` (or `markdown`) download (FR-28). JSON is a versioned dump of every table with tasks' tags/links/checklist nested; Markdown is a readable project → milestone → task outline plus reviews and statuses. Keys are not in the database, so neither format can contain one. |
 | D69 | `db:seed:perf` refuses to run against `data/app.db` (D18: never invent work in the real database) and needs `DATABASE_PATH=./data/perf.db`. It writes 50 projects, 150 milestones and 5,000 tasks with a fixed seed so measurements are comparable. |
+| D70 | **PRD Q5 answered: the app is Docket.** `APP_NAME` in `shared/src/constants.ts` is the only code change; the tab title, sidebar, API banner and docs all read it. The mark is the one in `mockups/docket_logo_sheet.svg`: a zinc-900 rounded square with three white bars, exported to `web/public/docket-mark.svg` and used at 22 px in the sidebar, with the same file as the favicon. |
+| D71 | **PRD Q1 answered: DeepSeek/OpenRouter are allowed.** The DeepSeek key lives only in `.env` (`DEEPSEEK_API_KEY`, gitignored) and no code path returns it (D48). `deepseek-chat` is configured for all five features in `ai_settings` after a live check, and one real capture and one real chat turn were run against the provider to prove the client, JSON parsing, tool calling and error paths. Keys are never committed. |
+| D72 | ESLint 10 (flat config) + Prettier 3 with `typescript-eslint`, `react-hooks`, `react-refresh` and `eslint-config-prettier` last. Scripts: `npm run lint`, `lint:fix`, `format`, `format:check`. Prettier ignores `docs/`, `PROGRESS.md`, `README.md`, `mockups/` and **`server/src/db/migrations/`** — reformatting migration metadata would desync drizzle-kit. `buttonClassName` moved to `lib/button.ts` so `Button.tsx` only exports components (Fast Refresh). |
 
 ## Follow-ups / known gaps
 
@@ -1247,14 +1251,13 @@ Functional checks in the browser:
 
 ## Remaining work (post-M4)
 
-- **PRD Q1** (AI policy) still decides whether AI is on by default; **Q5** (app
-  name) is still `[App name]`; **Q4** (desktop wrapper for an OS-level capture
-  shortcut) is unstarted.
-- **No live-provider test.** Every AI path was verified against the local stub
-  (D51). A smoke test with a real DeepSeek/OpenRouter key is the next step before
-  relying on any of it.
-- **ESLint + Prettier** were never installed (decided in §11 as a tooling item).
-  The code is typechecked and tested, but there is no lint gate.
+- **Q1 and Q5 are answered** (D70, D71): Docket, AI live on DeepSeek. **Q4**
+  (desktop wrapper for an OS-level capture shortcut) is still open.
+- **Live AI is proven for capture, chat and the scheduled daily review.** The
+  remaining AI paths (breakdown, weekly review) share the same client and were
+  only exercised against the stub (D51).
+- **Lint and format are set up** (D72): `npm run lint` and `npm run format:check`
+  are clean; add them to a pre-commit hook if desired.
 - **Undo** covers deletes only (not bulk moves — the app has none yet) and does
   not survive a restart.
 - **Recurrence** has no "weekly on chosen days" picker beyond the due weekday.

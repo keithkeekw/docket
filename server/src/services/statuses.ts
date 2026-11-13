@@ -170,7 +170,10 @@ export function updateStatus(db: Db, id: string, body: UpdateStatusBody): Status
         .where(and(eq(tasks.statusId, id), isNull(tasks.completedAt)))
         .run();
     } else {
-      db.update(tasks).set({ completedAt: null, updatedAt: now }).where(eq(tasks.statusId, id)).run();
+      db.update(tasks)
+        .set({ completedAt: null, updatedAt: now })
+        .where(eq(tasks.statusId, id))
+        .run();
     }
   }
 
@@ -189,7 +192,10 @@ export function deleteStatus(db: Db, id: string): void {
     );
   }
 
-  const total = db.select({ value: sql<number>`count(*)` }).from(statuses).get();
+  const total = db
+    .select({ value: sql<number>`count(*)` })
+    .from(statuses)
+    .get();
   if (Number(total?.value ?? 0) <= 1) {
     throw new ServiceError('At least one status is required', 400);
   }

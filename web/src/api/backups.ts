@@ -34,7 +34,8 @@ export function useRestoreBackup() {
   const queryClient = useQueryClient();
 
   return useMutation<RestoreResult, Error, { file: string }>({
-    mutationFn: async ({ file }) => apiMutate('/api/restore', 'POST', { file }, restoreResponseSchema),
+    mutationFn: async ({ file }) =>
+      apiMutate('/api/restore', 'POST', { file }, restoreResponseSchema),
     onSuccess: async () => {
       // Every list, count and project now comes from different rows.
       await queryClient.resetQueries();

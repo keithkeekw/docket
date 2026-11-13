@@ -62,9 +62,11 @@ function useTaskPartMutation<TData, TVariables>(
 }
 
 export function useAddChecklistItem(taskId: string) {
-  return useTaskPartMutation<ChecklistItem, CreateChecklistItemBody>(taskId, async (body) =>
-    (await apiMutate(`/api/tasks/${taskId}/checklist`, 'POST', body, checklistItemResponseSchema))
-      .item,
+  return useTaskPartMutation<ChecklistItem, CreateChecklistItemBody>(
+    taskId,
+    async (body) =>
+      (await apiMutate(`/api/tasks/${taskId}/checklist`, 'POST', body, checklistItemResponseSchema))
+        .item,
   );
 }
 
@@ -83,8 +85,10 @@ export function useDeleteChecklistItem(taskId: string) {
 }
 
 export function useAddLink(taskId: string) {
-  return useTaskPartMutation<TaskLink, CreateTaskLinkBody>(taskId, async (body) =>
-    (await apiMutate(`/api/tasks/${taskId}/links`, 'POST', body, taskLinkResponseSchema)).link,
+  return useTaskPartMutation<TaskLink, CreateTaskLinkBody>(
+    taskId,
+    async (body) =>
+      (await apiMutate(`/api/tasks/${taskId}/links`, 'POST', body, taskLinkResponseSchema)).link,
   );
 }
 
@@ -95,7 +99,9 @@ export function useDeleteLink(taskId: string) {
 }
 
 export function useSetTaskTags(taskId: string) {
-  return useTaskPartMutation<string[], { tags: string[] }>(taskId, async (body) =>
-    (await apiMutate(`/api/tasks/${taskId}/tags`, 'PUT', body, taskTagsResponseSchema)).tags,
+  return useTaskPartMutation<string[], { tags: string[] }>(
+    taskId,
+    async (body) =>
+      (await apiMutate(`/api/tasks/${taskId}/tags`, 'PUT', body, taskTagsResponseSchema)).tags,
   );
 }

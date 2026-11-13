@@ -83,7 +83,12 @@ describe('migrations and seed', () => {
   it('is idempotent: re-seeding adds nothing', () => {
     seedStatuses(db);
     expect(seedStatuses(db)).toBe(0);
-    expect(db.select({ count: sql<number>`count(*)` }).from(statuses).get()?.count).toBe(5);
+    expect(
+      db
+        .select({ count: sql<number>`count(*)` })
+        .from(statuses)
+        .get()?.count,
+    ).toBe(5);
   });
 
   it('seeds app settings once and never overwrites a changed value', () => {
@@ -96,11 +101,7 @@ describe('migrations and seed', () => {
 
     expect(seedAppSettings(db)).toBe(0);
 
-    const row = db
-      .select()
-      .from(appSettings)
-      .where(eq(appSettings.key, 'daily_review_time'))
-      .get();
+    const row = db.select().from(appSettings).where(eq(appSettings.key, 'daily_review_time')).get();
     expect(row?.value).toBe('08:15');
   });
 });
@@ -150,7 +151,9 @@ describe('schema constraints', () => {
     const task = db.insert(tasks).values({ title: 'Parent', statusId }).returning().get();
 
     db.insert(checklistItems).values({ taskId: task.id, title: 'Step 1' }).run();
-    db.insert(taskLinks).values({ taskId: task.id, url: 'https://example.test/ZD-1', label: 'ZD-1' }).run();
+    db.insert(taskLinks)
+      .values({ taskId: task.id, url: 'https://example.test/ZD-1', label: 'ZD-1' })
+      .run();
     db.insert(taskTags).values({ taskId: task.id, tagId: tag.id }).run();
 
     db.delete(tasks).where(eq(tasks.id, task.id)).run();

@@ -1,8 +1,4 @@
-import {
-  aiSettingsSchema,
-  type AiSettings,
-  type UpdateAiSettingsBody,
-} from '@app/shared';
+import { aiSettingsSchema, type AiSettings, type UpdateAiSettingsBody } from '@app/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiGet, apiMutate } from './client';
 

@@ -60,7 +60,9 @@ describe('GET /api/tasks/:id', () => {
   it('returns links and checklist items with the task', async () => {
     const task = await createTask({ title: 'Draft plan' });
 
-    await send('POST', `/api/tasks/${task.id}/links`, { url: 'https://acme.zendesk.com/tickets/48213' });
+    await send('POST', `/api/tasks/${task.id}/links`, {
+      url: 'https://acme.zendesk.com/tickets/48213',
+    });
     await send('POST', `/api/tasks/${task.id}/checklist`, { title: 'Outline' });
 
     const body = await detail(task.id);
@@ -150,8 +152,9 @@ describe('task links (FR-16)', () => {
     const invalid = await send('POST', `/api/tasks/${task.id}/links`, { url: 'not a url' });
     expect(invalid.response.status).toBe(400);
 
-    const link = (await send('POST', `/api/tasks/${task.id}/links`, { url: 'https://example.com/x' }))
-      .body.link as { id: string };
+    const link = (
+      await send('POST', `/api/tasks/${task.id}/links`, { url: 'https://example.com/x' })
+    ).body.link as { id: string };
 
     const removed = await app.request(`/api/links/${link.id}`, { method: 'DELETE' });
     expect(removed.status).toBe(204);
@@ -198,10 +201,12 @@ describe('POST /api/tasks/:id/move (FR-5)', () => {
     const task = await createTask({ title: 'Draft plan' });
 
     const moved = taskResponseSchema.parse(
-      (await send('POST', `/api/tasks/${task.id}/move`, {
-        projectId: project.id,
-        milestoneId: milestone.id,
-      })).body,
+      (
+        await send('POST', `/api/tasks/${task.id}/move`, {
+          projectId: project.id,
+          milestoneId: milestone.id,
+        })
+      ).body,
     ).task;
 
     expect(moved).toMatchObject({
@@ -210,9 +215,7 @@ describe('POST /api/tasks/:id/move (FR-5)', () => {
       milestoneId: milestone.id,
     });
 
-    const inbox = taskListSchema.parse(
-      await (await app.request('/api/tasks?project=none')).json(),
-    );
+    const inbox = taskListSchema.parse(await (await app.request('/api/tasks?project=none')).json());
     expect(inbox.tasks).toHaveLength(0);
   });
 

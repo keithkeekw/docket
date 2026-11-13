@@ -1,4 +1,4 @@
-# TECHSTACK — [App name]
+# TECHSTACK — Docket
 
 How the app is built. Behaviour is defined in `PRD.md` (requirement IDs like FR-3 are referenced here); look and feel in `DESIGN.md`.
 

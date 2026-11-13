@@ -1,12 +1,5 @@
 import { eq } from 'drizzle-orm';
-import {
-  checklistItems,
-  milestones,
-  projects,
-  taskLinks,
-  taskTags,
-  tasks,
-} from '../db/schema';
+import { checklistItems, milestones, projects, taskLinks, taskTags, tasks } from '../db/schema';
 import type { Db } from '../db/types';
 
 export type UndoEntry = { label: string; undo: () => void };
@@ -71,7 +64,11 @@ export function undoableProjectDelete(db: Db, projectId: string): void {
   const row = db.select().from(projects).where(eq(projects.id, projectId)).get();
   if (!row) return;
 
-  const milestoneRows = db.select().from(milestones).where(eq(milestones.projectId, projectId)).all();
+  const milestoneRows = db
+    .select()
+    .from(milestones)
+    .where(eq(milestones.projectId, projectId))
+    .all();
   const taskLinksBefore = db
     .select({ id: tasks.id, projectId: tasks.projectId, milestoneId: tasks.milestoneId })
     .from(tasks)

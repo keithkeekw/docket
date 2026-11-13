@@ -612,4 +612,3 @@ export type ProposalItemFields = z.infer<typeof proposalItemFieldsSchema>;
 export type ProposalItemDisplay = z.infer<typeof proposalItemDisplaySchema>;
 export type ProposalItem = z.infer<typeof proposalItemSchema>;
 export type Proposal = z.infer<typeof proposalSchema>;
-

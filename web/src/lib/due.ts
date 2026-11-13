@@ -30,12 +30,14 @@ export function describeDue(
   const moment = time ? parse(`${dueDate} ${time}`, 'yyyy-MM-dd HH:mm', now) : null;
   const validMoment = moment && isValid(moment) ? moment : null;
 
-  const overdue = validMoment
-    ? isBefore(validMoment, now)
-    : isBefore(day, startOfDay(now));
+  const overdue = validMoment ? isBefore(validMoment, now) : isBefore(day, startOfDay(now));
 
   const isToday = format(day, 'yyyy-MM-dd') === format(now, 'yyyy-MM-dd');
-  const label = isToday ? (validMoment ? format(validMoment, 'HH:mm') : 'Today') : format(day, 'EEE d MMM');
+  const label = isToday
+    ? validMoment
+      ? format(validMoment, 'HH:mm')
+      : 'Today'
+    : format(day, 'EEE d MMM');
 
   return {
     label,

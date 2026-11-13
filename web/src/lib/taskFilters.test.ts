@@ -1,10 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  hasActiveFilters,
-  resolveDueRange,
-  taskFilterQuery,
-  type TaskFilter,
-} from './taskFilters';
+import { hasActiveFilters, resolveDueRange, taskFilterQuery, type TaskFilter } from './taskFilters';
 
 describe('taskFilterQuery', () => {
   it('returns an empty string for no filter', () => {

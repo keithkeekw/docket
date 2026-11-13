@@ -19,7 +19,9 @@ function ruleParts(rule: string): Record<string, string> {
     .map((part) => part.split('='))
     .filter((pair): pair is [string, string] => pair.length === 2 && Boolean(pair[0]));
 
-  return Object.fromEntries(entries.map(([key, value]) => [key.toUpperCase(), value.toUpperCase()]));
+  return Object.fromEntries(
+    entries.map(([key, value]) => [key.toUpperCase(), value.toUpperCase()]),
+  );
 }
 
 /**

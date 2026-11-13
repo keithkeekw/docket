@@ -1,4 +1,4 @@
-# [App name]
+# Docket
 
 Personal task & project manager. Local-only: one SQLite file, one API bound to
 `127.0.0.1`, no cloud sync.

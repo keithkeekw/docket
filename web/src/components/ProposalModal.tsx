@@ -247,9 +247,7 @@ export function ProposalModal() {
               onClick={handleApply}
               disabled={count === 0 || apply.isPending}
             >
-              {apply.isPending
-                ? 'Adding…'
-                : `Add ${count} ${count === 1 ? noun : `${noun}s`}`}
+              {apply.isPending ? 'Adding…' : `Add ${count} ${count === 1 ? noun : `${noun}s`}`}
             </Button>
           </div>
         </footer>

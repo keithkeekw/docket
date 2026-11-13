@@ -1,5 +1,5 @@
 import { Link } from 'react-router';
-import { buttonClassName } from '../components/Button';
+import { buttonClassName } from '../lib/button';
 import { EmptyState } from '../components/EmptyState';
 import { PageHeader } from '../components/PageHeader';
 

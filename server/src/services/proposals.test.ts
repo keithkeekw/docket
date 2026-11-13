@@ -45,7 +45,9 @@ function stub(...replies: unknown[]): { complete: Completion; calls: string[] } 
       calls.push(request.user);
       const reply = replies[Math.min(index, replies.length - 1)];
       index += 1;
-      return typeof reply === 'string' ? { text: reply, model: 'stub-model' } : projection(reply as unknown[]);
+      return typeof reply === 'string'
+        ? { text: reply, model: 'stub-model' }
+        : projection(reply as unknown[]);
     },
   };
 }
@@ -177,7 +179,10 @@ describe('applyProposal', () => {
 
     expect(applied.status).toBe('applied');
     const rows = db.select().from(tasks).all();
-    expect(rows.map((row) => row.title).sort()).toEqual(['Book the venue', 'Draft the welcome doc']);
+    expect(rows.map((row) => row.title).sort()).toEqual([
+      'Book the venue',
+      'Draft the welcome doc',
+    ]);
 
     const draft = rows.find((row) => row.title === 'Draft the welcome doc');
     expect(draft).toMatchObject({ priority: 2, dueDate: '2026-11-20' });
@@ -189,7 +194,13 @@ describe('applyProposal', () => {
 
     applyProposal(db, proposal.id, kept);
 
-    expect(db.select().from(tasks).all().map((row) => row.title)).toEqual(['Draft the welcome doc']);
+    expect(
+      db
+        .select()
+        .from(tasks)
+        .all()
+        .map((row) => row.title),
+    ).toEqual(['Draft the welcome doc']);
   });
 
   it('rolls everything back when one item is invalid', async () => {
@@ -225,7 +236,10 @@ describe('applyProposal', () => {
     applyProposal(db, proposal.id, items);
 
     const row = db
-      .select({ editedCount: proposalsTable.editedCount, acceptedCount: proposalsTable.acceptedCount })
+      .select({
+        editedCount: proposalsTable.editedCount,
+        acceptedCount: proposalsTable.acceptedCount,
+      })
       .from(proposalsTable)
       .where(eq(proposalsTable.id, proposal.id))
       .get();
@@ -268,7 +282,6 @@ describe('POST /api/ai/capture', () => {
     expect(await response.json()).toMatchObject({ error: expect.stringContaining('not set up') });
   });
 });
-
 
 describe('breakdownProposal', () => {
   const breakdownReply = {
@@ -387,11 +400,7 @@ describe('breakdownProposal', () => {
       breakdownProposal(db, excluded.id, { complete: stubBreakdown(breakdownReply), now: NOW }),
     ).rejects.toMatchObject({ status: 400 });
 
-    const archived = db
-      .insert(projects)
-      .values({ name: 'Old', archived: true })
-      .returning()
-      .get();
+    const archived = db.insert(projects).values({ name: 'Old', archived: true }).returning().get();
     await expect(
       breakdownProposal(db, archived.id, { complete: stubBreakdown(breakdownReply), now: NOW }),
     ).rejects.toMatchObject({ status: 400 });

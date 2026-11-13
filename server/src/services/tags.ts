@@ -48,7 +48,9 @@ export function setTaskTags(db: Db, taskId: string, names: string[]): string[] {
   db.delete(taskTags).where(eq(taskTags.taskId, taskId)).run();
 
   for (const name of cleaned) {
-    db.insert(taskTags).values({ taskId, tagId: ensureTag(db, name) }).run();
+    db.insert(taskTags)
+      .values({ taskId, tagId: ensureTag(db, name) })
+      .run();
   }
 
   return cleaned;

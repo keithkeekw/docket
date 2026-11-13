@@ -43,8 +43,14 @@ export function Input({ className, ...props }: InputHTMLAttributes<HTMLInputElem
   return <input className={cx(CONTROL, 'min-h-10', className)} {...props} />;
 }
 
-export function Textarea({ className, rows = 4, ...props }: TextareaHTMLAttributes<HTMLTextAreaElement>) {
-  return <textarea rows={rows} className={cx(CONTROL, 'py-2 leading-normal', className)} {...props} />;
+export function Textarea({
+  className,
+  rows = 4,
+  ...props
+}: TextareaHTMLAttributes<HTMLTextAreaElement>) {
+  return (
+    <textarea rows={rows} className={cx(CONTROL, 'py-2 leading-normal', className)} {...props} />
+  );
 }
 
 export function Select({ className, ...props }: SelectHTMLAttributes<HTMLSelectElement>) {

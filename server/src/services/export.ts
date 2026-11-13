@@ -59,11 +59,7 @@ function formatDue(task: typeof tasks.$inferSelect): string {
   return ` — due ${task.dueDate}${task.dueTime ? ` ${task.dueTime}` : ''}`;
 }
 
-function taskLine(
-  task: typeof tasks.$inferSelect,
-  statusName: string,
-  location: string,
-): string {
+function taskLine(task: typeof tasks.$inferSelect, statusName: string, location: string): string {
   const done = task.completedAt ? 'x' : ' ';
   const meta = [`P${task.priority}`, statusName, location].join(', ');
   const notes = task.notes ? `\n  > ${task.notes.replace(/\n/g, '\n  > ')}` : '';
@@ -137,5 +133,10 @@ export function exportMarkdown(db: Db): string {
     lines.push(`- ${status.name} (${status.category})`);
   }
 
-  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trimEnd() + '\n';
+  return (
+    lines
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trimEnd() + '\n'
+  );
 }

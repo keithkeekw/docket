@@ -22,12 +22,7 @@ import type { Db } from '../db/types';
 import { ServiceError } from '../lib/errors';
 import { createNextOccurrence } from './recurrence';
 import { undoableTaskDelete } from './undo';
-import {
-  defaultOpenStatusId,
-  firstDoneStatusId,
-  statusCategoryOf,
-  statusExists,
-} from './statuses';
+import { defaultOpenStatusId, firstDoneStatusId, statusCategoryOf, statusExists } from './statuses';
 
 const taskSelection = {
   id: tasks.id,
@@ -158,7 +153,6 @@ function withSummaries(db: Db, rows: TaskRow[]): Task[] {
 
   return rows.map((row) => toTask(row, summaries.get(row.id) ?? EMPTY_EXTRAS));
 }
-
 
 export type TaskFilter = {
   /** `none` means Inbox (project_id IS NULL). */

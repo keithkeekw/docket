@@ -40,7 +40,8 @@ export function useProjects() {
 export function useProject(id: string | undefined) {
   return useQuery<ProjectSummary>({
     queryKey: projectQueryKey(id ?? ''),
-    queryFn: async ({ signal }) => (await apiGet(`/api/projects/${id}`, projectResponseSchema, signal)).project,
+    queryFn: async ({ signal }) =>
+      (await apiGet(`/api/projects/${id}`, projectResponseSchema, signal)).project,
     enabled: Boolean(id),
   });
 }

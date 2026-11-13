@@ -1,8 +1,4 @@
-import {
-  aiChatResponseSchema,
-  type AiChatResponse,
-  type ChatMessage,
-} from '@app/shared';
+import { aiChatResponseSchema, type AiChatResponse, type ChatMessage } from '@app/shared';
 import { useMutation } from '@tanstack/react-query';
 import { apiMutate } from './client';
 

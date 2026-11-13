@@ -53,7 +53,8 @@ export type ReviewContext = {
 
 function periodFor(kind: ReviewKind, now: Date): { periodStart: string; periodEnd: string } {
   const periodEnd = localDateString(now);
-  const periodStart = kind === 'weekly' ? localDateString(addDays(now, -(WEEK_DAYS - 1))) : periodEnd;
+  const periodStart =
+    kind === 'weekly' ? localDateString(addDays(now, -(WEEK_DAYS - 1))) : periodEnd;
 
   return { periodStart, periodEnd };
 }
@@ -85,11 +86,7 @@ export function buildReviewContext(
     .from(tasks)
     .leftJoin(projects, eq(tasks.projectId, projects.id))
     .where(
-      and(
-        isNull(tasks.completedAt),
-        isNotNull(tasks.dueDate),
-        sql`${tasks.dueDate} < ${today}`,
-      ),
+      and(isNull(tasks.completedAt), isNotNull(tasks.dueDate), sql`${tasks.dueDate} < ${today}`),
     )
     .orderBy(asc(tasks.dueDate))
     .all();
@@ -234,10 +231,7 @@ export function openReview(db: Db, id: string): Review {
   const review = getReview(db, id);
   if (review.openedAt) return review;
 
-  db.update(reviews)
-    .set({ openedAt: new Date().toISOString() })
-    .where(eq(reviews.id, id))
-    .run();
+  db.update(reviews).set({ openedAt: new Date().toISOString() }).where(eq(reviews.id, id)).run();
 
   return getReview(db, id);
 }

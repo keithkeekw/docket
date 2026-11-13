@@ -24,7 +24,7 @@ export function Sidebar() {
         to="/"
         className="flex min-h-10 items-center gap-2.5 rounded-lg px-3 pb-4 text-zinc-900"
       >
-        <span aria-hidden="true" className="size-[22px] rounded-md bg-zinc-900" />
+        <img src="/docket-mark.svg" alt="" aria-hidden="true" className="size-[22px] rounded-md" />
         <span className="truncate text-sm font-semibold">{APP_NAME}</span>
       </Link>
 

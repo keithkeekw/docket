@@ -104,9 +104,7 @@ export function createNextOccurrence(db: Db, taskId: string): string | null {
   const positionRow = db
     .select({ value: sql<number>`coalesce(max(${tasks.position}), -1) + 1` })
     .from(tasks)
-    .where(
-      task.projectId === null ? isNull(tasks.projectId) : eq(tasks.projectId, task.projectId),
-    )
+    .where(task.projectId === null ? isNull(tasks.projectId) : eq(tasks.projectId, task.projectId))
     .get();
 
   const inserted = db

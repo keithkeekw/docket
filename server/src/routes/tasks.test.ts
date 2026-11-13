@@ -157,7 +157,11 @@ describe('PATCH /api/tasks/:id', () => {
     const response = await app.request(`/api/tasks/${task.id}`, {
       method: 'PATCH',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ title: 'Final', dueDate: null, statusId: statusIdByName('In progress') }),
+      body: JSON.stringify({
+        title: 'Final',
+        dueDate: null,
+        statusId: statusIdByName('In progress'),
+      }),
     });
 
     expect(response.status).toBe(200);
@@ -276,7 +280,11 @@ describe('GET /api/tasks', () => {
   });
 
   it('filters by due date and searches title and notes', async () => {
-    await createTask({ title: 'Reply on vendor escalation', notes: 'ZD-48213', dueDate: '2026-11-12' });
+    await createTask({
+      title: 'Reply on vendor escalation',
+      notes: 'ZD-48213',
+      dueDate: '2026-11-12',
+    });
     await createTask({ title: 'Draft escalation matrix', dueDate: '2026-11-30' });
 
     const due = await listTasks('?due_to=2026-11-14');

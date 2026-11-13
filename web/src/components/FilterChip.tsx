@@ -1,5 +1,5 @@
 import { cx } from '../lib/cx';
-import { buttonClassName } from './Button';
+import { buttonClassName } from '../lib/button';
 
 export type FilterOption = { value: string; label: string };
 
@@ -38,9 +38,7 @@ export function FilterChip({
     }
 
     onChange(
-      selected.includes(value)
-        ? selected.filter((entry) => entry !== value)
-        : [...selected, value],
+      selected.includes(value) ? selected.filter((entry) => entry !== value) : [...selected, value],
     );
   }
 

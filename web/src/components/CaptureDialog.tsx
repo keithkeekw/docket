@@ -36,9 +36,13 @@ export function CaptureDialog() {
   const captureWithAi = useCaptureWithAi();
 
   // Works from any screen, including while typing in another field.
-  useHotkeys('mod+k', () => {
-    openCapture();
-  }, { preventDefault: true, enableOnFormTags: true });
+  useHotkeys(
+    'mod+k',
+    () => {
+      openCapture();
+    },
+    { preventDefault: true, enableOnFormTags: true },
+  );
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -152,11 +156,7 @@ export function CaptureDialog() {
           (needsSettings ? (
             <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2.5 text-xs text-zinc-700">
               {error}{' '}
-              <Link
-                to="/settings"
-                className="text-blue-600 hover:underline"
-                onClick={closeCapture}
-              >
+              <Link to="/settings" className="text-blue-600 hover:underline" onClick={closeCapture}>
                 Open Settings
               </Link>
             </p>

@@ -47,8 +47,9 @@ async function createProject(name: string) {
 }
 
 async function createMilestone(projectId: string, name: string) {
-  return milestoneResponseSchema.parse((await post(`/api/projects/${projectId}/milestones`, { name }))
-    .body).milestone;
+  return milestoneResponseSchema.parse(
+    (await post(`/api/projects/${projectId}/milestones`, { name })).body,
+  ).milestone;
 }
 
 function statusIdByName(name: string): string {
@@ -263,7 +264,9 @@ describe('milestones', () => {
     const response = await app.request(`/api/milestones/${milestone.id}`, { method: 'DELETE' });
     expect(response.status).toBe(204);
 
-    const projectTasks = (await (await app.request(`/api/tasks?project=${project.id}`)).json()) as any;
+    const projectTasks = (await (
+      await app.request(`/api/tasks?project=${project.id}`)
+    ).json()) as any;
     expect(projectTasks.tasks[0]).toMatchObject({ id: taskId, milestoneId: null });
   });
 

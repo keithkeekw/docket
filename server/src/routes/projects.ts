@@ -2,7 +2,13 @@ import { createProjectBodySchema, updateProjectBodySchema } from '@app/shared';
 import type { Hono } from 'hono';
 import type { Db } from '../db/types';
 import { invalidBody, readJson } from '../lib/http';
-import { createProject, deleteProject, getProject, listProjects, updateProject } from '../services/projects';
+import {
+  createProject,
+  deleteProject,
+  getProject,
+  listProjects,
+  updateProject,
+} from '../services/projects';
 
 export function registerProjectRoutes(app: Hono, db: Db): void {
   app.get('/api/projects', (c) => {

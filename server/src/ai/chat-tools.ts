@@ -263,8 +263,7 @@ export function runChatTool(db: Db, name: string, rawArgs: string): ToolRun {
         };
       } catch (cause) {
         return {
-          content:
-            cause instanceof ServiceError ? cause.message : 'Those tasks were not valid.',
+          content: cause instanceof ServiceError ? cause.message : 'Those tasks were not valid.',
         };
       }
     }

@@ -72,11 +72,11 @@ export function resolveDueRange(
 export function hasActiveFilters(filter: TaskFilter): boolean {
   return Boolean(
     (filter.statusIds && filter.statusIds.length > 0) ||
-      (filter.priorities && filter.priorities.length > 0) ||
-      filter.dueFrom ||
-      filter.dueTo ||
-      filter.q ||
-      filter.tag ||
-      filter.project,
+    (filter.priorities && filter.priorities.length > 0) ||
+    filter.dueFrom ||
+    filter.dueTo ||
+    filter.q ||
+    filter.tag ||
+    filter.project,
   );
 }

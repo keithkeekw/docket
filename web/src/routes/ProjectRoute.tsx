@@ -44,9 +44,10 @@ export function ProjectRoute() {
   const [milestoneFilter, setMilestoneFilter] = useState<string | null>(null);
   const [addingMilestone, setAddingMilestone] = useState(false);
   const [milestoneName, setMilestoneName] = useState('');
-  const [breakdownError, setBreakdownError] = useState<{ message: string; needsSettings: boolean } | null>(
-    null,
-  );
+  const [breakdownError, setBreakdownError] = useState<{
+    message: string;
+    needsSettings: boolean;
+  } | null>(null);
 
   const createMilestone = useCreateMilestone(id ?? '');
   const breakdown = useBreakdown();

@@ -65,7 +65,8 @@ function progressFor(db: Db, projectIds: string[]): Map<string, ProjectProgress>
 
     progress.total = Number(row.total);
     progress.done = Number(row.done ?? 0);
-    progress.percent = progress.total === 0 ? 0 : Math.round((progress.done / progress.total) * 100);
+    progress.percent =
+      progress.total === 0 ? 0 : Math.round((progress.done / progress.total) * 100);
   }
 
   const openMilestones = db

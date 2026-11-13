@@ -1,4 +1,4 @@
-# PRD — [App name]: Personal Task & Project Manager
+# PRD — Docket: Personal Task & Project Manager
 
 | | |
 |---|---|
@@ -14,7 +14,7 @@
 
 ## 1. Summary
 
-Keith manages a support team and juggles quick ad-hoc tasks (ticket follow-ups, replies, reminders) alongside long-running improvement projects with phases and many sub-tasks. These currently live in scattered places, which makes it hard to see what is due today and where each project stands. [App name] is a minimal, local-only web app that gives one place to capture tasks in seconds, organise long-running projects into milestones, tasks and checklists, and view the same work as a List, Table or Kanban board. An optional AI layer (DeepSeek or OpenRouter, chosen per feature) parses free-text capture, breaks projects down, writes daily and weekly reviews, and answers questions — but never changes data without Keith's confirmation. Success means every work commitment lives in the app, capture takes seconds, and each morning starts from an accurate picture rather than a reconstruction.
+Keith manages a support team and juggles quick ad-hoc tasks (ticket follow-ups, replies, reminders) alongside long-running improvement projects with phases and many sub-tasks. These currently live in scattered places, which makes it hard to see what is due today and where each project stands. Docket is a minimal, local-only web app that gives one place to capture tasks in seconds, organise long-running projects into milestones, tasks and checklists, and view the same work as a List, Table or Kanban board. An optional AI layer (DeepSeek or OpenRouter, chosen per feature) parses free-text capture, breaks projects down, writes daily and weekly reviews, and answers questions — but never changes data without Keith's confirmation. Success means every work commitment lives in the app, capture takes seconds, and each morning starts from an accurate picture rather than a reconstruction.
 
 ## 2. Objectives & Goals
 

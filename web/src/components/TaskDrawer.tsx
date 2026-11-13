@@ -269,7 +269,9 @@ export function TaskDrawer() {
                         </option>
                       ))}
                       {form.projectId !== '' && !projects.some((p) => p.id === form.projectId) && (
-                        <option value={form.projectId}>{task.projectName ?? 'Current project'}</option>
+                        <option value={form.projectId}>
+                          {task.projectName ?? 'Current project'}
+                        </option>
                       )}
                     </Select>
                   </Field>

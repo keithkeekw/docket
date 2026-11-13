@@ -43,11 +43,7 @@ function restoreTaskLists(queryClient: QueryClient, snapshot: TaskSnapshot): voi
   for (const [key, data] of snapshot) queryClient.setQueryData(key, data);
 }
 
-function patchCachedTask(
-  queryClient: QueryClient,
-  id: string,
-  update: (task: Task) => Task,
-): void {
+function patchCachedTask(queryClient: QueryClient, id: string, update: (task: Task) => Task): void {
   queryClient.setQueriesData<TaskList>({ queryKey: TASKS_KEY }, (data) =>
     data ? { tasks: data.tasks.map((task) => (task.id === id ? update(task) : task)) } : data,
   );

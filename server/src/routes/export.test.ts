@@ -75,7 +75,9 @@ describe('GET /api/export?format=markdown', () => {
     expect(response.headers.get('content-type')).toContain('text/markdown');
     expect(text).toContain('# Export —');
     expect(text).toContain('## Onboarding — 0 of 1 done');
-    expect(text).toContain('- [ ] Draft the welcome doc (P2, Backlog, Onboarding) — due 2026-11-20');
+    expect(text).toContain(
+      '- [ ] Draft the welcome doc (P2, Backlog, Onboarding) — due 2026-11-20',
+    );
     expect(text).toContain('## Statuses');
   });
 });

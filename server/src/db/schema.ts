@@ -25,7 +25,10 @@ import {
  * - `updated_at` is set explicitly by services; there is no DB trigger.
  */
 
-const id = () => text('id').primaryKey().$defaultFn(() => randomUUID());
+const id = () =>
+  text('id')
+    .primaryKey()
+    .$defaultFn(() => randomUUID());
 const createdAt = () =>
   text('created_at')
     .notNull()
@@ -114,10 +117,9 @@ export const tasks = sqliteTable(
     dueTime: text('due_time'),
     estimateMinutes: integer('estimate_minutes'),
     recurrenceRule: text('recurrence_rule'),
-    recurrenceParentId: text('recurrence_parent_id').references(
-      (): AnySQLiteColumn => tasks.id,
-      { onDelete: 'set null' },
-    ),
+    recurrenceParentId: text('recurrence_parent_id').references((): AnySQLiteColumn => tasks.id, {
+      onDelete: 'set null',
+    }),
     position: integer('position').notNull().default(0),
     completedAt: text('completed_at'),
     createdAt: createdAt(),
@@ -130,10 +132,7 @@ export const tasks = sqliteTable(
     index('tasks_completed_idx').on(t.completedAt),
     index('tasks_recurrence_parent_idx').on(t.recurrenceParentId),
     check('tasks_priority_check', sql`${t.priority} in (1, 2, 3)`),
-    check(
-      'tasks_estimate_check',
-      sql`${t.estimateMinutes} is null or ${t.estimateMinutes} > 0`,
-    ),
+    check('tasks_estimate_check', sql`${t.estimateMinutes} is null or ${t.estimateMinutes} > 0`),
     // `milestone_id must belong to project_id` is enforced in the service layer
     // (TECHSTACK §4). A DB-level CHECK here would block SQLite's ON DELETE SET
     // NULL ordering when a project is deleted.
@@ -190,10 +189,7 @@ export const taskTags = sqliteTable(
       .notNull()
       .references(() => tags.id, { onDelete: 'cascade' }),
   },
-  (t) => [
-    primaryKey({ columns: [t.taskId, t.tagId] }),
-    index('task_tags_tag_idx').on(t.tagId),
-  ],
+  (t) => [primaryKey({ columns: [t.taskId, t.tagId] }), index('task_tags_tag_idx').on(t.tagId)],
 );
 
 // ---------------------------------------------------------------------------
@@ -260,10 +256,7 @@ export const proposals = sqliteTable(
   (t) => [
     index('proposals_status_idx').on(t.status),
     check('proposals_feature_check', sql`${t.feature} in ('capture', 'breakdown', 'chat')`),
-    check(
-      'proposals_status_check',
-      sql`${t.status} in ('pending', 'applied', 'discarded')`,
-    ),
+    check('proposals_status_check', sql`${t.status} in ('pending', 'applied', 'discarded')`),
   ],
 );
 

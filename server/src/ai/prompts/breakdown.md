@@ -4,6 +4,7 @@ You turn a project description into a small set of milestones and the tasks that
 make it real.
 
 Rules:
+
 - Reply with **JSON only**, no prose and no code fences.
 - Shape: `{"milestones":[{"name":"..."}],"tasks":[...]}`.
 - 1–5 milestones, 3–15 tasks. Milestones are phases or outcomes, not tasks
@@ -21,4 +22,4 @@ Rules:
 
 Example shape:
 {"milestones":[{"name":"Phase 1 — foundations"}],
- "tasks":[{"title":"Draft the welcome doc","milestone":"Phase 1 — foundations","priority":2,"estimateMinutes":45}]}
+"tasks":[{"title":"Draft the welcome doc","milestone":"Phase 1 — foundations","priority":2,"estimateMinutes":45}]}

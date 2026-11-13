@@ -133,7 +133,9 @@ describe('chat', () => {
       {
         text: '',
         model: 'stub',
-        toolCalls: [{ id: 'call-1', name: 'list_tasks', arguments: JSON.stringify({ openOnly: true }) }],
+        toolCalls: [
+          { id: 'call-1', name: 'list_tasks', arguments: JSON.stringify({ openOnly: true }) },
+        ],
       },
       { text: 'You have one open task: Book the venue.', model: 'stub', toolCalls: [] },
     );
@@ -194,6 +196,8 @@ describe('chat', () => {
   });
 
   it('surfaces a missing configuration instead of falling back', async () => {
-    await expect(chat(db, [{ role: 'user', content: 'Hi' }])).rejects.toMatchObject({ status: 503 });
+    await expect(chat(db, [{ role: 'user', content: 'Hi' }])).rejects.toMatchObject({
+      status: 503,
+    });
   });
 });

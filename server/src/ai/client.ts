@@ -110,7 +110,6 @@ export function extractJson(text: string): unknown {
   }
 }
 
-
 export type ToolChatMessage = Record<string, unknown>;
 
 export type ToolChatResult = {

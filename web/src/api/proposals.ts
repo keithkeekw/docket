@@ -1,8 +1,4 @@
-import {
-  proposalResponseSchema,
-  type Proposal,
-  type ProposalItem,
-} from '@app/shared';
+import { proposalResponseSchema, type Proposal, type ProposalItem } from '@app/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiMutate } from './client';
 
@@ -24,7 +20,8 @@ export function useCaptureWithAi() {
 export function useBreakdown() {
   return useMutation<Proposal, Error, { projectId: string }>({
     mutationFn: async ({ projectId }) =>
-      (await apiMutate('/api/ai/breakdown', 'POST', { projectId }, proposalResponseSchema)).proposal,
+      (await apiMutate('/api/ai/breakdown', 'POST', { projectId }, proposalResponseSchema))
+        .proposal,
   });
 }
 
@@ -47,9 +44,8 @@ export function useApplyProposal() {
 
   return useMutation<Proposal, Error, { id: string; items: ProposalItem[] }>({
     mutationFn: async ({ id, items }) =>
-      (
-        await apiMutate(`/api/proposals/${id}/apply`, 'POST', { items }, proposalResponseSchema)
-      ).proposal,
+      (await apiMutate(`/api/proposals/${id}/apply`, 'POST', { items }, proposalResponseSchema))
+        .proposal,
     onSuccess: () => {
       invalidate();
     },

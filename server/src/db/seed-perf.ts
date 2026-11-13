@@ -65,12 +65,14 @@ try {
 
   if (!doneStatus || openStatuses.length === 0) throw new Error('statuses are not seeded');
 
-  const tagIds = Array.from({ length: 20 }, (_, index) =>
-    db
-      .insert(tags)
-      .values({ name: `tag-${index + 1}` })
-      .returning({ id: tags.id })
-      .get().id,
+  const tagIds = Array.from(
+    { length: 20 },
+    (_, index) =>
+      db
+        .insert(tags)
+        .values({ name: `tag-${index + 1}` })
+        .returning({ id: tags.id })
+        .get().id,
   );
 
   db.transaction(() => {
@@ -88,17 +90,19 @@ try {
         .returning({ id: projects.id })
         .get();
 
-      const milestoneIds = Array.from({ length: MILESTONES_PER_PROJECT }, (_, phase) =>
-        db
-          .insert(milestones)
-          .values({
-            projectId: project.id,
-            name: `Phase ${phase + 1}`,
-            position: phase,
-            completedAt: phase === 0 && index % 3 === 0 ? new Date().toISOString() : null,
-          })
-          .returning({ id: milestones.id })
-          .get().id,
+      const milestoneIds = Array.from(
+        { length: MILESTONES_PER_PROJECT },
+        (_, phase) =>
+          db
+            .insert(milestones)
+            .values({
+              projectId: project.id,
+              name: `Phase ${phase + 1}`,
+              position: phase,
+              completedAt: phase === 0 && index % 3 === 0 ? new Date().toISOString() : null,
+            })
+            .returning({ id: milestones.id })
+            .get().id,
       );
 
       projectMilestones.push({ projectId: project.id, milestoneIds });
@@ -129,7 +133,9 @@ try {
         estimateMinutes: random() < 0.4 ? pick([15, 30, 45, 60, 90]) : null,
         recurrenceRule: random() < 0.03 ? 'FREQ=WEEKLY' : null,
         position: index,
-        completedAt: done ? new Date(Date.now() - Math.floor(random() * 20) * 86_400_000).toISOString() : null,
+        completedAt: done
+          ? new Date(Date.now() - Math.floor(random() * 20) * 86_400_000).toISOString()
+          : null,
       });
     }
 
@@ -161,14 +167,23 @@ try {
     }
   });
 
-  const taskCount = db.select({ value: sql<number>`count(*)` }).from(tasks).get();
-  const projectCount = db.select({ value: sql<number>`count(*)` }).from(projects).get();
-  const milestoneCount = db.select({ value: sql<number>`count(*)` }).from(milestones).get();
+  const taskCount = db
+    .select({ value: sql<number>`count(*)` })
+    .from(tasks)
+    .get();
+  const projectCount = db
+    .select({ value: sql<number>`count(*)` })
+    .from(projects)
+    .get();
+  const milestoneCount = db
+    .select({ value: sql<number>`count(*)` })
+    .from(milestones)
+    .get();
 
   console.log(
-    `Seeded ${Number(taskCount?.value ?? 0)} tasks, ${Number(projectCount?.value ?? 0)} projects and ${
-      Number(milestoneCount?.value ?? 0)
-    } milestones in ${Date.now() - started} ms → ${env.databasePath}`,
+    `Seeded ${Number(taskCount?.value ?? 0)} tasks, ${Number(projectCount?.value ?? 0)} projects and ${Number(
+      milestoneCount?.value ?? 0,
+    )} milestones in ${Date.now() - started} ms → ${env.databasePath}`,
   );
 } catch (error) {
   console.error('Perf seed failed:', error instanceof Error ? error.message : error);

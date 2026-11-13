@@ -59,7 +59,12 @@ describe('GET /api/dashboard', () => {
         { title: 'Today', statusId: open, dueDate: today },
         { title: 'Undated inbox', statusId: open },
         { title: 'Future inbox', statusId: open, dueDate: tomorrow },
-        { title: 'Finished overdue', statusId: done, dueDate: yesterday, completedAt: '2026-11-01T00:00:00.000Z' },
+        {
+          title: 'Finished overdue',
+          statusId: done,
+          dueDate: yesterday,
+          completedAt: '2026-11-01T00:00:00.000Z',
+        },
       ])
       .run();
 
@@ -116,7 +121,12 @@ describe('GET /api/dashboard', () => {
     db.insert(tasks)
       .values([
         { title: 'One', statusId: open, projectId: active.id },
-        { title: 'Two', statusId: done, projectId: active.id, completedAt: '2026-11-01T00:00:00.000Z' },
+        {
+          title: 'Two',
+          statusId: done,
+          projectId: active.id,
+          completedAt: '2026-11-01T00:00:00.000Z',
+        },
       ])
       .run();
 

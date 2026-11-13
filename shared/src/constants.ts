@@ -1,8 +1,7 @@
 /**
- * Single source of truth for the product name.
+ * Single source of truth for the product name (PRD Q5: "Docket").
  *
  * Rename here only: the browser tab, the sidebar and the API banner all read
- * this constant. TECHSTACK.md §2 and PRD.md open question 5 still hold the
- * final name.
+ * this constant.
  */
-export const APP_NAME = '[App name]';
+export const APP_NAME = 'Docket';

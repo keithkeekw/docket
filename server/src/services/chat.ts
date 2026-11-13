@@ -69,7 +69,8 @@ export async function chat(
     }
 
     return {
-      reply: 'I stopped after several lookups without reaching an answer. Try asking more narrowly.',
+      reply:
+        'I stopped after several lookups without reaching an answer. Try asking more narrowly.',
       proposal,
     };
   } catch (cause) {

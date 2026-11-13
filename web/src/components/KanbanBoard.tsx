@@ -211,10 +211,7 @@ function KanbanCard({
   return (
     <div
       ref={setNodeRef}
-      className={cx(
-        'rounded-[10px] border border-zinc-200 bg-white',
-        isDragging && 'opacity-40',
-      )}
+      className={cx('rounded-[10px] border border-zinc-200 bg-white', isDragging && 'opacity-40')}
     >
       <button
         type="button"

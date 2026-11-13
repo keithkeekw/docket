@@ -34,8 +34,14 @@ const modelTaskSchema = z.object({
   milestone: z.string().trim().min(1).max(200).nullish(),
   status: z.string().trim().min(1).max(60).nullish(),
   priority: prioritySchema.nullish(),
-  dueDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).nullish(),
-  dueTime: z.string().regex(/^\d{2}:\d{2}$/).nullish(),
+  dueDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullish(),
+  dueTime: z
+    .string()
+    .regex(/^\d{2}:\d{2}$/)
+    .nullish(),
   estimateMinutes: z.number().int().positive().max(100_000).nullish(),
   tags: z.array(z.string().trim().min(1).max(40)).max(10).nullish(),
   link: z
@@ -50,7 +56,10 @@ const modelCaptureSchema = z.object({
 type ModelTask = z.infer<typeof modelTaskSchema>;
 
 const modelBreakdownSchema = z.object({
-  milestones: z.array(z.object({ name: z.string().trim().min(1).max(200) })).max(12).default([]),
+  milestones: z
+    .array(z.object({ name: z.string().trim().min(1).max(200) }))
+    .max(12)
+    .default([]),
   tasks: z.array(modelTaskSchema).max(40).default([]),
 });
 
@@ -144,14 +153,16 @@ function resolveTask(
     projectName = options.project.name;
   } else if (task.project) {
     const match = projectRows.find(
-      (project) =>
-        !project.archived && normalise(project.name) === normalise(task.project ?? ''),
+      (project) => !project.archived && normalise(project.name) === normalise(task.project ?? ''),
     );
 
     if (match && !match.aiExcluded) {
       projectId = match.id;
       projectName = match.name;
-    } else if (match?.aiExcluded || context.excluded.some((name) => normalise(name) === normalise(task.project ?? ''))) {
+    } else if (
+      match?.aiExcluded ||
+      context.excluded.some((name) => normalise(name) === normalise(task.project ?? ''))
+    ) {
       notes.push(`"${task.project}" is excluded from AI, so this went to the Inbox.`);
     } else {
       notes.push(`No project called "${task.project}" — saved to the Inbox.`);
@@ -419,7 +430,11 @@ export async function breakdownProposal(
   const system = loadPrompt('breakdown');
   const user = `Data:\n${JSON.stringify(data, null, 2)}\n\nBreak this project down.`;
 
-  const first = await askFor(complete, { feature: 'breakdown', system, user }, modelBreakdownSchema);
+  const first = await askFor(
+    complete,
+    { feature: 'breakdown', system, user },
+    modelBreakdownSchema,
+  );
   const second = first.ok
     ? first
     : await askFor(
@@ -485,11 +500,7 @@ export function getProposal(db: Db, id: string): Proposal {
   };
 }
 
-function applyItem(
-  db: Db,
-  item: ProposalItem,
-  createdMilestones: Map<string, string>,
-): void {
+function applyItem(db: Db, item: ProposalItem, createdMilestones: Map<string, string>): void {
   const fields = item.fields;
 
   switch (item.op) {
@@ -515,7 +526,8 @@ function applyItem(
       });
 
       if (fields.tags && fields.tags.length > 0) setTaskTags(db, task.id, fields.tags);
-      if (fields.link?.url) addLink(db, task.id, { url: fields.link.url, label: fields.link.label });
+      if (fields.link?.url)
+        addLink(db, task.id, { url: fields.link.url, label: fields.link.label });
       return;
     }
 
@@ -581,8 +593,7 @@ export function applyProposal(db: Db, id: string, items: ProposalItem[]): Propos
   // Milestones must exist before the tasks that point at them (FR-18). The sort
   // is stable, so everything else keeps the order the user saw.
   const ordered = [...items].sort(
-    (a, b) =>
-      Number(b.op === 'create_milestone') - Number(a.op === 'create_milestone'),
+    (a, b) => Number(b.op === 'create_milestone') - Number(a.op === 'create_milestone'),
   );
   const createdMilestones = new Map<string, string>();
 

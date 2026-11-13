@@ -42,13 +42,13 @@ export function TaskRow({
 
   const hasMeta = Boolean(
     task.link ||
-      task.repeatLabel ||
-      estimate ||
-      checklist ||
-      task.priority ||
-      task.dueDate ||
-      task.location ||
-      tags.length > 0,
+    task.repeatLabel ||
+    estimate ||
+    checklist ||
+    task.priority ||
+    task.dueDate ||
+    task.location ||
+    tags.length > 0,
   );
 
   const titleClassName = cx(

@@ -85,7 +85,9 @@ export function ChatDrawer() {
             <h2 id="chat-title" className="text-[15px] font-semibold text-zinc-900">
               Assistant
             </h2>
-            <p className="mt-0.5 text-xs text-zinc-500">Answers from your tasks, projects and reviews.</p>
+            <p className="mt-0.5 text-xs text-zinc-500">
+              Answers from your tasks, projects and reviews.
+            </p>
           </div>
           <Button onClick={closeChat}>Close</Button>
         </header>
@@ -93,8 +95,8 @@ export function ChatDrawer() {
         <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
           {messages.length === 0 && (
             <p className="text-sm text-zinc-500">
-              Ask things like “what is overdue?”, “how is Onboarding going?” or “add a task to follow up
-              with the vendor on Friday”.
+              Ask things like “what is overdue?”, “how is Onboarding going?” or “add a task to
+              follow up with the vendor on Friday”.
             </p>
           )}
 
@@ -116,8 +118,8 @@ export function ChatDrawer() {
             {chat.isPending && <li className="text-sm text-zinc-500">Thinking…</li>}
           </ul>
 
-          {error && (
-            needsSettings ? (
+          {error &&
+            (needsSettings ? (
               <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2.5 text-xs text-zinc-700">
                 {error}{' '}
                 <Link to="/settings" className="text-blue-600 hover:underline" onClick={closeChat}>
@@ -126,8 +128,7 @@ export function ChatDrawer() {
               </p>
             ) : (
               <InlineError message={error} />
-            )
-          )}
+            ))}
         </div>
 
         <form className="border-t border-zinc-200 px-5 py-3" onSubmit={send}>
@@ -156,7 +157,9 @@ export function ChatDrawer() {
               {chat.isPending ? 'Thinking…' : 'Send'}
             </Button>
           </div>
-          <p className="mt-1 text-[11px] text-zinc-500">Enter to send · Shift Enter for a new line</p>
+          <p className="mt-1 text-[11px] text-zinc-500">
+            Enter to send · Shift Enter for a new line
+          </p>
         </form>
       </div>
     </dialog>

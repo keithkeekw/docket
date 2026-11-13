@@ -104,7 +104,10 @@ export function DataTable({
               <Fragment key={group.key}>
                 {grouped && (
                   <tr className="border-b border-zinc-100 bg-zinc-50">
-                    <td colSpan={COLUMNS.length} className="px-4 py-1.5 text-xs font-medium text-zinc-500">
+                    <td
+                      colSpan={COLUMNS.length}
+                      className="px-4 py-1.5 text-xs font-medium text-zinc-500"
+                    >
                       {group.label}
                       <span className="ml-2 text-zinc-500">{group.tasks.length}</span>
                     </td>

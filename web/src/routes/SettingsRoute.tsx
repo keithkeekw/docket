@@ -1,22 +1,13 @@
-import type {
-  AiFeature,
-  AiProvider,
-  Status,
-  StatusCategory,
-} from '@app/shared';
+import type { AiFeature, AiProvider, Status, StatusCategory } from '@app/shared';
 import { format, parseISO } from 'date-fns';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import { useAiSettings, useUpdateAiSettings } from '../api/aiSettings';
 import { useBackups, useCreateBackup, useRestoreBackup } from '../api/backups';
 import { useProjects } from '../api/projects';
-import {
-  useCreateStatus,
-  useDeleteStatus,
-  useStatuses,
-  useUpdateStatus,
-} from '../api/statuses';
-import { Button, buttonClassName } from '../components/Button';
+import { useCreateStatus, useDeleteStatus, useStatuses, useUpdateStatus } from '../api/statuses';
+import { buttonClassName } from '../lib/button';
+import { Button } from '../components/Button';
 import { Field, Input, Select } from '../components/Field';
 import { InlineError } from '../components/InlineError';
 import { PageHeader } from '../components/PageHeader';
@@ -426,14 +417,16 @@ function DataSection() {
         </ul>
       )}
 
-      {message && <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2.5 text-xs text-zinc-700">{message}</p>}
+      {message && (
+        <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2.5 text-xs text-zinc-700">{message}</p>
+      )}
       {error && <InlineError message={error} />}
 
       <div className="mt-6 border-t border-zinc-100 pt-4">
         <h3 className="text-[13px] font-medium text-zinc-900">Export</h3>
         <p className="mt-1 max-w-[560px] text-xs text-zinc-500">
-          A full copy of your projects, tasks, reviews and settings — for keeping
-          outside the app. Keys are never included.
+          A full copy of your projects, tasks, reviews and settings — for keeping outside the app.
+          Keys are never included.
         </p>
 
         <div className="mt-2 flex flex-wrap gap-2">
@@ -567,7 +560,9 @@ function AiSection() {
           <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-zinc-600">
             {ai.data.providers.map((provider) => (
               <li key={provider.provider} className="flex items-center gap-1.5">
-                <span className="font-medium text-zinc-700">{PROVIDER_LABELS[provider.provider]}</span>
+                <span className="font-medium text-zinc-700">
+                  {PROVIDER_LABELS[provider.provider]}
+                </span>
                 <span className={provider.configured ? 'text-zinc-600' : 'text-zinc-500'}>
                   {provider.configured ? 'Configured' : 'Not configured'}
                 </span>
@@ -615,7 +610,10 @@ function AiSection() {
                       disabled={draft[feature].provider === ''}
                       value={draft[feature].model}
                       onChange={(event) => {
-                        setDraft({ ...draft, [feature]: { ...draft[feature], model: event.target.value } });
+                        setDraft({
+                          ...draft,
+                          [feature]: { ...draft[feature], model: event.target.value },
+                        });
                         setMessage(null);
                       }}
                     />
@@ -670,7 +668,10 @@ function PrivacySection() {
         <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
           {excluded.map((project) => (
             <li key={project.id}>
-              <Link to={`/projects/${project.id}`} className="text-[13px] text-blue-600 hover:underline">
+              <Link
+                to={`/projects/${project.id}`}
+                className="text-[13px] text-blue-600 hover:underline"
+              >
                 {project.name}
               </Link>
             </li>
