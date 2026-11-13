@@ -64,11 +64,12 @@ export function Sidebar() {
 
         <button
           type="button"
-          className="mt-0.5 flex min-h-10 w-full items-center rounded-lg px-3 text-left text-sm text-zinc-600"
+          className="mt-1 flex w-full items-center gap-1.5 rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-left text-xs text-zinc-400 transition-colors hover:border-zinc-400 hover:text-zinc-600"
           onClick={() => {
             openProjectDialog({ mode: 'create' });
           }}
         >
+          <span aria-hidden="true" className="text-base leading-none">+</span>
           New project
         </button>
       </div>
