@@ -4,7 +4,7 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 `docs/DESIGN.md` at the start of every session.
 
 - **Last updated:** 13 Nov 2026
-- **Current step:** M1-S10 (next) — backup and restore
+- **Current step:** M2-S11 (next) — settings: providers, per-feature models, AI exclusion
 - **Spec sources:** `docs/PRD.md` (behaviour), `docs/TECHSTACK.md` (implementation), `docs/DESIGN.md` (visuals)
 
 ---
@@ -22,8 +22,8 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 | M1-S7 | List / Table / Kanban + shared filters + dnd-kit | ✅ Done |
 | M1-S8 | Statuses settings; recurrence service + tests | ✅ Done |
 | M1-S9 | Dashboard endpoint + screen | ✅ Done |
-| M1-S10 | Backup / restore | ⬜ Next |
-| M2-S11–13 | Settings, AI client/proposals, AI capture + breakdown | ⬜ |
+| M1-S10 | Backup / restore | ✅ Done |
+| M2-S11–13 | Settings, AI client/proposals, AI capture + breakdown | ⬜ Next |
 | M3-S14–15 | Reviews + scheduler, chat drawer | ⬜ |
 | M4-S16 | Undo, export, sort/group, state audit | ⬜ |
 
@@ -699,6 +699,66 @@ UI, headless Chrome at 1280 × 900:
 
 ---
 
+## M1-S10 — Backup and restore ✅
+
+### Built
+
+- **`POST /api/backup`**, **`GET /api/backups`**, **`GET /api/backups/:file`**
+  (download) and **`POST /api/restore { file }`** (`routes/backups.ts`,
+  `services/backups.ts`).
+- Backups land in `data/backups` (beside the database) as
+  `app-<ISO stamp>.db`, written with SQLite's online backup API so WAL writes in
+  flight cannot tear the copy. The list is newest first with size and time.
+- Restore attaches the backup and copies every table inside one transaction with
+  deferred foreign keys (D45), so it needs no restart and cannot half-apply. A
+  `pre-restore-*.db` snapshot is written first.
+- File names are validated (`basename`, `.db`, must exist), so a path like
+  `../app.db` is a 400 and a missing backup is a 404.
+- **Settings → Data**: "Backup now", a list with time, size, Download and
+  Restore. Restore is two-step (Restore → Confirm restore / Cancel), and the
+  success line names both the restored file and the safety copy. After a
+  restore, every query is refetched from the replaced data.
+- `Db` now carries `$client` (D47) so the service can use the raw handle.
+- 8 route tests, each in its own temporary backup directory.
+
+### Verification performed
+
+```bash
+npm run typecheck   # clean
+npm test            # 132 passed across 15 files (8 new backup tests)
+npm run build       # clean
+```
+
+Against a throwaway database copy with a project, a milestone and two tasks:
+
+- `POST /api/backup` → `app-2026-11-13T12-02-17-536Z.db`, 180 KB, listed first.
+  A second backup a second later sorted ahead of it.
+- Added a third task (`count 3`), posted `/api/restore` with the first backup →
+  `{"restored":"app-…","safetyBackup":{"file":"pre-restore-…"}}`, and the task
+  list came back as the original two.
+- `GET /api/backups/<file>` returned `application/octet-stream` with the right
+  `Content-Disposition`, and the downloaded file opened in `sqlite3` with 2
+  tasks and 1 project.
+- `{"file":"../app.db"}` → 400; `app-nope.db` → 404.
+- UI (headless Chrome at 1280 × 900): Data section started at "No backups yet.";
+  Backup now produced the success line and one row with a download link;
+  Restore asked once, then reported the safety copy and listed both backups.
+  Fixed during the pass: the row timestamp now includes seconds, because an
+  app and pre-restore snapshot taken together were otherwise identical.
+
+### PRD IDs advanced
+
+- **FR-27 — done.** Backup on demand and restore from a backup.
+- **US-19** satisfied (all projects, tasks, statuses, settings and reviews are in
+  the copy — the restore replaces every table).
+
+### M1 status
+
+M1 is complete: US-1, 3, 4, 6–13 and 19 are built and verified (US-2, 5 and 17
+belong to M2; 14–16 to M3).
+
+---
+
 ## Decisions
 
 | # | Decision |
@@ -747,6 +807,9 @@ UI, headless Chrome at 1280 × 900:
 | D42 | The dashboard's three groups **partition** open work — overdue, due today, and Inbox tasks that are not due yet — so no task is listed twice. `counts.inbox` deliberately matches the sidebar's Inbox count (all open project-less tasks), so the summary line can exceed the rows shown under "Inbox · unsorted"; each group is capped at 6 for a fast first paint while the counts stay exact. |
 | D43 | One `toTaskRow` mapper (web `lib/taskRow.ts`) turns an API task into TaskRow props for the dashboard, Inbox, Today and the project list — three copies had started to drift. |
 | D44 | `GET /api/dashboard` already returns `latestReview` (typed with the real reviews row), but M1 never writes reviews, so the ReviewCard is simply absent. M3 fills the same field without a schema change. `Ask assistant` stays hidden until M2 (D10). |
+| D45 | Restore copies the backup **into the live connection** (`ATTACH` + delete/insert every table inside one transaction, foreign keys deferred) instead of swapping the database file. Swapping would need the process to reopen the connection, which would leave every route holding a stale handle; copying keeps one connection and makes the restore all-or-nothing (NFR-6). A `pre-restore-*.db` snapshot is taken first, so a wrong pick is recoverable. |
+| D46 | Backups are `data/backups/app-<ISO stamp>.db` written with SQLite's online backup API (WAL-safe), listed newest first, downloadable via `GET /api/backups/:file`, and restorable by file name only — the route rejects paths and anything not in the directory. No uploads in M1 (D11); auto-pruning is not implemented. |
+| D47 | `Db` is `BetterSQLite3Database<Schema> & { $client: Database }`, so services can reach the raw better-sqlite3 handle. `drizzle()` returns that shape but its exported type omits `$client`; the alias restores it rather than casting at each call site. |
 
 ## Follow-ups / known gaps
 
@@ -771,6 +834,11 @@ UI, headless Chrome at 1280 × 900:
   rule as "Custom (…)" rather than dropping it.
 - Editing a recurring task's due date does not reschedule occurrences that were
   already created — each occurrence is its own row (D40).
+- Restoring a backup made by an **older schema** fails cleanly ("Restore failed:
+  table … has N columns but M values were supplied") and rolls back; there is no
+  migration-on-restore. Only relevant once a migration ships after M1.
+- Backups are never pruned automatically; the Settings list grows until files are
+  removed from `data/backups` by hand.
 - `npm audit` reports 4 moderate advisories from drizzle-kit's bundled
   `@esbuild-kit/esm-loader` (old esbuild). Dev-only CLI, not shipped, no dev
   server involved; **do not** run `npm audit fix --force` (it would downgrade
@@ -779,10 +847,12 @@ UI, headless Chrome at 1280 × 900:
 - PRD open questions for Keith: Q1 (company AI policy), Q5 (final app name).
   Neither blocks M1.
 
-## Next step — M1-S10
+## Next step — M2-S11
 
-Backup and restore: `POST /api/backup` writing a timestamped copy into
-`data/backups/`, `GET /api/backups` listing them, and the Settings *Data*
-section (Backup now, Restore from a listed backup, Download). Restore swaps the
-database file safely — close the connection, copy, reopen — and the UI must
-confirm before replacing data (PRD US-19, FR-27; D11 keeps uploads out of M1).
+Settings for AI: provider keys (stored server-side, never rendered back — NFR-2),
+a provider + model per feature (capture, breakdown, daily review, weekly review,
+chat), per-project "exclude from AI" (the flag already exists on the projects
+table), and the clear "Not configured" state FR-26 asks for. Keys come from
+`.env` in M1 terms but must be editable from the UI and never returned by the
+API. No AI calls yet — M2-S12 brings the client, the proposal schema and the
+proposal table wiring.

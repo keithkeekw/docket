@@ -5,6 +5,7 @@ import { cors } from 'hono/cors';
 import { statuses } from './db/schema';
 import type { Db } from './db/types';
 import { ServiceError } from './lib/errors';
+import { registerBackupRoutes } from './routes/backups';
 import { registerChecklistRoutes } from './routes/checklist';
 import { registerDashboardRoutes } from './routes/dashboard';
 import { registerLinkRoutes } from './routes/links';
@@ -19,7 +20,7 @@ import { getNavSummary } from './services/nav';
  * The Hono app is created separately from the HTTP listener so tests can call
  * `app.request(...)` against an in-memory database (PROGRESS D13).
  */
-export function createApp(db: Db): Hono {
+export function createApp(db: Db, options: { backupsDir?: string } = {}): Hono {
   const app = new Hono();
 
   // NFR-3: the API is local-only. CORS additionally restricts callers to the dev
@@ -64,6 +65,7 @@ export function createApp(db: Db): Hono {
   registerChecklistRoutes(app, db);
   registerLinkRoutes(app, db);
   registerTagRoutes(app, db);
+  registerBackupRoutes(app, db, options.backupsDir);
 
   // Services throw ServiceError with the intended status; anything else is a bug
   // and is logged rather than leaked to the client.

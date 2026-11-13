@@ -399,3 +399,35 @@ export const dashboardSchema = z.object({
 export type Dashboard = z.infer<typeof dashboardSchema>;
 export type DashboardCounts = z.infer<typeof dashboardCountsSchema>;
 
+// ---------------------------------------------------------------------------
+// Backups (FR-27)
+// ---------------------------------------------------------------------------
+
+export const backupEntrySchema = z.object({
+  /** Basename inside `data/backups`; never a path. */
+  file: z.string().min(1),
+  sizeBytes: z.number().int().nonnegative(),
+  createdAt: z.string(),
+});
+
+export const backupListSchema = z.object({
+  backups: z.array(backupEntrySchema),
+});
+
+export const backupResponseSchema = z.object({
+  backup: backupEntrySchema,
+});
+
+export const restoreBodySchema = z.strictObject({
+  file: z.string().min(1).max(255),
+});
+
+export const restoreResponseSchema = z.object({
+  restored: z.string().min(1),
+  /** Snapshot of the pre-restore state, so a wrong pick is recoverable. */
+  safetyBackup: backupEntrySchema,
+});
+
+export type BackupEntry = z.infer<typeof backupEntrySchema>;
+export type BackupList = z.infer<typeof backupListSchema>;
+

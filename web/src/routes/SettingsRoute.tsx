@@ -1,5 +1,7 @@
 import type { Status, StatusCategory } from '@app/shared';
+import { format, parseISO } from 'date-fns';
 import { useEffect, useState, type FormEvent } from 'react';
+import { useBackups, useCreateBackup, useRestoreBackup } from '../api/backups';
 import {
   useCreateStatus,
   useDeleteStatus,
@@ -31,6 +33,7 @@ export function SettingsRoute() {
 
       <div className="mt-6 max-w-[720px]">
         <StatusesSection />
+        <DataSection />
       </div>
     </>
   );
@@ -282,5 +285,139 @@ function StatusRow({
         Delete
       </Button>
     </li>
+  );
+}
+
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+/**
+ * DESIGN §5.5 Data section: Backup now, a list of local copies with Download,
+ * and Restore (FR-27, D11 — no uploads in M1). Restoring asks once, because it
+ * replaces every row; the server also keeps a pre-restore snapshot.
+ */
+function DataSection() {
+  const backups = useBackups();
+  const createBackup = useCreateBackup();
+  const restore = useRestoreBackup();
+
+  const [confirming, setConfirming] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const rows = backups.data?.backups ?? [];
+
+  async function handleBackup() {
+    try {
+      const { backup } = await createBackup.mutateAsync();
+      setMessage(`Backup created: ${backup.file}`);
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not create a backup');
+    }
+  }
+
+  async function handleRestore(file: string) {
+    try {
+      const result = await restore.mutateAsync({ file });
+      setMessage(
+        `Restored from ${result.restored}. A safety copy of the previous data is kept as ${result.safetyBackup.file}.`,
+      );
+      setError(null);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not restore that backup');
+    } finally {
+      setConfirming(null);
+    }
+  }
+
+  return (
+    <section className="mt-8 border-t border-zinc-200 pt-5">
+      <h2 className="text-[15px] font-semibold text-zinc-900">Data</h2>
+      <p className="mt-1 max-w-[560px] text-xs text-zinc-500">
+        Backups are whole copies of the database, kept in <code>data/backups</code>. Restoring
+        replaces every project, task and setting with the copy you pick.
+      </p>
+
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button onClick={handleBackup} disabled={createBackup.isPending}>
+          {createBackup.isPending ? 'Backing up…' : 'Backup now'}
+        </Button>
+        <span className="text-xs text-zinc-500">
+          {rows.length === 0
+            ? 'No backups yet.'
+            : `${rows.length} ${rows.length === 1 ? 'backup' : 'backups'} available.`}
+        </span>
+      </div>
+
+      {backups.error && (
+        <InlineError
+          message={backups.error.message}
+          onRetry={() => {
+            void backups.refetch();
+          }}
+        />
+      )}
+
+      {rows.length > 0 && (
+        <ul className="mt-3 flex flex-col gap-2">
+          {rows.map((backup) => (
+            <li key={backup.file} className="flex flex-wrap items-center gap-2">
+              <span className="min-w-[12rem] flex-1 truncate text-sm text-zinc-900">
+                {format(parseISO(backup.createdAt), 'd MMM yyyy, HH:mm:ss')}
+              </span>
+
+              <span className="w-[4.5rem] text-right text-xs text-zinc-500">
+                {formatBytes(backup.sizeBytes)}
+              </span>
+
+              <a
+                href={`/api/backups/${encodeURIComponent(backup.file)}`}
+                download={backup.file}
+                className="inline-flex min-h-10 items-center rounded-lg border border-zinc-200 bg-white px-3.5 text-[13px] text-zinc-900"
+              >
+                Download
+              </a>
+
+              {confirming === backup.file ? (
+                <>
+                  <Button
+                    onClick={() => {
+                      void handleRestore(backup.file);
+                    }}
+                    disabled={restore.isPending}
+                  >
+                    {restore.isPending ? 'Restoring…' : 'Confirm restore'}
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      setConfirming(null);
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                </>
+              ) : (
+                <Button
+                  onClick={() => {
+                    setConfirming(backup.file);
+                    setMessage(null);
+                    setError(null);
+                  }}
+                >
+                  Restore
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {message && <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2.5 text-xs text-zinc-700">{message}</p>}
+      {error && <InlineError message={error} />}
+    </section>
   );
 }
