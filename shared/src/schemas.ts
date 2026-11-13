@@ -228,6 +228,24 @@ export const moveTaskBodySchema = z.strictObject({
   milestoneId: z.string().min(1).nullish(),
 });
 
+/** `POST /api/tasks/reorder` — ids in their new List order. */
+export const reorderTasksBodySchema = z.strictObject({
+  ids: z.array(z.string().min(1)).min(1).max(1000),
+});
+
+export const reorderTasksResponseSchema = z.object({
+  reordered: z.number().int().nonnegative(),
+});
+
+/** `POST /api/tasks/bulk-delete` (FR-29) — one undo entry for the batch. */
+export const bulkDeleteTasksBodySchema = z.strictObject({
+  ids: z.array(z.string().min(1)).min(1).max(500),
+});
+
+export const bulkDeleteTasksResponseSchema = z.object({
+  deleted: z.number().int().nonnegative(),
+});
+
 export const createChecklistItemBodySchema = z.strictObject({
   title: z.string().trim().min(1).max(500),
   position: z.number().int().nonnegative().optional(),
@@ -255,6 +273,8 @@ export type MoveTaskBody = z.infer<typeof moveTaskBodySchema>;
 export type CreateChecklistItemBody = z.infer<typeof createChecklistItemBodySchema>;
 export type UpdateChecklistItemBody = z.infer<typeof updateChecklistItemBodySchema>;
 export type CreateTaskLinkBody = z.infer<typeof createTaskLinkBodySchema>;
+export type ReorderTasksBody = z.infer<typeof reorderTasksBodySchema>;
+export type BulkDeleteTasksBody = z.infer<typeof bulkDeleteTasksBodySchema>;
 
 // ---------------------------------------------------------------------------
 // Projects (FR-6, FR-9) and milestones (FR-7)
@@ -477,6 +497,7 @@ export type BackupList = z.infer<typeof backupListSchema>;
 export const aiFeatureSchema = z.enum([
   'capture',
   'breakdown',
+  'summarize',
   'review_daily',
   'review_weekly',
   'chat',
@@ -512,7 +533,7 @@ export const updateAiSettingsBodySchema = z.strictObject({
       }),
     )
     .min(1)
-    .max(5),
+    .max(6),
 });
 
 export type AiFeature = z.infer<typeof aiFeatureSchema>;
@@ -521,6 +542,33 @@ export type AiProviderStatus = z.infer<typeof aiProviderStatusSchema>;
 export type AiFeatureSetting = z.infer<typeof aiFeatureSettingSchema>;
 export type AiSettings = z.infer<typeof aiSettingsSchema>;
 export type UpdateAiSettingsBody = z.infer<typeof updateAiSettingsBodySchema>;
+
+/** Prompt catalogue shown in Settings → Prompt Management. */
+export const promptEntrySchema = z.object({
+  id: z.string().min(1),
+  label: z.string().min(1),
+  /** The prompt currently in use (custom override or built-in file). */
+  content: z.string().min(1),
+  /** The built-in prompt shipped with the app, used by Reset. */
+  defaultContent: z.string().min(1),
+  customized: z.boolean(),
+});
+
+export const promptListSchema = z.object({
+  prompts: z.array(promptEntrySchema),
+});
+
+export const promptResponseSchema = z.object({
+  prompt: promptEntrySchema,
+});
+
+export const updatePromptBodySchema = z.strictObject({
+  content: z.string().trim().min(1).max(50_000),
+});
+
+export type PromptEntry = z.infer<typeof promptEntrySchema>;
+export type PromptList = z.infer<typeof promptListSchema>;
+export type UpdatePromptBody = z.infer<typeof updatePromptBodySchema>;
 
 // ---------------------------------------------------------------------------
 // Proposals (FR-23): every AI write goes through preview → edit → apply
@@ -648,3 +696,48 @@ export type ProposalItemFields = z.infer<typeof proposalItemFieldsSchema>;
 export type ProposalItemDisplay = z.infer<typeof proposalItemDisplaySchema>;
 export type ProposalItem = z.infer<typeof proposalItemSchema>;
 export type Proposal = z.infer<typeof proposalSchema>;
+
+// ---------------------------------------------------------------------------
+// Updates (GitHub Releases)
+// ---------------------------------------------------------------------------
+
+export const updateReleaseSchema = z.object({
+  tag: z.string().min(1),
+  version: z.string().min(1),
+  name: z.string(),
+  url: z.string().url(),
+  publishedAt: z.string(),
+  notes: z.string(),
+});
+
+export const updateInfoSchema = z.object({
+  currentVersion: z.string().min(1),
+  repository: z.string().min(1),
+  checkedAt: z.string(),
+  updateAvailable: z.boolean(),
+  latest: updateReleaseSchema.nullable(),
+  /** A network/rate-limit failure while checking; the app remains usable. */
+  checkError: z.string().nullable(),
+});
+
+export type UpdateRelease = z.infer<typeof updateReleaseSchema>;
+export type UpdateInfo = z.infer<typeof updateInfoSchema>;
+
+export const updateApplyBodySchema = z.strictObject({
+  tag: z.string().regex(/^v?\d+\.\d+\.\d+$/, 'Invalid release tag'),
+});
+
+export const updateApplyResponseSchema = z.object({
+  accepted: z.literal(true),
+});
+
+export const updateStatusSchema = z.object({
+  state: z.enum(['idle', 'requested', 'updating', 'done', 'error']),
+  tag: z.string().nullable(),
+  message: z.string().nullable(),
+  startedAt: z.string().nullable(),
+  finishedAt: z.string().nullable(),
+});
+
+export type UpdateApplyResponse = z.infer<typeof updateApplyResponseSchema>;
+export type UpdateStatus = z.infer<typeof updateStatusSchema>;

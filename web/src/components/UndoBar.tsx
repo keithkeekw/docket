@@ -1,4 +1,5 @@
 import { useUndo } from '../api/undo';
+import { useT } from '../lib/i18n';
 import { useUiStore } from '../store/ui';
 
 /**
@@ -6,6 +7,7 @@ import { useUiStore } from '../store/ui';
  * the next destructive action or a reload (FR-29).
  */
 export function UndoBar() {
+  const t = useT();
   const label = useUiStore((state) => state.undoLabel);
   const clearUndo = useUiStore((state) => state.clearUndo);
   const undo = useUndo();
@@ -14,7 +16,7 @@ export function UndoBar() {
 
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2 rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
-      <span>{label}</span>
+      <span>{t(label)}</span>
 
       <button
         type="button"
@@ -28,7 +30,7 @@ export function UndoBar() {
           });
         }}
       >
-        {undo.isPending ? 'Undoing…' : 'Undo'}
+        {undo.isPending ? t('Undoing…') : t('Undo')}
       </button>
 
       <button
@@ -36,7 +38,7 @@ export function UndoBar() {
         className="ml-1 text-zinc-500 underline underline-offset-2"
         onClick={clearUndo}
       >
-        Dismiss
+        {t('Dismiss')}
       </button>
     </div>
   );

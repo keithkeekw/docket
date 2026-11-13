@@ -7,7 +7,7 @@ import type {
   TaskLink,
   UpdateTaskBody,
 } from '@app/shared';
-import { and, asc, eq, inArray, isNull, like, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNull, like, or, sql } from 'drizzle-orm';
 import {
   checklistItems,
   milestones,
@@ -22,7 +22,7 @@ import type { Db } from '../db/types';
 import { ServiceError } from '../lib/errors';
 import { listAttachments } from './attachments';
 import { createNextOccurrence } from './recurrence';
-import { undoableTaskDelete } from './undo';
+import { undoableTaskBulkDelete, undoableTaskDelete } from './undo';
 import { defaultOpenStatusId, firstDoneStatusId, statusCategoryOf, statusExists } from './statuses';
 
 const taskSelection = {
@@ -172,6 +172,16 @@ export type TaskFilter = {
   q?: string;
   /** Exact tag name (FR-30). */
   tag?: string;
+  /**
+   * Open work by default. `only` powers the Logbook; `all` is available for
+   * export-style callers that need both halves.
+   */
+  completed?: 'exclude' | 'only' | 'all';
+  /**
+   * `manual` follows the drag order (default for task lists); `due` keeps the
+   * dashboard's date-first ordering.
+   */
+  order?: 'manual' | 'due';
 };
 
 /**
@@ -212,6 +222,12 @@ export function listTasks(db: Db, filter: TaskFilter = {}): Task[] {
     conditions.push(sql`${statuses.category} <> 'done'`);
   }
 
+  if (filter.completed === 'only') {
+    conditions.push(sql`${tasks.completedAt} is not null`);
+  } else if (filter.completed !== 'all') {
+    conditions.push(sql`${tasks.completedAt} is null`);
+  }
+
   if (filter.q) {
     const term = `%${filter.q}%`;
     conditions.push(or(like(tasks.title, term), like(tasks.notes, term)));
@@ -227,6 +243,8 @@ export function listTasks(db: Db, filter: TaskFilter = {}): Task[] {
     );
   }
 
+  const order = filter.order ?? 'manual';
+
   const rows = db
     .select(taskSelection)
     .from(tasks)
@@ -235,11 +253,20 @@ export function listTasks(db: Db, filter: TaskFilter = {}): Task[] {
     .leftJoin(milestones, eq(tasks.milestoneId, milestones.id))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(
-      sql`${tasks.completedAt} is not null`,
-      sql`${tasks.dueDate} is null`,
-      asc(tasks.dueDate),
-      asc(tasks.position),
-      asc(tasks.createdAt),
+      ...(filter.completed === 'only'
+        ? [desc(tasks.completedAt), asc(tasks.position)]
+        : [
+            sql`${tasks.completedAt} is not null`,
+            ...(order === 'due'
+              ? [
+                  sql`${tasks.dueDate} is null`,
+                  asc(tasks.dueDate),
+                  asc(tasks.dueTime),
+                  asc(tasks.position),
+                  asc(tasks.createdAt),
+                ]
+              : [asc(tasks.position), asc(tasks.createdAt)]),
+          ]),
     )
     .all();
 
@@ -505,4 +532,49 @@ export function deleteTask(db: Db, id: string): void {
   undoableTaskDelete(db, id);
   const result = db.delete(tasks).where(eq(tasks.id, id)).run();
   if (result.changes === 0) throw new ServiceError('Task not found', 404);
+}
+
+/**
+ * `POST /api/tasks/reorder` — the List view's drag order. Positions become
+ * 0..n-1 in the order given; the ids must all exist and be unique.
+ */
+export function reorderTasks(db: Db, ids: string[]): number {
+  const unique = new Set(ids);
+  if (unique.size !== ids.length) {
+    throw new ServiceError('A task appears more than once in the new order', 400);
+  }
+
+  const existing = db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(inArray(tasks.id, ids))
+    .all();
+
+  if (existing.length !== ids.length) throw new ServiceError('Task not found', 404);
+
+  db.transaction((tx) => {
+    ids.forEach((id, position) => {
+      tx.update(tasks).set({ position }).where(eq(tasks.id, id)).run();
+    });
+  });
+
+  return ids.length;
+}
+
+/** `POST /api/tasks/bulk-delete` — one transaction, one undo entry (FR-29). */
+export function deleteTasks(db: Db, ids: string[]): number {
+  const unique = [...new Set(ids)];
+  const existing = db
+    .select({ id: tasks.id })
+    .from(tasks)
+    .where(inArray(tasks.id, unique))
+    .all();
+
+  if (existing.length === 0) return 0;
+
+  const existingIds = existing.map((row) => row.id);
+  undoableTaskBulkDelete(db, existingIds);
+
+  const result = db.delete(tasks).where(inArray(tasks.id, existingIds)).run();
+  return result.changes;
 }

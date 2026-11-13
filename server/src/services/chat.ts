@@ -26,7 +26,7 @@ export async function chat(
   messages: ChatMessage[],
   options: ChatOptions = {},
 ): Promise<ChatResult> {
-  const system = loadPrompt('chat');
+  const system = loadPrompt(db, 'chat');
   let proposal: Proposal | null = null;
 
   try {

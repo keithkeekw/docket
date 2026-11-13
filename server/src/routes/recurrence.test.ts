@@ -31,7 +31,9 @@ async function createTask(body: Record<string, unknown>) {
 }
 
 async function allTasks() {
-  return taskListSchema.parse(await (await app.request('/api/tasks')).json()).tasks;
+  return taskListSchema.parse(
+    await (await app.request('/api/tasks?completed=all')).json(),
+  ).tasks;
 }
 
 function statusIdByName(name: string): string {

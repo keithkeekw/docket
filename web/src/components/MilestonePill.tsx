@@ -1,5 +1,6 @@
 import type { Milestone } from '@app/shared';
 import { cx } from '../lib/cx';
+import { useT } from '../lib/i18n';
 
 /**
  * DESIGN §4 MilestonePill: rounded-full, 40 px tall, 13 px. The current
@@ -17,11 +18,12 @@ export function MilestonePill({
   selected?: boolean;
   onSelect?: () => void;
 }) {
+  const t = useT();
   const state = milestone.completedAt
-    ? 'Done'
+    ? t('Done')
     : milestone.total > 0
-      ? `${milestone.done} of ${milestone.total}`
-      : 'Not Started';
+      ? t('{done} of {total}', { done: milestone.done, total: milestone.total })
+      : t('Not Started');
 
   const className = cx(
     'inline-flex min-h-10 items-center gap-2 rounded-full border px-3.5 text-[13px]',
@@ -50,13 +52,15 @@ export function MilestonePill({
 
 /** DESIGN §4: "Add milestone" uses a dashed zinc-300 border. */
 export function AddMilestonePill({ onClick }: { onClick: () => void }) {
+  const t = useT();
+
   return (
     <button
       type="button"
       className="inline-flex min-h-10 items-center rounded-full border border-dashed border-zinc-300 px-3.5 text-[13px] text-zinc-600"
       onClick={onClick}
     >
-      Add Milestone
+      {t('Add Milestone')}
     </button>
   );
 }

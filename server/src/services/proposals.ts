@@ -293,7 +293,7 @@ export async function captureProposal(
   const complete = options.complete ?? makeCompletion(db);
   const lookups = loadLookups(db);
   const context = captureContext(options.now ?? new Date(), lookups);
-  const system = loadPrompt('capture');
+  const system = loadPrompt(db, 'capture');
   const user = `Data:\n${JSON.stringify(context, null, 2)}\n\nInput: ${trimmed}`;
 
   const first = await askFor(complete, { feature: 'capture', system, user }, modelCaptureSchema);
@@ -427,7 +427,7 @@ export async function breakdownProposal(
     statuses: context.statuses,
   };
 
-  const system = loadPrompt('breakdown');
+  const system = loadPrompt(db, 'breakdown');
   const user = `Data:\n${JSON.stringify(data, null, 2)}\n\nBreak this project down.`;
 
   const first = await askFor(

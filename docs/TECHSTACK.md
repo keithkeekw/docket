@@ -9,7 +9,7 @@ How the app is built. Behaviour is defined in `PRD.md` (requirement IDs like FR-
 ## 1. Architecture at a glance
 
 ```
- Browser (localhost:5173)                Local server (127.0.0.1:8787)              Outside
+ Browser (localhost:5173)                Local server (127.0.0.1:9000)              Outside
  ┌──────────────────────────┐   HTTP    ┌──────────────────────────────┐   HTTPS   ┌──────────────┐
  │ React + Tailwind + Preline│ ───────▶ │ Hono API                     │ ────────▶ │ DeepSeek API │
  │ TanStack Query            │ ◀─────── │  ├─ routes (tasks, projects…)│           └──────────────┘
@@ -236,7 +236,7 @@ Keep prompts as Markdown files under `server/src/ai/prompts/` so they can be tun
 
 `.env.example`
 ```
-PORT=8787
+PORT=9000
 DATABASE_PATH=./data/app.db
 DEEPSEEK_API_KEY=
 OPENROUTER_API_KEY=
@@ -250,7 +250,7 @@ db:migrate → drizzle-kit migrate
 db:seed    → seed statuses + sample data
 test       → vitest
 ```
-Vite dev server proxies `/api` to `http://127.0.0.1:8787`.
+Vite dev server proxies `/api` to `http://127.0.0.1:9000`.
 
 ---
 

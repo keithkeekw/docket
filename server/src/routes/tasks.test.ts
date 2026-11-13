@@ -252,7 +252,7 @@ describe('DELETE /api/tasks/:id', () => {
 });
 
 describe('GET /api/tasks', () => {
-  it('sorts open tasks by due date and sinks completed ones', async () => {
+  it('keeps the manual open-task order and leaves completed work to the Logbook', async () => {
     const undated = taskResponseSchema.parse((await createTask({ title: 'Undated' })).body).task;
     const later = taskResponseSchema.parse(
       (await createTask({ title: 'Later', dueDate: '2026-11-20' })).body,
@@ -272,11 +272,106 @@ describe('GET /api/tasks', () => {
 
     const { body } = await listTasks();
     expect(body.tasks.map((task) => task.title)).toEqual([
-      sooner.title,
-      later.title,
       undated.title,
-      'Finished',
+      later.title,
+      sooner.title,
     ]);
+  });
+
+  it('returns only completed tasks for the Logbook and reactivates them on uncheck', async () => {
+    const alpha = taskResponseSchema.parse((await createTask({ title: 'Alpha' })).body).task;
+    await createTask({ title: 'Beta' });
+
+    await app.request(`/api/tasks/${alpha.id}/complete`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({}),
+    });
+
+    const logbook = await listTasks('?completed=only');
+    expect(logbook.body.tasks.map((task) => task.title)).toEqual(['Alpha']);
+
+    const open = await listTasks();
+    expect(open.body.tasks.map((task) => task.title)).toEqual(['Beta']);
+
+    await app.request(`/api/tasks/${alpha.id}/complete`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ done: false }),
+    });
+
+    expect((await listTasks('?completed=only')).body.tasks).toEqual([]);
+    expect((await listTasks()).body.tasks.map((task) => task.title)).toEqual(['Alpha', 'Beta']);
+  });
+
+  it('reorders tasks to match the submitted id order', async () => {
+    const alpha = taskResponseSchema.parse((await createTask({ title: 'Alpha' })).body).task;
+    const beta = taskResponseSchema.parse((await createTask({ title: 'Beta' })).body).task;
+    const gamma = taskResponseSchema.parse((await createTask({ title: 'Gamma' })).body).task;
+
+    const response = await app.request('/api/tasks/reorder', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ids: [gamma.id, alpha.id, beta.id] }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ reordered: 3 });
+
+    const { body } = await listTasks();
+    expect(body.tasks.map((task) => task.title)).toEqual(['Gamma', 'Alpha', 'Beta']);
+  });
+
+  it('rejects duplicate and unknown ids when reordering', async () => {
+    const alpha = taskResponseSchema.parse((await createTask({ title: 'Alpha' })).body).task;
+
+    const duplicate = await app.request('/api/tasks/reorder', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ids: [alpha.id, alpha.id] }),
+    });
+    expect(duplicate.status).toBe(400);
+
+    const unknown = await app.request('/api/tasks/reorder', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ids: [alpha.id, 'missing-task'] }),
+    });
+    expect(unknown.status).toBe(404);
+  });
+
+  it('bulk deletes selected tasks and restores them with undo', async () => {
+    const alpha = taskResponseSchema.parse((await createTask({ title: 'Alpha' })).body).task;
+    const beta = taskResponseSchema.parse((await createTask({ title: 'Beta' })).body).task;
+    await createTask({ title: 'Gamma' });
+
+    const response = await app.request('/api/tasks/bulk-delete', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ids: [alpha.id, beta.id] }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ deleted: 2 });
+    expect((await listTasks()).body.tasks.map((task) => task.title)).toEqual(['Gamma']);
+    expect((await app.request('/api/undo')).status).toBe(200);
+
+    const undo = await app.request('/api/undo', { method: 'POST' });
+    expect(undo.status).toBe(200);
+    await expect(undo.json()).resolves.toMatchObject({ label: '2 tasks deleted' });
+
+    const restored = (await listTasks()).body.tasks.map((task) => task.title);
+    expect(restored.sort()).toEqual(['Alpha', 'Beta', 'Gamma']);
+  });
+
+  it('rejects an empty bulk-delete selection', async () => {
+    const response = await app.request('/api/tasks/bulk-delete', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ids: [] }),
+    });
+
+    expect(response.status).toBe(400);
   });
 
   it('filters by due date and searches title and notes', async () => {

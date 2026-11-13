@@ -16,3 +16,7 @@ data/uploads/*
 
 *.log
 .DS_Store
+
+# Update state and request files
+data/update-*.json
+PROGRESS.md

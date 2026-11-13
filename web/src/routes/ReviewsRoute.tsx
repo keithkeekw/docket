@@ -7,6 +7,7 @@ import { Button } from '../components/Button';
 import { InlineError } from '../components/InlineError';
 import { PageHeader } from '../components/PageHeader';
 import { cx } from '../lib/cx';
+import { useDateLocale, useLocale, useT } from '../lib/i18n';
 
 const KIND_LABEL: Record<Review['kind'], string> = {
   daily: 'Daily',
@@ -19,6 +20,9 @@ const KIND_LABEL: Record<Review['kind'], string> = {
  * review on the right, "Generate now" as the single primary action (FR-21).
  */
 export function ReviewsRoute() {
+  const t = useT();
+  const dateLocale = useDateLocale();
+  const locale = useLocale();
   const list = useReviews();
   const generate = useGenerateReview();
 
@@ -42,24 +46,24 @@ export function ReviewsRoute() {
   return (
     <>
       <PageHeader
-        title="Reviews"
-        description="What moved, what stalled, and what is next."
+        title={t('Reviews')}
+        description={t('What moved, what stalled, and what is next.')}
         actions={
           <Button variant="primary" onClick={generateNow} disabled={generate.isPending}>
-            {generate.isPending ? 'Generating…' : 'Generate Now'}
+            {generate.isPending ? t('Generating…') : t('Generate Now')}
           </Button>
         }
       />
 
-      {error && <InlineError message={error} />}
+      {error && <InlineError message={t(error)} />}
 
       <div className="mt-6 grid gap-6 min-[900px]:grid-cols-[240px_1fr]">
-        <aside aria-label="Past Reviews">
-          {list.isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
+        <aside aria-label={t('Past Reviews')}>
+          {list.isLoading && <p className="text-sm text-zinc-500">{t('Loading…')}</p>}
 
           {!list.isLoading && reviews.length === 0 && (
             <p className="text-sm text-zinc-500">
-              No reviews yet. Generate one now, or let the schedule write them.
+              {t('No reviews yet. Generate one now, or let the schedule write them.')}
             </p>
           )}
 
@@ -82,10 +86,15 @@ export function ReviewsRoute() {
                       }}
                     >
                       <span className="block text-[13px] text-zinc-900">
-                        {format(parseISO(review.createdAt), 'd MMM yyyy')}
+                        {format(parseISO(review.createdAt), locale === 'zh' ? 'yyyy年M月d日' : 'd MMM yyyy', { locale: dateLocale })}
                       </span>
                       <span className="block text-xs text-zinc-500">
-                        {KIND_LABEL[review.kind]} · {review.periodStart}
+                        {t(KIND_LABEL[review.kind])} ·{' '}
+                        {format(
+                          parseISO(review.periodStart),
+                          locale === 'zh' ? 'yyyy年M月d日' : 'd MMM yyyy',
+                          { locale: dateLocale },
+                        )}
                       </span>
                     </button>
                   </li>
@@ -95,8 +104,8 @@ export function ReviewsRoute() {
           )}
         </aside>
 
-        <section aria-label="Review">
-          {active.isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
+        <section aria-label={t('Review')}>
+          {active.isLoading && <p className="text-sm text-zinc-500">{t('Loading…')}</p>}
 
           {active.error && (
             <InlineError
@@ -111,14 +120,15 @@ export function ReviewsRoute() {
             <article className="rounded-xl border border-zinc-200 bg-white px-5 py-4">
               <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-zinc-100 pb-3">
                 <h2 className="text-[15px] font-semibold text-zinc-900">
-                  {KIND_LABEL[active.data.kind]} Review
+                  {t('{kind} Review', { kind: t(KIND_LABEL[active.data.kind]) })}
                 </h2>
                 <p className="text-xs text-zinc-500">
                   {active.data.periodStart === active.data.periodEnd
-                    ? format(parseISO(active.data.periodStart), 'EEEE, d MMMM')
-                    : `${format(parseISO(active.data.periodStart), 'd MMM')} – ${format(
+                    ? format(parseISO(active.data.periodStart), locale === 'zh' ? 'M月d日 EEEE' : 'EEEE, d MMMM', { locale: dateLocale })
+                    : `${format(parseISO(active.data.periodStart), locale === 'zh' ? 'M月d日' : 'd MMM', { locale: dateLocale })} – ${format(
                         parseISO(active.data.periodEnd),
-                        'd MMM',
+                        locale === 'zh' ? 'M月d日' : 'd MMM',
+                        { locale: dateLocale },
                       )}`}{' '}
                   · {active.data.model}
                 </p>

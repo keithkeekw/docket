@@ -3,7 +3,9 @@ import { AppShell } from '../components/AppShell';
 import { AllTasksRoute } from './AllTasksRoute';
 import { ArchivedProjectsRoute } from './ArchivedProjectsRoute';
 import { DashboardRoute } from './DashboardRoute';
+import { GuideRoute } from './GuideRoute';
 import { InboxRoute } from './InboxRoute';
+import { LogbookRoute } from './LogbookRoute';
 import { NotFoundRoute } from './NotFoundRoute';
 import { ProjectRoute } from './ProjectRoute';
 import { ReviewsRoute } from './ReviewsRoute';
@@ -26,6 +28,8 @@ export const router = createBrowserRouter([
       { path: 'inbox', element: <InboxRoute /> },
       { path: 'today', element: <TodayRoute /> },
       { path: 'tasks', element: <AllTasksRoute /> },
+      { path: 'logbook', element: <LogbookRoute /> },
+      { path: 'guide', element: <GuideRoute /> },
       { path: 'projects/:id', element: <ProjectRoute /> },
       { path: 'projects/archived', element: <ArchivedProjectsRoute /> },
       { path: 'reviews', element: <ReviewsRoute /> },

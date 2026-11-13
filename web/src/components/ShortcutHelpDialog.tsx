@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type MouseEvent } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { useT } from '../lib/i18n';
 import { bindingLabel } from '../lib/platform';
 import { ALL_SHORTCUTS, useKeybindingsStore } from '../store/keybindings';
 import { Kbd } from './Kbd';
@@ -10,6 +11,7 @@ import { Kbd } from './Kbd';
  * rebinds.
  */
 export function ShortcutHelpDialog() {
+  const t = useT();
   const bindings = useKeybindingsStore((s) => s.bindings);
   const helpKey = bindings.shortcutHelp ?? 'shift+space';
 
@@ -56,10 +58,10 @@ export function ShortcutHelpDialog() {
       <div className="flex items-start justify-between gap-3 border-b border-zinc-200 px-5 py-4">
         <div>
           <h2 id="shortcut-help-title" className="text-[15px] font-semibold text-zinc-900">
-            Keyboard Shortcuts
+            {t('Keyboard Shortcuts')}
           </h2>
           <p className="mt-0.5 text-xs text-zinc-500">
-            Every shortcut in the app, using your current bindings.
+            {t('Every shortcut in the app, using your current bindings.')}
           </p>
         </div>
         <button
@@ -67,7 +69,7 @@ export function ShortcutHelpDialog() {
           type="button"
           className="shrink-0 text-zinc-400 hover:text-zinc-600"
           onClick={() => { setIsOpen(false); }}
-          aria-label="Close"
+          aria-label={t('Close')}
         >
           <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-4">
             <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
@@ -75,15 +77,15 @@ export function ShortcutHelpDialog() {
         </button>
       </div>
 
-      <ul className="max-h-[min(60vh,520px)] divide-y divide-zinc-100 overflow-y-auto px-5">
+      <ul className="max-h-[min(60vh,520px)] divide-y divide-zinc-100 overflow-y-auto overscroll-contain px-5">
         {ALL_SHORTCUTS.map((shortcut) => (
           <li
             key={shortcut.id}
             className="flex items-center justify-between gap-4 py-2.5"
           >
             <div className="min-w-0">
-              <p className="text-sm text-zinc-900">{shortcut.label}</p>
-              <p className="text-xs text-zinc-500">{shortcut.description}</p>
+              <p className="text-sm text-zinc-900">{t(shortcut.label)}</p>
+              <p className="text-xs text-zinc-500">{t(shortcut.description)}</p>
             </div>
             <Kbd>{bindingLabel(bindings[shortcut.id] ?? shortcut.defaultBinding)}</Kbd>
           </li>
@@ -91,8 +93,8 @@ export function ShortcutHelpDialog() {
       </ul>
 
       <div className="flex flex-wrap items-center gap-1.5 border-t border-zinc-200 px-5 py-3 text-xs text-zinc-500">
-        <Kbd>{bindingLabel(helpKey)}</Kbd> to toggle this list ·
-        <Kbd>Esc</Kbd> to close
+        <Kbd>{bindingLabel(helpKey)}</Kbd> {t('to toggle this list')} ·
+        <Kbd>Esc</Kbd> {t('to close')}
       </div>
     </dialog>
   );

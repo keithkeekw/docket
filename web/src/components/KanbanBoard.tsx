@@ -16,8 +16,10 @@ import {
 import { useState } from 'react';
 import { cx } from '../lib/cx';
 import { formatEstimate } from '../lib/estimate';
+import { useT } from '../lib/i18n';
 import { describeRecurrence } from '../lib/recurrence';
 import { LinkBadge } from './Badge';
+import { Confetti } from './Confetti';
 import { DueLabel } from './DueLabel';
 import { PriorityLabel } from './PriorityLabel';
 
@@ -81,6 +83,7 @@ export function KanbanBoard({
   onAddTask: (statusId: string) => void;
 }) {
   const [activeId, setActiveId] = useState<string | null>(null);
+  const [confettiBurst, setConfettiBurst] = useState(0);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -106,7 +109,13 @@ export function KanbanBoard({
     const statusId = String(overId);
     const task = tasks.find((entry) => entry.id === taskId);
 
-    if (task && task.statusId !== statusId) onStatusChange(taskId, statusId);
+    if (task && task.statusId !== statusId) {
+      onStatusChange(taskId, statusId);
+
+      if (statuses.find((status) => status.id === statusId)?.category === 'done') {
+        setConfettiBurst((current) => current + 1);
+      }
+    }
   }
 
   return (
@@ -119,7 +128,7 @@ export function KanbanBoard({
         setActiveId(null);
       }}
     >
-      <div className="mt-6 flex gap-3 overflow-x-auto pb-2">
+      <div className="mt-6 flex gap-3 overflow-x-auto overscroll-x-contain pb-2">
         {statuses.map((status) => (
           <KanbanColumn
             key={status.id}
@@ -132,9 +141,13 @@ export function KanbanBoard({
         ))}
       </div>
 
-      <DragOverlay dropAnimation={null}>
+      {/* Columns are droppables and much larger than a card; without this the
+          overlay is scaled to the column, which makes the card look skewed. */}
+      <DragOverlay dropAnimation={null} adjustScale={false}>
         {activeTask ? <CardPreview task={activeTask} /> : null}
       </DragOverlay>
+
+      <Confetti burst={confettiBurst} />
     </DndContext>
   );
 }
@@ -152,6 +165,7 @@ function KanbanColumn({
   onAddTask: (statusId: string) => void;
   draggingId: string | null;
 }) {
+  const t = useT();
   const { setNodeRef, isOver } = useDroppable({ id: status.id });
 
   return (
@@ -160,7 +174,7 @@ function KanbanColumn({
         <h3 className="text-[13px] font-semibold text-zinc-900">{status.name}</h3>
         <span className="text-xs text-zinc-500">{tasks.length}</span>
         <span className="ml-auto rounded-md border border-zinc-200 px-1.5 py-0.5 text-[11px] text-zinc-600">
-          {CATEGORY_LABEL[status.category]}
+          {t(CATEGORY_LABEL[status.category])}
         </span>
       </header>
 
@@ -187,7 +201,7 @@ function KanbanColumn({
             onAddTask(status.id);
           }}
         >
-          + Add Task
+          + {t('Add Task')}
         </button>
       </div>
     </section>
@@ -203,6 +217,7 @@ function KanbanCard({
   onOpen: (task: Task) => void;
   isDragging: boolean;
 }) {
+  const t = useT();
   const { attributes, listeners, setNodeRef } = useDraggable({ id: task.id });
   const estimate = formatEstimate(task.estimateMinutes);
   const repeat = describeRecurrence(task.recurrenceRule);
@@ -234,14 +249,21 @@ function KanbanCard({
         <span className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
           <PriorityLabel priority={task.priority} />
           <DueLabel dueDate={task.dueDate} dueTime={task.dueTime} isDone={done} />
-          {estimate && <span title={`Estimate ${estimate}`}>{estimate}</span>}
+          {estimate && (
+            <span title={t('Estimate {value}', { value: estimate })}>{estimate}</span>
+          )}
           {repeat && (
-            <span title={`Repeats ${repeat.toLowerCase()}`}>
-              <span aria-hidden="true">↻</span> {repeat}
+            <span title={t('Repeats {label}', { label: t(repeat).toLowerCase() })}>
+              <span aria-hidden="true">↻</span> {t(repeat)}
             </span>
           )}
           {task.checklist.total > 0 && (
-            <span title={`${task.checklist.done} of ${task.checklist.total} checklist items done`}>
+            <span
+              title={t('{done} of {total} checklist items done', {
+                done: task.checklist.done,
+                total: task.checklist.total,
+              })}
+            >
               <span aria-hidden="true">☑</span> {task.checklist.done}/{task.checklist.total}
             </span>
           )}

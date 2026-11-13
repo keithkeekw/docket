@@ -1,7 +1,9 @@
 import {
+  bulkDeleteTasksBodySchema,
   completeTaskBodySchema,
   createTaskBodySchema,
   moveTaskBodySchema,
+  reorderTasksBodySchema,
   updateTaskBodySchema,
 } from '@app/shared';
 import type { Hono } from 'hono';
@@ -10,9 +12,11 @@ import { invalidBody, readJson } from '../lib/http';
 import {
   createTask,
   deleteTask,
+  deleteTasks,
   getTaskDetail,
   listTasks,
   moveTask,
+  reorderTasks,
   setTaskDone,
   updateTask,
 } from '../services/tasks';
@@ -37,6 +41,9 @@ export function registerTaskRoutes(app: Hono, db: Db): void {
     const priorities = splitList(c.req.query('priority'))
       .map(Number)
       .filter((value) => value === 1 || value === 2 || value === 3);
+    const completedParam = c.req.query('completed');
+    const completed =
+      completedParam === 'only' || completedParam === 'all' ? completedParam : 'exclude';
 
     return c.json({
       tasks: listTasks(db, {
@@ -47,6 +54,7 @@ export function registerTaskRoutes(app: Hono, db: Db): void {
         dueTo: dueTo || undefined,
         q: q || undefined,
         tag: tag || undefined,
+        completed,
       }),
     });
   });
@@ -58,6 +66,20 @@ export function registerTaskRoutes(app: Hono, db: Db): void {
     if (!parsed.success) return invalidBody(c, parsed.error);
 
     return c.json({ task: createTask(db, parsed.data) }, 201);
+  });
+
+  app.post('/api/tasks/reorder', async (c) => {
+    const parsed = reorderTasksBodySchema.safeParse(await readJson(c));
+    if (!parsed.success) return invalidBody(c, parsed.error);
+
+    return c.json({ reordered: reorderTasks(db, parsed.data.ids) });
+  });
+
+  app.post('/api/tasks/bulk-delete', async (c) => {
+    const parsed = bulkDeleteTasksBodySchema.safeParse(await readJson(c));
+    if (!parsed.success) return invalidBody(c, parsed.error);
+
+    return c.json({ deleted: deleteTasks(db, parsed.data.ids) });
   });
 
   app.patch('/api/tasks/:id', async (c) => {

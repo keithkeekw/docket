@@ -1,5 +1,6 @@
 import { cx } from '../lib/cx';
 import { describeDue } from '../lib/due';
+import { useDateLocale, useT } from '../lib/i18n';
 
 type DueLabelVariant = 'list' | 'table';
 
@@ -22,9 +23,14 @@ export function DueLabel({
   isDone?: boolean;
   now?: Date;
 }) {
+  const t = useT();
+  const dateLocale = useDateLocale();
   if (!dueDate) return null;
 
-  const due = describeDue(dueDate, dueTime, now);
+  const due = describeDue(dueDate, dueTime, now, {
+    locale: dateLocale,
+    todayLabel: t('Today'),
+  });
 
   return (
     <span

@@ -15,6 +15,7 @@ import {
   type FormEvent,
   type MouseEvent,
 } from 'react';
+
 import { useNavSummary } from '../api/nav';
 import { useMilestones } from '../api/projects';
 import { useStatuses } from '../api/statuses';
@@ -33,14 +34,18 @@ import {
 } from '../api/taskDetail';
 import { useDeleteTask, useUpdateTask } from '../api/tasks';
 import { cx } from '../lib/cx';
+import { useT } from '../lib/i18n';
 import { recurrenceOptions } from '../lib/recurrence';
+import { confirmAction } from '../store/confirm';
 import { useUiStore } from '../store/ui';
 import { LinkBadge } from './Badge';
 import { Button } from './Button';
 import { Checkbox } from './Checkbox';
-import { Field, Input, Select, Textarea } from './Field';
+import { DatePicker } from './DatePicker';
+import { Field, Input, Select } from './Field';
 import { InlineError } from './InlineError';
 import { Kbd } from './Kbd';
+import { MarkdownEditor } from './MarkdownEditor';
 
 type FormState = {
   title: string;
@@ -112,6 +117,7 @@ function toPatch(task: TaskDetail, form: FormState): UpdateTaskBody {
  * (D26); the fields load from `GET /api/tasks/:id` (D28).
  */
 export function TaskDrawer() {
+  const t = useT();
   const drawerTask = useUiStore((state) => state.drawerTask);
   const closeTask = useUiStore((state) => state.closeTask);
   const showUndo = useUiStore((state) => state.showUndo);
@@ -120,7 +126,6 @@ export function TaskDrawer() {
   const seededRef = useRef<string | null>(null);
   const [form, setForm] = useState<FormState | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
 
   const detail = useTaskDetail(drawerTask?.id ?? null);
   const task = detail.data ?? null;
@@ -151,7 +156,6 @@ export function TaskDrawer() {
     seededRef.current = task.id;
     setForm(toForm(task));
     setError(null);
-    setConfirmingDelete(false);
   }, [task]);
 
   useEffect(() => {
@@ -163,13 +167,13 @@ export function TaskDrawer() {
     if (!task || !form) return;
 
     if (form.title.trim() === '') {
-      setError('A task needs a title.');
+      setError(t('A task needs a title.'));
       return;
     }
 
     const estimate = form.estimateMinutes.trim();
     if (estimate !== '' && (!Number.isInteger(Number(estimate)) || Number(estimate) <= 0)) {
-      setError('Estimate must be a whole number of minutes.');
+      setError(t('Estimate must be a whole number of minutes.'));
       return;
     }
 
@@ -183,19 +187,28 @@ export function TaskDrawer() {
       await updateTask.mutateAsync({ id: task.id, ...patch });
       closeTask();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not save the task');
+      setError(cause instanceof Error ? cause.message : t('Could not save the task'));
     }
   }
 
   async function handleDelete() {
     if (!task) return;
 
+    const confirmed = await confirmAction({
+      title: t('Delete Task'),
+      message: t('“{title}” and its checklist, links, files and tags will be deleted.', {
+        title: task.title,
+      }),
+      confirmLabel: t('Delete Task'),
+    });
+    if (!confirmed) return;
+
     try {
       await deleteTask.mutateAsync({ id: task.id });
-      showUndo(`Task “${task.title}” deleted`);
+      showUndo(t('Task “{title}” deleted', { title: task.title }));
       closeTask();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not delete the task');
+      setError(cause instanceof Error ? cause.message : t('Could not delete the task'));
     }
   }
 
@@ -221,20 +234,20 @@ export function TaskDrawer() {
         <header className="flex items-start justify-between gap-3 border-b border-zinc-200 px-5 py-4">
           <div className="min-w-0">
             <h2 id="task-drawer-title" className="text-[15px] font-semibold text-zinc-900">
-              Task
+              {t('Task')}
             </h2>
             <p className="mt-0.5 truncate text-xs text-zinc-500">
-              {task?.projectName ?? 'Inbox'}
+              {task?.projectName ?? t('Inbox')}
               {task?.milestoneId && milestones.data
                 ? ` · ${milestones.data.milestones.find((m) => m.id === task.milestoneId)?.name ?? ''}`
                 : ''}
             </p>
           </div>
-          <Button onClick={closeTask}>Close</Button>
+          <Button onClick={closeTask}>{t('Close')}</Button>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
-          {detail.isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
+          {detail.isLoading && <p className="text-sm text-zinc-500">{t('Loading…')}</p>}
 
           {detail.error && (
             <InlineError
@@ -250,7 +263,7 @@ export function TaskDrawer() {
               <form id="task-drawer-form" onSubmit={handleSubmit}>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="col-span-2">
-                    <Field label="Title">
+                    <Field label={t('Title')}>
                       <Input
                         autoFocus
                         value={form.title}
@@ -262,17 +275,23 @@ export function TaskDrawer() {
                   </div>
 
                   <div className="col-span-2">
-                    <Field label="Notes">
-                      <Textarea
+                    <div className="flex flex-col gap-1.5">
+                      <span className="text-[11px] text-zinc-500">{t('Notes')}</span>
+                      <MarkdownEditor
+                        key={task.id}
                         value={form.notes}
-                        onChange={(event) => {
-                          setForm({ ...form, notes: event.target.value });
+                        onChange={(notes) => {
+                          setForm({ ...form, notes });
                         }}
+                        placeholder={t('Add notes… Markdown works as you type.')}
                       />
-                    </Field>
+                      <span className="text-[11px] text-zinc-500">
+                        {t('Markdown is formatted inside the box as you type.')}
+                      </span>
+                    </div>
                   </div>
 
-                  <Field label="Project">
+                  <Field label={t('Project')}>
                     <Select
                       value={form.projectId}
                       onChange={(event) => {
@@ -280,7 +299,7 @@ export function TaskDrawer() {
                         setForm({ ...form, projectId: event.target.value, milestoneId: '' });
                       }}
                     >
-                      <option value="">Inbox</option>
+                      <option value="">{t('Inbox')}</option>
                       {projects.map((project) => (
                         <option key={project.id} value={project.id}>
                           {project.name}
@@ -288,13 +307,13 @@ export function TaskDrawer() {
                       ))}
                       {form.projectId !== '' && !projects.some((p) => p.id === form.projectId) && (
                         <option value={form.projectId}>
-                          {task.projectName ?? 'Current Project'}
+                          {task.projectName ?? t('Current Project')}
                         </option>
                       )}
                     </Select>
                   </Field>
 
-                  <Field label="Milestone">
+                  <Field label={t('Milestone')}>
                     <Select
                       value={form.milestoneId}
                       disabled={form.projectId === ''}
@@ -302,7 +321,7 @@ export function TaskDrawer() {
                         setForm({ ...form, milestoneId: event.target.value });
                       }}
                     >
-                      <option value="">None</option>
+                      <option value="">{t('None')}</option>
                       {(milestones.data?.milestones ?? []).map((milestone) => (
                         <option key={milestone.id} value={milestone.id}>
                           {milestone.name}
@@ -311,7 +330,7 @@ export function TaskDrawer() {
                     </Select>
                   </Field>
 
-                  <Field label="Status">
+                  <Field label={t('Status')}>
                     <Select
                       value={form.statusId}
                       onChange={(event) => {
@@ -326,7 +345,7 @@ export function TaskDrawer() {
                     </Select>
                   </Field>
 
-                  <Field label="Priority">
+                  <Field label={t('Priority')}>
                     <Select
                       value={String(form.priority)}
                       onChange={(event) => {
@@ -339,17 +358,16 @@ export function TaskDrawer() {
                     </Select>
                   </Field>
 
-                  <Field label="Due Date">
-                    <Input
-                      type="date"
+                  <Field label={t('Due Date')}>
+                    <DatePicker
                       value={form.dueDate}
-                      onChange={(event) => {
-                        setForm({ ...form, dueDate: event.target.value });
+                      onChange={(dueDate) => {
+                        setForm({ ...form, dueDate });
                       }}
                     />
                   </Field>
 
-                  <Field label="Due Time">
+                  <Field label={t('Due Time')}>
                     <Input
                       type="time"
                       value={form.dueTime}
@@ -360,7 +378,7 @@ export function TaskDrawer() {
                     />
                   </Field>
 
-                  <Field label="Estimate (Minutes)" hint="Blank means no estimate.">
+                  <Field label={t('Estimate (Minutes)')} hint={t('Blank means no estimate.')}>
                     <Input
                       type="number"
                       min={1}
@@ -373,7 +391,7 @@ export function TaskDrawer() {
                     />
                   </Field>
 
-                  <Field label="Repeat" hint="Weekly repeats on the due date's weekday.">
+                  <Field label={t('Repeat')} hint={t("Weekly repeats on the due date's weekday.")}>
                     <Select
                       value={form.recurrenceRule}
                       onChange={(event) => {
@@ -382,7 +400,7 @@ export function TaskDrawer() {
                     >
                       {recurrenceOptions(form.recurrenceRule || null).map((option) => (
                         <option key={option.value} value={option.value}>
-                          {option.label}
+                          {t(option.label)}
                         </option>
                       ))}
                     </Select>
@@ -398,7 +416,7 @@ export function TaskDrawer() {
               {error && <InlineError message={error} />}
 
               <p className="mt-4 flex items-center gap-1.5 text-xs text-zinc-500">
-                <Kbd>Esc</Kbd> to close
+                <Kbd>Esc</Kbd> {t('to close')}
               </p>
             </>
           )}
@@ -406,29 +424,14 @@ export function TaskDrawer() {
 
         <footer className="flex items-center justify-between gap-2 border-t border-zinc-200 px-5 py-3">
           <div className="flex items-center gap-2">
-            {confirmingDelete ? (
-              <>
-                <Button onClick={handleDelete} disabled={deleteTask.isPending}>
-                  {deleteTask.isPending ? 'Deleting…' : 'Confirm Delete'}
-                </Button>
-                <Button
-                  onClick={() => {
-                    setConfirmingDelete(false);
-                  }}
-                >
-                  Cancel
-                </Button>
-              </>
-            ) : (
-              <Button
-                onClick={() => {
-                  setConfirmingDelete(true);
-                }}
-                disabled={!task}
-              >
-                Delete
-              </Button>
-            )}
+            <Button
+              onClick={() => {
+                void handleDelete();
+              }}
+              disabled={!task || deleteTask.isPending}
+            >
+              {deleteTask.isPending ? t('Deleting…') : t('Delete')}
+            </Button>
           </div>
 
           <Button
@@ -437,7 +440,7 @@ export function TaskDrawer() {
             variant="primary"
             disabled={!form || updateTask.isPending}
           >
-            {updateTask.isPending ? 'Saving…' : 'Save'}
+            {updateTask.isPending ? t('Saving…') : t('Save')}
           </Button>
         </footer>
       </div>
@@ -455,6 +458,7 @@ function SectionHeading({ title, meta }: { title: string; meta?: string }) {
 }
 
 function ChecklistSection({ taskId, items }: { taskId: string; items: ChecklistItem[] }) {
+  const t = useT();
   const addItem = useAddChecklistItem(taskId);
   const updateItem = useUpdateChecklistItem(taskId);
   const deleteItem = useDeleteChecklistItem(taskId);
@@ -481,7 +485,23 @@ function ChecklistSection({ taskId, items }: { taskId: string; items: ChecklistI
         await addItem.mutateAsync({ title: itemTitle });
       }
     } catch (err) {
-      setGenerateError(err instanceof Error ? err.message : 'Generation failed');
+      setGenerateError(err instanceof Error ? err.message : t('Generation failed'));
+    }
+  }
+
+  async function removeItem(item: ChecklistItem) {
+    const confirmed = await confirmAction({
+      title: t('Delete Checklist Item'),
+      message: t('“{title}” will be removed from this checklist.', { title: item.title }),
+      confirmLabel: t('Delete Item'),
+    });
+    if (!confirmed) return;
+
+    setGenerateError(null);
+    try {
+      await deleteItem.mutateAsync({ id: item.id });
+    } catch (cause) {
+      setGenerateError(cause instanceof Error ? cause.message : t('Could not delete the item'));
     }
   }
 
@@ -489,21 +509,27 @@ function ChecklistSection({ taskId, items }: { taskId: string; items: ChecklistI
     <section className="mt-5 border-t border-zinc-100 pt-4">
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="text-xs font-medium text-zinc-500">
-          Checklist <span className="font-normal">{done} of {items.length}</span>
+          {t('Checklist')}{' '}
+          <span className="font-normal">
+            {t('{count} of {total}', { count: done, total: items.length })}
+          </span>
         </h3>
         <button
           type="button"
           disabled={generate.isPending || addItem.isPending}
-          onClick={() => { void handleGenerate(); }}
+          onClick={() => {
+            void handleGenerate();
+          }}
+          title={t(
+            'Uses the task title, notes and readable attachments (txt, md, csv, json, doc, docx). File text is sent to your AI provider.',
+          )}
           className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs text-zinc-500 transition-colors hover:border-zinc-300 hover:bg-zinc-100 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span aria-hidden="true">✦</span>
-          {generate.isPending ? 'Generating…' : 'Auto-Generate'}
+          {generate.isPending ? t('Generating…') : t('Auto-Generate')}
         </button>
       </div>
-      {generateError && (
-        <p className="mt-1 text-xs text-red-600">{generateError}</p>
-      )}
+      {generateError && <p className="mt-1 text-xs text-red-600">{generateError}</p>}
 
       {items.length > 0 && (
         <ul className="mt-2 flex flex-col gap-2">
@@ -511,7 +537,9 @@ function ChecklistSection({ taskId, items }: { taskId: string; items: ChecklistI
             <li key={item.id} className="flex min-h-8 items-center gap-2">
               <Checkbox
                 checked={item.done}
-                label={`Mark "${item.title}" as ${item.done ? 'not done' : 'done'}`}
+                label={t(item.done ? 'Mark "{title}" as not done' : 'Mark "{title}" as done', {
+                  title: item.title,
+                })}
                 onChange={(checked) => {
                   void updateItem.mutateAsync({ id: item.id, done: checked });
                 }}
@@ -526,14 +554,24 @@ function ChecklistSection({ taskId, items }: { taskId: string; items: ChecklistI
               </span>
               <button
                 type="button"
-                aria-label={`Delete checklist item ${item.title}`}
+                aria-label={t('Delete checklist item {title}', { title: item.title })}
                 className="text-red-800 opacity-40 transition-opacity hover:opacity-100"
                 onClick={() => {
-                  void deleteItem.mutateAsync({ id: item.id });
+                  void removeItem(item);
                 }}
               >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="size-3.5" aria-hidden="true">
-                  <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clipRule="evenodd" />
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 16 16"
+                  fill="currentColor"
+                  className="size-3.5"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z"
+                    clipRule="evenodd"
+                  />
                 </svg>
               </button>
             </li>
@@ -543,7 +581,7 @@ function ChecklistSection({ taskId, items }: { taskId: string; items: ChecklistI
 
       <form className="mt-2 flex items-end gap-2" onSubmit={handleAdd}>
         <div className="flex-1">
-          <Field label="Add Checklist Item">
+          <Field label={t('Add Checklist Item')}>
             <Input
               value={title}
               onChange={(event) => {
@@ -553,7 +591,7 @@ function ChecklistSection({ taskId, items }: { taskId: string; items: ChecklistI
           </Field>
         </div>
         <Button type="submit" disabled={!title.trim()}>
-          Add
+          {t('Add')}
         </Button>
       </form>
     </section>
@@ -561,6 +599,7 @@ function ChecklistSection({ taskId, items }: { taskId: string; items: ChecklistI
 }
 
 function LinksSection({ taskId, links }: { taskId: string; links: TaskLink[] }) {
+  const t = useT();
   const addLink = useAddLink(taskId);
   const deleteLink = useDeleteLink(taskId);
   const [url, setUrl] = useState('');
@@ -577,13 +616,29 @@ function LinksSection({ taskId, links }: { taskId: string; links: TaskLink[] }) 
       setLabel('');
       setError(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not add the link');
+      setError(cause instanceof Error ? cause.message : t('Could not add the link'));
+    }
+  }
+
+  async function removeLink(link: TaskLink) {
+    const confirmed = await confirmAction({
+      title: t('Delete Link'),
+      message: t('“{label}” will be removed from this task.', { label: link.label }),
+      confirmLabel: t('Delete Link'),
+    });
+    if (!confirmed) return;
+
+    setError(null);
+    try {
+      await deleteLink.mutateAsync({ id: link.id });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('Could not remove the link'));
     }
   }
 
   return (
     <section className="mt-5 border-t border-zinc-100 pt-4">
-      <SectionHeading title="Links" />
+      <SectionHeading title={t('Links')} />
 
       {links.length > 0 && (
         <ul className="mt-2 flex flex-col gap-2">
@@ -593,13 +648,13 @@ function LinksSection({ taskId, links }: { taskId: string; links: TaskLink[] }) 
               <span className="min-w-0 flex-1 truncate text-xs text-zinc-500">{link.url}</span>
               <button
                 type="button"
-                aria-label={`Remove link ${link.label}`}
+                aria-label={t('Remove link {label}', { label: link.label })}
                 className="text-xs text-zinc-500 underline underline-offset-2"
                 onClick={() => {
-                  void deleteLink.mutateAsync({ id: link.id });
+                  void removeLink(link);
                 }}
               >
-                Remove
+                {t('Remove')}
               </button>
             </li>
           ))}
@@ -607,7 +662,7 @@ function LinksSection({ taskId, links }: { taskId: string; links: TaskLink[] }) 
       )}
 
       <form className="mt-2 flex flex-col gap-2" onSubmit={handleAdd}>
-        <Field label="Link URL">
+        <Field label={t('Link URL')}>
           <Input
             type="url"
             placeholder="https://"
@@ -619,7 +674,7 @@ function LinksSection({ taskId, links }: { taskId: string; links: TaskLink[] }) 
         </Field>
         <div className="flex items-end gap-2">
           <div className="flex-1">
-            <Field label="Badge Label" hint="Blank derives it from the URL.">
+            <Field label={t('Badge Label')} hint={t('Blank derives it from the URL.')}>
               <Input
                 value={label}
                 onChange={(event) => {
@@ -629,7 +684,7 @@ function LinksSection({ taskId, links }: { taskId: string; links: TaskLink[] }) 
             </Field>
           </div>
           <Button type="submit" disabled={!url.trim() || addLink.isPending}>
-            Add Link
+            {t('Add Link')}
           </Button>
         </div>
       </form>
@@ -640,9 +695,27 @@ function LinksSection({ taskId, links }: { taskId: string; links: TaskLink[] }) 
 }
 
 function TagsSection({ taskId, tags }: { taskId: string; tags: string[] }) {
+  const t = useT();
   const setTags = useSetTaskTags(taskId);
   const known = useTags();
   const [name, setName] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  async function removeTag(tag: string) {
+    const confirmed = await confirmAction({
+      title: t('Remove Tag'),
+      message: t('“{tag}” will be removed from this task.', { tag }),
+      confirmLabel: t('Remove Tag'),
+    });
+    if (!confirmed) return;
+
+    setError(null);
+    try {
+      await setTags.mutateAsync({ tags: tags.filter((entry) => entry !== tag) });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('Could not remove the tag'));
+    }
+  }
 
   async function addTag(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -658,7 +731,7 @@ function TagsSection({ taskId, tags }: { taskId: string; tags: string[] }) {
 
   return (
     <section className="mt-5 border-t border-zinc-100 pt-4">
-      <SectionHeading title="Tags" />
+      <SectionHeading title={t('Tags')} />
 
       {tags.length > 0 && (
         <ul className="mt-2 flex flex-wrap gap-1.5">
@@ -670,10 +743,10 @@ function TagsSection({ taskId, tags }: { taskId: string; tags: string[] }) {
               {tag}
               <button
                 type="button"
-                aria-label={`Remove tag ${tag}`}
+                aria-label={t('Remove tag {tag}', { tag })}
                 className="text-zinc-500"
                 onClick={() => {
-                  void setTags.mutateAsync({ tags: tags.filter((entry) => entry !== tag) });
+                  void removeTag(tag);
                 }}
               >
                 ×
@@ -685,7 +758,7 @@ function TagsSection({ taskId, tags }: { taskId: string; tags: string[] }) {
 
       <form className="mt-2 flex items-end gap-2" onSubmit={addTag}>
         <div className="flex-1">
-          <Field label="Add Tag" hint="Tags are created on the fly.">
+          <Field label={t('Add Tag')} hint={t('Tags are created on the fly.')}>
             <Input
               list="task-drawer-tags"
               value={name}
@@ -701,9 +774,11 @@ function TagsSection({ taskId, tags }: { taskId: string; tags: string[] }) {
           ))}
         </datalist>
         <Button type="submit" disabled={!name.trim()}>
-          Add
+          {t('Add')}
         </Button>
       </form>
+
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
     </section>
   );
 }
@@ -721,6 +796,7 @@ function AttachmentsSection({
   taskId: string;
   attachments: TaskAttachment[];
 }) {
+  const t = useT();
   const addAttachment = useAddAttachment(taskId);
   const deleteAttachment = useDeleteAttachment(taskId);
   const [error, setError] = useState<string | null>(null);
@@ -738,21 +814,30 @@ function AttachmentsSection({
       }
       event.target.value = '';
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not upload the file');
+      setError(cause instanceof Error ? cause.message : t('Could not upload the file'));
     }
   }
 
-  function removeAttachment(id: string) {
-    setError(null);
-    deleteAttachment.mutateAsync({ id }).catch((cause: unknown) => {
-      setError(cause instanceof Error ? cause.message : 'Could not remove the file');
+  async function removeAttachment(id: string, filename: string) {
+    const confirmed = await confirmAction({
+      title: t('Delete File'),
+      message: t('“{filename}” will be permanently deleted from this task.', { filename }),
+      confirmLabel: t('Delete File'),
     });
+    if (!confirmed) return;
+
+    setError(null);
+    try {
+      await deleteAttachment.mutateAsync({ id });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('Could not remove the file'));
+    }
   }
 
   return (
     <section className="mt-5 border-t border-zinc-100 pt-4">
       <SectionHeading
-        title="Attachments"
+        title={t('Attachments')}
         meta={attachments.length > 0 ? String(attachments.length) : undefined}
       />
 
@@ -772,11 +857,13 @@ function AttachmentsSection({
               </span>
               <button
                 type="button"
-                aria-label={`Remove ${attachment.filename}`}
+                aria-label={t('Remove {filename}', { filename: attachment.filename })}
                 className="shrink-0 text-xs text-zinc-500 underline underline-offset-2"
-                onClick={() => { removeAttachment(attachment.id); }}
+                onClick={() => {
+                  void removeAttachment(attachment.id, attachment.filename);
+                }}
               >
-                Remove
+                {t('Remove')}
               </button>
             </li>
           ))}
@@ -784,18 +871,20 @@ function AttachmentsSection({
       )}
 
       <div className="mt-2">
-        <Field label="File Upload" hint={`Up to ${limitMb} MB per file.`}>
+        <Field label={t('File Upload')} hint={t('Up to {size} MB per file.', { size: limitMb })}>
           <input
             type="file"
             multiple
             disabled={addAttachment.isPending}
-            onChange={(event) => { void uploadFiles(event); }}
+            onChange={(event) => {
+              void uploadFiles(event);
+            }}
             className="block w-full text-xs text-zinc-600 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-zinc-700 hover:file:bg-zinc-200 disabled:opacity-50"
           />
         </Field>
       </div>
 
-      {addAttachment.isPending && <p className="mt-1 text-xs text-zinc-500">Uploading…</p>}
+      {addAttachment.isPending && <p className="mt-1 text-xs text-zinc-500">{t('Uploading…')}</p>}
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </section>
   );

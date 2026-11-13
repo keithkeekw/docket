@@ -172,7 +172,7 @@ export async function generateReview(
 
   const { text, model } = await complete({
     feature,
-    system: loadPrompt('review'),
+    system: loadPrompt(db, 'review'),
     user: JSON.stringify(context, null, 2),
   });
 

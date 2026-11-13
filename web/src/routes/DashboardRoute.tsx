@@ -1,16 +1,23 @@
 import { format, parse } from 'date-fns';
+import { useState } from 'react';
 import { Link } from 'react-router';
 import { useDashboard } from '../api/dashboard';
+import { useArchiveProject } from '../api/projects';
 import { useGenerateReview } from '../api/reviews';
 import { useCompleteTask } from '../api/tasks';
-import { Button } from '../components/Button';
 import { CaptureBar } from '../components/CaptureBar';
+import { DashboardCalendar } from '../components/DashboardCalendar';
+import { DashboardClocks } from '../components/DashboardClocks';
+import { DashboardLayout } from '../components/DashboardLayout';
 import { GroupHeader } from '../components/GroupHeader';
+import { PrelineTooltip } from '../components/PrelineTooltip';
+import { cx } from '../lib/cx';
+import { useDateLocale, useLocale, useT } from '../lib/i18n';
 import { InlineError } from '../components/InlineError';
 import { ProjectCard } from '../components/ProjectCard';
 import { ReviewCard } from '../components/ReviewCard';
 import { TaskRow } from '../components/TaskRow';
-import { modKeyLabel } from '../lib/platform';
+import { YearProgress } from '../components/YearProgress';
 import { toTaskRow } from '../lib/taskRow';
 import { useUiStore } from '../store/ui';
 
@@ -20,12 +27,17 @@ import { useUiStore } from '../store/ui';
  * "Ask assistant" and the review card wait for M2/M3 (D10).
  */
 export function DashboardRoute() {
+  const t = useT();
+  const dateLocale = useDateLocale();
+  const locale = useLocale();
   const dashboard = useDashboard();
   const completeTask = useCompleteTask();
   const generateReview = useGenerateReview();
+  const archiveProject = useArchiveProject();
   const openTask = useUiStore((state) => state.openTask);
   const openProjectDialog = useUiStore((state) => state.openProjectDialog);
   const openChat = useUiStore((state) => state.openChat);
+  const [editing, setEditing] = useState(false);
 
   const data = dashboard.data;
   const day = data ? parse(data.date, 'yyyy-MM-dd', new Date()) : new Date();
@@ -33,18 +45,20 @@ export function DashboardRoute() {
   const counts = data?.counts ?? { overdue: 0, today: 0, inbox: 0 };
   const summary =
     [
-      counts.today > 0 ? `${counts.today} due today` : null,
-      counts.overdue > 0 ? `${counts.overdue} overdue` : null,
-      counts.inbox > 0 ? `${counts.inbox} in inbox` : null,
+      counts.today > 0 ? t('{count} due today', { count: counts.today }) : null,
+      counts.overdue > 0 ? t('{count} overdue', { count: counts.overdue }) : null,
+      counts.inbox > 0 ? t('{count} in inbox', { count: counts.inbox }) : null,
     ]
       .filter(Boolean)
-      .join(' · ') || 'Nothing due';
+      .join(' · ') || t('Nothing due');
 
   const groups = [
-    { label: 'Overdue', tone: 'overdue' as const, tasks: data?.groups.overdue ?? [] },
-    { label: 'Today', tone: 'default' as const, tasks: data?.groups.today ?? [] },
-    { label: 'Inbox · Unsorted', tone: 'default' as const, tasks: data?.groups.inbox ?? [] },
+    { label: t('Overdue'), tone: 'overdue' as const, tasks: data?.groups.overdue ?? [] },
+    { label: t('Today'), tone: 'default' as const, tasks: data?.groups.today ?? [] },
+    { label: t('Inbox · Unsorted'), tone: 'default' as const, tasks: data?.groups.inbox ?? [] },
   ].filter((group) => group.tasks.length > 0);
+
+  const latestReview = data?.latestReview;
 
   return (
     <div className="mx-auto max-w-[1120px]">
@@ -52,17 +66,98 @@ export function DashboardRoute() {
         <div className="min-w-0 flex-1">
           <CaptureBar />
         </div>
-        <Button onClick={openChat}>Ask Assistant</Button>
+        <PrelineTooltip label={t('Ask Assistant')}>
+          <button
+            type="button"
+            onClick={openChat}
+            aria-label={t('Ask Assistant')}
+            className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+          >
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="size-5"
+            aria-hidden="true"
+          >
+            <path
+              fillRule="evenodd"
+              d="M10 2c-4.418 0-8 3.134-8 7 0 1.979.94 3.765 2.45 5.053-.14.755-.51 1.664-1.194 2.366a.75.75 0 0 0 .59 1.266c1.492-.06 2.73-.55 3.61-1.11A9.36 9.36 0 0 0 10 16c4.418 0 8-3.134 8-7s-3.582-7-8-7Zm-3 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm3 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm3 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"
+              clipRule="evenodd"
+            />
+          </svg>
+          </button>
+        </PrelineTooltip>
+        <PrelineTooltip label={editing ? t('Done Rearranging') : t('Rearrange Cards')}>
+          <button
+            type="button"
+            onClick={() => {
+              setEditing((current) => !current);
+          }}
+            disabled={!data}
+            aria-label={editing ? t('Done Rearranging') : t('Rearrange Cards')}
+            aria-pressed={editing}
+            className={cx(
+              'inline-flex size-10 shrink-0 items-center justify-center rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-50',
+              editing
+                ? 'border-zinc-900 bg-zinc-900 text-white'
+                : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900',
+            )}
+          >
+          {editing ? (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="size-5"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
+                clipRule="evenodd"
+              />
+            </svg>
+          ) : (
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              className="size-5"
+              aria-hidden="true"
+            >
+              <circle cx="6" cy="4" r="1" />
+              <circle cx="10" cy="4" r="1" />
+              <circle cx="6" cy="8" r="1" />
+              <circle cx="10" cy="8" r="1" />
+              <circle cx="6" cy="12" r="1" />
+              <circle cx="10" cy="12" r="1" />
+            </svg>
+            )}
+          </button>
+        </PrelineTooltip>
       </div>
 
-      <header className="mt-6 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
-          {format(day, 'EEEE, d MMMM')}
-        </h1>
-        <p className="text-xs text-zinc-500">{summary}</p>
+      {editing && (
+        <p className="mt-3 text-xs text-zinc-500">
+          {t(
+            'Drag the cards by their handle to rearrange them. The order is saved on this device.',
+          )}
+        </p>
+      )}
+
+      <header className="mt-6">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+            {format(day, locale === 'zh' ? 'M月d日 EEEE' : 'EEEE, d MMMM', { locale: dateLocale })}
+          </h1>
+          <p className="text-xs text-zinc-500">{summary}</p>
+        </div>
+        <DashboardClocks />
+        <YearProgress />
       </header>
 
-      {dashboard.isLoading && <p className="mt-6 text-sm text-zinc-500">Loading…</p>}
+      {dashboard.isLoading && <p className="mt-6 text-sm text-zinc-500">{t('Loading…')}</p>}
 
       {dashboard.error && (
         <InlineError
@@ -73,94 +168,173 @@ export function DashboardRoute() {
         />
       )}
 
-      {data?.latestReview && (
-        <div className="mt-6">
-          <ReviewCard
-            review={data.latestReview}
-            regenerating={generateReview.isPending}
-            onRegenerate={() => {
-              generateReview.mutate({ kind: data.latestReview?.kind ?? 'daily' });
-            }}
-          />
-        </div>
+      {data && (
+        <DashboardLayout
+          editing={editing}
+          cards={[
+            ...(latestReview
+              ? [
+                  {
+                    id: 'review',
+                    title: t('Review'),
+                    fullWidth: true,
+                    node: (
+                      <ReviewCard
+                        review={latestReview}
+                        regenerating={generateReview.isPending}
+                        onRegenerate={() => {
+                          generateReview.mutate({ kind: latestReview.kind });
+                        }}
+                      />
+                    ),
+                  },
+                ]
+              : []),
+            {
+              id: 'tasks',
+              title: t('Tasks'),
+              node: (
+                <section aria-labelledby="dashboard-tasks" className="min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 id="dashboard-tasks" className="text-[15px] font-semibold text-zinc-900">
+                      {t('Tasks')}
+                    </h2>
+                    <PrelineTooltip label={t('Open in Table')}>
+                      <Link
+                        to="/tasks"
+                        aria-label={t('Open in Table')}
+                        className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+                      >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="size-4"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M.99 5.24A2.25 2.25 0 0 1 3.25 3h13.5A2.25 2.25 0 0 1 19 5.25v9.5A2.25 2.25 0 0 1 16.75 17H3.25A2.25 2.25 0 0 1 1 14.75v-9.5ZM3.25 4.5a.75.75 0 0 0-.75.75v2.25h15V5.25a.75.75 0 0 0-.75-.75H3.25ZM18.25 9H15v3.5h3.25V9Zm0 5h-3.25v1.5h1.75a.75.75 0 0 0 .75-.75V14Zm-4.75 1.5V14H9.5v1.5h4ZM8 15.5V14H1.75v.75c0 .414.336.75.75.75H8Zm-6.25-3H8V9H1.75v3.5ZM9.5 9v3.5h4V9h-4Z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                    </Link>
+                    </PrelineTooltip>
+                  </div>
+
+                  {groups.length === 0 ? (
+                    <p className="mt-3 rounded-xl border border-zinc-200 bg-white px-4 py-6 text-sm text-zinc-500">
+                      {t('Nothing due.')}
+                    </p>
+                  ) : (
+                    <div className="mt-3 overflow-hidden rounded-xl border border-zinc-200 bg-white pb-1">
+                      {groups.map((group) => (
+                        <section key={group.label}>
+                          <GroupHeader
+                            label={group.label}
+                            count={group.tasks.length}
+                            tone={group.tone}
+                          />
+                          <ul>
+                            {group.tasks.map((task) => (
+                              <TaskRow
+                                key={task.id}
+                                task={toTaskRow(task)}
+                                onOpen={() => {
+                                  openTask(task);
+                                }}
+                                onToggle={(done) => {
+                                  completeTask.mutate({ id: task.id, done });
+                                }}
+                              />
+                            ))}
+                          </ul>
+                        </section>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              ),
+            },
+            {
+              id: 'calendar',
+              title: t('Calendar'),
+              node: <DashboardCalendar />,
+            },
+            {
+              id: 'projects',
+              title: t('Active Projects'),
+              fullWidth: true,
+              node: (
+                <section aria-labelledby="dashboard-projects" className="min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <h2 id="dashboard-projects" className="text-[15px] font-semibold text-zinc-900">
+                      {t('Active Projects')}
+                    </h2>
+                    <PrelineTooltip label={t('New Project')}>
+                      <button
+                        type="button"
+                        aria-label={t('New Project')}
+                        className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+                        onClick={() => {
+                          openProjectDialog({ mode: 'create' });
+                        }}
+                      >
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 20 20"
+                        fill="currentColor"
+                        className="size-4"
+                        aria-hidden="true"
+                      >
+                        <path
+                          fillRule="evenodd"
+                          d="M10 3a.75.75 0 0 1 .75.75v5.5h5.5a.75.75 0 0 1 0 1.5h-5.5v5.5a.75.75 0 0 1-1.5 0v-5.5h-5.5a.75.75 0 0 1 0-1.5h5.5v-5.5A.75.75 0 0 1 10 3Z"
+                          clipRule="evenodd"
+                        />
+                      </svg>
+                      </button>
+                    </PrelineTooltip>
+                  </div>
+
+                  {data.activeProjects.length === 0 ? (
+                    <div className="mt-3 rounded-xl border border-zinc-200 bg-white px-4 py-6">
+                      <p className="text-sm font-medium text-zinc-700">
+                        {t('No active projects.')}
+                      </p>
+                      <p className="mt-1 text-sm text-zinc-500">
+                        {t(
+                          'Enjoy it while it lasts — an empty list is the only list that never needs a status update.',
+                        )}
+                      </p>
+                    </div>
+                  ) : (
+                    <ul className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-2.5">
+                      {data.activeProjects.map((project) => (
+                        <li key={project.id}>
+                          <ProjectCard
+                            project={project}
+                            archiving={
+                              archiveProject.isPending &&
+                              archiveProject.variables?.id === project.id
+                            }
+                            onArchive={() => {
+                              archiveProject.mutate({ id: project.id });
+                            }}
+                          />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </section>
+              ),
+            },
+          ]}
+        />
       )}
 
       {generateReview.error && (
         <p className="mt-2 text-xs text-zinc-700">{generateReview.error.message}</p>
-      )}
-
-      {data && (
-        <div className="mt-6 grid gap-6 min-[900px]:grid-cols-[3fr_2fr]">
-          <section aria-labelledby="dashboard-tasks" className="min-w-0 overflow-hidden">
-            <div className="flex items-baseline justify-between gap-2">
-              <h2 id="dashboard-tasks" className="text-[15px] font-semibold text-zinc-900">
-                Tasks
-              </h2>
-              <Link to="/tasks" className="text-[13px] text-blue-600 hover:underline">
-                Open in Table
-              </Link>
-            </div>
-
-            {groups.length === 0 ? (
-              <p className="mt-3 rounded-xl border border-zinc-200 bg-white px-4 py-6 text-sm text-zinc-500">
-                Nothing due. Press {modKeyLabel()} K to capture.
-              </p>
-            ) : (
-              <div className="mt-3 overflow-hidden rounded-xl border border-zinc-200 bg-white pb-1">
-                {groups.map((group) => (
-                  <section key={group.label}>
-                    <GroupHeader label={group.label} count={group.tasks.length} tone={group.tone} />
-                    <ul>
-                      {group.tasks.map((task) => (
-                        <TaskRow
-                          key={task.id}
-                          task={toTaskRow(task)}
-                          onOpen={() => {
-                            openTask(task);
-                          }}
-                          onToggle={(done) => {
-                            completeTask.mutate({ id: task.id, done });
-                          }}
-                        />
-                      ))}
-                    </ul>
-                  </section>
-                ))}
-              </div>
-            )}
-          </section>
-
-          <section aria-labelledby="dashboard-projects" className="min-w-0 overflow-hidden">
-            <div className="flex items-baseline justify-between gap-2">
-              <h2 id="dashboard-projects" className="text-[15px] font-semibold text-zinc-900">
-                Active Projects
-              </h2>
-              <button
-                type="button"
-                className="text-[13px] text-blue-600 hover:underline"
-                onClick={() => {
-                  openProjectDialog({ mode: 'create' });
-                }}
-              >
-                New Project
-              </button>
-            </div>
-
-            {data.activeProjects.length === 0 ? (
-              <p className="mt-3 rounded-xl border border-zinc-200 bg-white px-4 py-6 text-sm text-zinc-500">
-                No active projects yet.
-              </p>
-            ) : (
-              <ul className="mt-3 flex flex-col gap-2.5">
-                {data.activeProjects.map((project) => (
-                  <li key={project.id}>
-                    <ProjectCard project={project} />
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        </div>
       )}
     </div>
   );

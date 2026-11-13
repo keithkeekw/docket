@@ -1,8 +1,21 @@
-import type { AiFeature, AiProvider, Status, StatusCategory } from '@app/shared';
+import type {
+  AiFeature,
+  AiProvider,
+  PromptEntry,
+  Status,
+  StatusCategory,
+} from '@app/shared';
 import { format, parseISO } from 'date-fns';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
-import { useAiSettings, useProviderModels, useUpdateAiSettings } from '../api/aiSettings';
+import {
+  useAiSettings,
+  usePrompts,
+  useProviderModels,
+  useResetPrompt,
+  useSavePrompt,
+  useUpdateAiSettings,
+} from '../api/aiSettings';
 import { useBackups, useCreateBackup, useRestoreBackup } from '../api/backups';
 import { useProjects } from '../api/projects';
 import { useCreateStatus, useDeleteStatus, useStatuses, useUpdateStatus } from '../api/statuses';
@@ -11,8 +24,20 @@ import { Button } from '../components/Button';
 import { Field, Input, Select } from '../components/Field';
 import { InlineError } from '../components/InlineError';
 import { PageHeader } from '../components/PageHeader';
+import { UpdatesSection } from '../components/UpdatesSection';
 import { Kbd } from '../components/Kbd';
+import {
+  formatClockDay,
+  formatClockOffset,
+  formatClockTime,
+  timeZoneLabel,
+} from '../lib/clocks';
+import { useLocale } from '../lib/i18n';
+import { useDateLocale, useT } from '../lib/i18n';
 import { bindingLabel } from '../lib/platform';
+import { useNow } from '../lib/useNow';
+import { confirmAction } from '../store/confirm';
+import { MAX_CLOCKS, useClocksStore } from '../store/clocks';
 import { ALL_SHORTCUTS, useKeybindingsStore } from '../store/keybindings';
 
 const CATEGORIES: ReadonlyArray<{ value: StatusCategory; label: string }> = [
@@ -26,25 +51,31 @@ const CATEGORIES: ReadonlyArray<{ value: StatusCategory; label: string }> = [
  * border. M1-S8 ships the Statuses section (FR-14, US-10).
  */
 export function SettingsRoute() {
+  const t = useT();
+
   return (
     <>
       <PageHeader
-        title="Settings"
-        description="How the app behaves on this machine. Everything is stored locally."
+        title={t('Settings')}
+        description={t('How the app behaves on this machine. Everything is stored locally.')}
       />
 
       <div className="mt-6 max-w-[720px]">
         <StatusesSection />
         <KeyBindingsSection />
         <AiSection />
+        <PromptManagementSection />
+        <ClocksSection />
         <PrivacySection />
         <DataSection />
+        <UpdatesSection />
       </div>
     </>
   );
 }
 
 function StatusesSection() {
+  const t = useT();
   const statuses = useStatuses();
   const createStatus = useCreateStatus();
   const updateStatus = useUpdateStatus();
@@ -66,7 +97,7 @@ function StatusesSection() {
       setName('');
       setError(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not add the status');
+      setError(cause instanceof Error ? cause.message : t('Could not add the status'));
     }
   }
 
@@ -91,7 +122,7 @@ function StatusesSection() {
       }
       setError(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not reorder statuses');
+      setError(cause instanceof Error ? cause.message : t('Could not reorder statuses'));
     }
   }
 
@@ -100,7 +131,7 @@ function StatusesSection() {
       await updateStatus.mutateAsync({ id: status.id, name: nextName });
       setError(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not rename the status');
+      setError(cause instanceof Error ? cause.message : t('Could not rename the status'));
     }
   }
 
@@ -109,28 +140,38 @@ function StatusesSection() {
       await updateStatus.mutateAsync({ id: status.id, category: next });
       setError(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not update the status');
+      setError(cause instanceof Error ? cause.message : t('Could not update the status'));
     }
   }
 
   async function remove(status: Status) {
+    const confirmed = await confirmAction({
+      title: t('Delete Status'),
+      message: t('“{name}” will be deleted from the status picker and Kanban columns.', {
+        name: status.name,
+      }),
+      confirmLabel: t('Delete Status'),
+    });
+    if (!confirmed) return;
+
     try {
       await deleteStatus.mutateAsync({ id: status.id });
       setError(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not delete the status');
+      setError(cause instanceof Error ? cause.message : t('Could not delete the status'));
     }
   }
 
   return (
     <section className="border-t border-zinc-200 pt-5">
-      <h2 className="text-[15px] font-semibold text-zinc-900">Statuses</h2>
+      <h2 className="text-[15px] font-semibold text-zinc-900">{t('Statuses')}</h2>
       <p className="mt-1 max-w-[560px] text-xs text-zinc-500">
-        The order here is the order of Kanban columns and the status picker. A status in use cannot
-        be deleted until its tasks move to another one.
+        {t(
+          'The order here is the order of Kanban columns and the status picker. A status in use cannot be deleted until its tasks move to another one.',
+        )}
       </p>
 
-      {statuses.isLoading && <p className="mt-3 text-sm text-zinc-500">Loading…</p>}
+      {statuses.isLoading && <p className="mt-3 text-sm text-zinc-500">{t('Loading…')}</p>}
 
       {statuses.error && (
         <InlineError
@@ -173,7 +214,7 @@ function StatusesSection() {
       <form className="mt-3 flex flex-col gap-2" onSubmit={handleAdd}>
         <div className="flex gap-2">
           <div className="min-w-0 flex-1">
-            <Field label="Add Status">
+            <Field label={t('Add Status')}>
               <Input
                 value={name}
                 onChange={(event) => {
@@ -183,7 +224,7 @@ function StatusesSection() {
             </Field>
           </div>
           <div className="w-[7.5rem] shrink-0">
-            <Field label="Category">
+            <Field label={t('Category')}>
               <Select
                 value={category}
                 onChange={(event) => {
@@ -192,7 +233,7 @@ function StatusesSection() {
               >
                 {CATEGORIES.map((entry) => (
                   <option key={entry.value} value={entry.value}>
-                    {entry.label}
+                    {t(entry.label)}
                   </option>
                 ))}
               </Select>
@@ -201,7 +242,7 @@ function StatusesSection() {
         </div>
         <div>
           <Button type="submit" disabled={!name.trim() || createStatus.isPending}>
-            Add
+            {t('Add')}
           </Button>
         </div>
       </form>
@@ -232,6 +273,7 @@ function StatusRow({
   onMoveDown: () => void;
   onDelete: () => void;
 }) {
+  const t = useT();
   const [name, setName] = useState(status.name);
 
   useEffect(() => {
@@ -239,63 +281,83 @@ function StatusRow({
   }, [status.name]);
 
   return (
-    <li className="flex flex-col gap-1.5">
-      {/* Row 1: name + category */}
-      <div className="flex gap-2">
-        <div className="min-w-0 flex-1">
-          <Input
-            aria-label={`Status name: ${status.name}`}
-            value={name}
-            onChange={(event) => {
-              setName(event.target.value);
-            }}
-            onBlur={() => {
-              const trimmed = name.trim();
-              if (trimmed && trimmed !== status.name) onRename(trimmed);
-              else setName(status.name);
-            }}
-          />
-        </div>
-        <div className="w-[7.5rem] shrink-0">
-          <Select
-            aria-label={`Category for ${status.name}`}
-            value={status.category}
-            onChange={(event) => {
-              onRecategorise(event.target.value as StatusCategory);
-            }}
-          >
-            {CATEGORIES.map((entry) => (
-              <option key={entry.value} value={entry.value}>
-                {entry.label}
-              </option>
-            ))}
-          </Select>
-        </div>
+    <li className="flex flex-wrap items-center gap-2">
+      <div className="min-w-[9rem] flex-1">
+        <Input
+          aria-label={t('Status name: {name}', { name: status.name })}
+          value={name}
+          onChange={(event) => {
+            setName(event.target.value);
+          }}
+          onBlur={() => {
+            const trimmed = name.trim();
+            if (trimmed && trimmed !== status.name) onRename(trimmed);
+            else setName(status.name);
+          }}
+        />
       </div>
 
-      {/* Row 2: task count + action buttons */}
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-xs text-zinc-500">
-          {status.taskCount === 0
-            ? 'Unused'
-            : `${status.taskCount} ${status.taskCount === 1 ? 'task' : 'tasks'}`}
-        </span>
-        <div className="flex gap-1.5">
-          <Button onClick={onMoveUp} disabled={first} aria-label={`Move ${status.name} up`}>
-            Up
-          </Button>
-          <Button onClick={onMoveDown} disabled={last} aria-label={`Move ${status.name} down`}>
-            Down
-          </Button>
-          <Button
-            onClick={onDelete}
-            disabled={!canDelete}
-            aria-label={`Delete status ${status.name}`}
-            title={canDelete ? undefined : 'Move its tasks to another status first'}
-          >
-            Delete
-          </Button>
-        </div>
+      <div className="w-[7.5rem] shrink-0">
+        <Select
+          aria-label={t('Category for {name}', { name: status.name })}
+          value={status.category}
+          onChange={(event) => {
+            onRecategorise(event.target.value as StatusCategory);
+          }}
+        >
+          {CATEGORIES.map((entry) => (
+            <option key={entry.value} value={entry.value}>
+              {t(entry.label)}
+            </option>
+          ))}
+        </Select>
+      </div>
+
+      <span className="w-[4.5rem] shrink-0 text-right text-xs text-zinc-500">
+        {status.taskCount === 0
+          ? t('Unused')
+          : t(status.taskCount === 1 ? '{count} task' : '{count} tasks', {
+              count: status.taskCount,
+            })}
+      </span>
+
+      <div className="flex shrink-0 items-center gap-1">
+        <button
+          type="button"
+          onClick={onMoveUp}
+          disabled={first}
+          aria-label={t('Move {name} up', { name: status.name })}
+          title={t('Move Up')}
+          className="inline-flex size-10 items-center justify-center rounded-lg border border-zinc-300 bg-white text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-900 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-white disabled:text-zinc-300"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5" aria-hidden="true">
+            <path fillRule="evenodd" d="M14.77 12.79a.75.75 0 0 1-1.06-.02L10 8.832l-3.71 3.938a.75.75 0 1 1-1.08-1.04l4.25-4.5a.75.75 0 0 1 1.08 0l4.25 4.5a.75.75 0 0 1-.02 1.06Z" clipRule="evenodd" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={onMoveDown}
+          disabled={last}
+          aria-label={t('Move {name} down', { name: status.name })}
+          title={t('Move Down')}
+          className="inline-flex size-10 items-center justify-center rounded-lg border border-zinc-300 bg-white text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-900 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-white disabled:text-zinc-300"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5" aria-hidden="true">
+            <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clipRule="evenodd" />
+          </svg>
+        </button>
+        <button
+          type="button"
+          onClick={onDelete}
+          disabled={!canDelete}
+          aria-label={t('Delete status {name}', { name: status.name })}
+          title={canDelete ? t('Delete Status') : t('Move its tasks to another status first')}
+          className="inline-flex size-10 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition-colors hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-white disabled:text-zinc-300"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="size-5" aria-hidden="true">
+            <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clipRule="evenodd" />
+          </svg>
+        </button>
       </div>
     </li>
   );
@@ -313,6 +375,9 @@ function formatBytes(bytes: number): string {
  * replaces every row; the server also keeps a pre-restore snapshot.
  */
 function DataSection() {
+  const t = useT();
+  const dateLocale = useDateLocale();
+  const locale = useLocale();
   const backups = useBackups();
   const createBackup = useCreateBackup();
   const restore = useRestoreBackup();
@@ -326,10 +391,10 @@ function DataSection() {
   async function handleBackup() {
     try {
       const { backup } = await createBackup.mutateAsync();
-      setMessage(`Backup created: ${backup.file}`);
+      setMessage(t('Backup created: {file}', { file: backup.file }));
       setError(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not create a backup');
+      setError(cause instanceof Error ? cause.message : t('Could not create a backup'));
     }
   }
 
@@ -337,11 +402,14 @@ function DataSection() {
     try {
       const result = await restore.mutateAsync({ file });
       setMessage(
-        `Restored from ${result.restored}. A safety copy of the previous data is kept as ${result.safetyBackup.file}.`,
+        t('Restored from {file}. A safety copy of the previous data is kept as {safety}.', {
+          file: result.restored,
+          safety: result.safetyBackup.file,
+        }),
       );
       setError(null);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not restore that backup');
+      setError(cause instanceof Error ? cause.message : t('Could not restore that backup'));
     } finally {
       setConfirming(null);
     }
@@ -349,20 +417,23 @@ function DataSection() {
 
   return (
     <section className="mt-8 border-t border-zinc-200 pt-5">
-      <h2 className="text-[15px] font-semibold text-zinc-900">Data</h2>
+      <h2 className="text-[15px] font-semibold text-zinc-900">{t('Data')}</h2>
       <p className="mt-1 max-w-[560px] text-xs text-zinc-500">
-        Backups are whole copies of the database, kept in <code>data/backups</code>. Restoring
-        replaces every project, task and setting with the copy you pick.
+        {t('Backups are whole copies of the database, kept in')}{' '}
+        <code>data/backups</code>
+        {t('. Restoring replaces every project, task and setting with the copy you pick.')}
       </p>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button onClick={handleBackup} disabled={createBackup.isPending}>
-          {createBackup.isPending ? 'Backing up…' : 'Backup Now'}
+          {createBackup.isPending ? t('Backing up…') : t('Backup Now')}
         </Button>
         <span className="text-xs text-zinc-500">
           {rows.length === 0
-            ? 'No backups yet.'
-            : `${rows.length} ${rows.length === 1 ? 'backup' : 'backups'} available.`}
+            ? t('No backups yet.')
+            : t(rows.length === 1 ? '{count} backup available.' : '{count} backups available.', {
+                count: rows.length,
+              })}
         </span>
       </div>
 
@@ -380,7 +451,9 @@ function DataSection() {
           {rows.map((backup) => (
             <li key={backup.file} className="flex flex-wrap items-center gap-2">
               <span className="min-w-[12rem] flex-1 truncate text-sm text-zinc-900">
-                {format(parseISO(backup.createdAt), 'd MMM yyyy, HH:mm:ss')}
+                {format(parseISO(backup.createdAt), locale === 'zh' ? 'yyyy年M月d日 HH:mm:ss' : 'd MMM yyyy, HH:mm:ss', {
+                  locale: dateLocale,
+                })}
               </span>
 
               <span className="w-[4.5rem] text-right text-xs text-zinc-500">
@@ -392,7 +465,7 @@ function DataSection() {
                 download={backup.file}
                 className="inline-flex min-h-10 items-center rounded-lg border border-zinc-200 bg-white px-3.5 text-[13px] text-zinc-900"
               >
-                Download
+                {t('Download')}
               </a>
 
               {confirming === backup.file ? (
@@ -403,14 +476,14 @@ function DataSection() {
                     }}
                     disabled={restore.isPending}
                   >
-                    {restore.isPending ? 'Restoring…' : 'Confirm Restore'}
+                    {restore.isPending ? t('Restoring…') : t('Confirm Restore')}
                   </Button>
                   <Button
                     onClick={() => {
                       setConfirming(null);
                     }}
                   >
-                    Cancel
+                    {t('Cancel')}
                   </Button>
                 </>
               ) : (
@@ -421,7 +494,7 @@ function DataSection() {
                     setError(null);
                   }}
                 >
-                  Restore
+                  {t('Restore')}
                 </Button>
               )}
             </li>
@@ -435,18 +508,19 @@ function DataSection() {
       {error && <InlineError message={error} />}
 
       <div className="mt-6 border-t border-zinc-100 pt-4">
-        <h3 className="text-[13px] font-medium text-zinc-900">Export</h3>
+        <h3 className="text-[13px] font-medium text-zinc-900">{t('Export')}</h3>
         <p className="mt-1 max-w-[560px] text-xs text-zinc-500">
-          A full copy of your projects, tasks, reviews and settings — for keeping outside the app.
-          Keys are never included.
+          {t(
+            'A full copy of your projects, tasks, reviews and settings — for keeping outside the app. Keys are never included.',
+          )}
         </p>
 
         <div className="mt-2 flex flex-wrap gap-2">
           <a href="/api/export?format=json" download className={buttonClassName('secondary')}>
-            Export JSON
+            {t('Export JSON')}
           </a>
           <a href="/api/export?format=markdown" download className={buttonClassName('secondary')}>
-            Export Markdown
+            {t('Export Markdown')}
           </a>
         </div>
       </div>
@@ -457,6 +531,7 @@ function DataSection() {
 const FEATURE_LABELS: ReadonlyArray<{ feature: AiFeature; label: string }> = [
   { feature: 'capture', label: 'Capture' },
   { feature: 'breakdown', label: 'Breakdown' },
+  { feature: 'summarize', label: 'Summarize' },
   { feature: 'review_daily', label: 'Daily Review' },
   { feature: 'review_weekly', label: 'Weekly Review' },
   { feature: 'chat', label: 'Chat' },
@@ -473,6 +548,7 @@ function emptyDraft(): Draft {
   return {
     capture: { provider: '', model: '' },
     breakdown: { provider: '', model: '' },
+    summarize: { provider: '', model: '' },
     review_daily: { provider: '', model: '' },
     review_weekly: { provider: '', model: '' },
     chat: { provider: '', model: '' },
@@ -492,6 +568,7 @@ function ModelInput({
   disabled: boolean;
   onChange: (value: string) => void;
 }) {
+  const t = useT();
   const models = useProviderModels(provider);
   const listId = `models-${label.toLowerCase().replace(/\s+/g, '-')}`;
 
@@ -499,8 +576,8 @@ function ModelInput({
     <>
       <input
         list={models.data?.length ? listId : undefined}
-        aria-label={`Model for ${label}`}
-        placeholder={models.isPending ? 'Loading models…' : 'e.g. deepseek-chat'}
+        aria-label={t('Model for {feature}', { feature: t(label) })}
+        placeholder={models.isPending ? t('Loading models…') : t('e.g. deepseek-chat')}
         disabled={disabled}
         value={value}
         onChange={(event) => {
@@ -528,6 +605,7 @@ function ModelInput({
  * is free text because TECHSTACK §6.1 says not to hard-code model IDs.
  */
 function AiSection() {
+  const t = useT();
   const ai = useAiSettings();
   const save = useUpdateAiSettings();
 
@@ -557,7 +635,11 @@ function AiSection() {
     for (const { feature, label } of FEATURE_LABELS) {
       const entry = draft[feature];
       if (entry.provider !== '' && entry.model.trim() === '') {
-        setError(`Enter a model for ${label}, or set it to Not Configured.`);
+        setError(
+          t('Enter a model for {feature}, or set it to Not Configured.', {
+            feature: t(label),
+          }),
+        );
         return;
       }
     }
@@ -585,21 +667,23 @@ function AiSection() {
       );
       seededRef.current = true;
       setError(null);
-      setMessage('AI settings saved.');
+      setMessage(t('AI settings saved.'));
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not save the AI settings');
+      setError(cause instanceof Error ? cause.message : t('Could not save the AI settings'));
     }
   }
 
   return (
     <section className="mt-8 border-t border-zinc-200 pt-5">
-      <h2 className="text-[15px] font-semibold text-zinc-900">AI</h2>
+      <h2 className="text-[15px] font-semibold text-zinc-900">{t('AI')}</h2>
       <p className="mt-1 max-w-[560px] text-xs text-zinc-500">
-        Nothing leaves this machine until a feature below is configured and its provider has a key.
-        Keys are read from <code>.env</code> at server start and are never shown here.
+        {t(
+          'Nothing leaves this machine until a feature below is configured and its provider has a key. Keys are read from',
+        )}{' '}
+        <code>.env</code> {t('at server start and are never shown here.')}
       </p>
 
-      {ai.isLoading && <p className="mt-3 text-sm text-zinc-500">Loading…</p>}
+      {ai.isLoading && <p className="mt-3 text-sm text-zinc-500">{t('Loading…')}</p>}
 
       {ai.error && (
         <InlineError
@@ -619,7 +703,7 @@ function AiSection() {
                   {PROVIDER_LABELS[provider.provider]}
                 </span>
                 <span className={provider.configured ? 'text-zinc-600' : 'text-zinc-500'}>
-                  {provider.configured ? 'Configured' : 'Not Configured'}
+                  {provider.configured ? t('Configured') : t('Not Configured')}
                 </span>
               </li>
             ))}
@@ -627,26 +711,26 @@ function AiSection() {
 
           {!ai.data.providers.some((provider) => provider.configured) && (
             <p className="mt-2 text-xs text-zinc-500">
-              Add <code>DEEPSEEK_API_KEY</code> or <code>OPENROUTER_API_KEY</code> to{' '}
-              <code>.env</code> and restart the server.
+              {t('Add')} <code>DEEPSEEK_API_KEY</code> {t('or')} <code>OPENROUTER_API_KEY</code>{' '}
+              {t('to')} <code>.env</code> {t('and restart the server.')}
             </p>
           )}
 
           {draft && (
             <div className="mt-4">
               <div className="grid grid-cols-[7rem_9rem_1fr] items-center gap-2 pb-1 text-[11px] text-zinc-500">
-                <span>Feature</span>
-                <span>Provider</span>
-                <span>Model</span>
+                <span>{t('Feature')}</span>
+                <span>{t('Provider')}</span>
+                <span>{t('Model')}</span>
               </div>
 
               <div className="flex flex-col gap-2">
                 {FEATURE_LABELS.map(({ feature, label }) => (
                   <div key={feature} className="grid grid-cols-[7rem_9rem_1fr] items-center gap-2">
-                    <span className="text-[13px] text-zinc-900">{label}</span>
+                    <span className="text-[13px] text-zinc-900">{t(label)}</span>
 
                     <Select
-                      aria-label={`Provider for ${label}`}
+                      aria-label={t('Provider for {feature}', { feature: t(label) })}
                       value={draft[feature].provider}
                       onChange={(event) => {
                         const provider = event.target.value as AiProvider | '';
@@ -654,7 +738,7 @@ function AiSection() {
                         setMessage(null);
                       }}
                     >
-                      <option value="">Not Configured</option>
+                      <option value="">{t('Not Configured')}</option>
                       <option value="deepseek">DeepSeek</option>
                       <option value="openrouter">OpenRouter</option>
                     </Select>
@@ -675,7 +759,7 @@ function AiSection() {
 
               <div className="mt-3 flex items-center gap-3">
                 <Button onClick={handleSave} disabled={save.isPending}>
-                  {save.isPending ? 'Saving…' : 'Save AI Settings'}
+                  {save.isPending ? t('Saving…') : t('Save AI Settings')}
                 </Button>
                 {message && <span className="text-xs text-zinc-600">{message}</span>}
               </div>
@@ -689,7 +773,298 @@ function AiSection() {
   );
 }
 
+function PromptManagementSection() {
+  const t = useT();
+  const prompts = usePrompts();
+
+  return (
+    <section className="mt-8 border-t border-zinc-200 pt-5">
+      <h2 className="text-[15px] font-semibold text-zinc-900">{t('Prompt Management')}</h2>
+      <p className="mt-1 max-w-[560px] text-xs text-zinc-500">
+        {t(
+          'Every system prompt the app sends to a model. Edit one below; changes apply to the next AI request.',
+        )}
+      </p>
+
+      {prompts.isLoading && <p className="mt-3 text-sm text-zinc-500">{t('Loading…')}</p>}
+
+      {prompts.error && (
+        <InlineError
+          message={prompts.error.message}
+          onRetry={() => {
+            void prompts.refetch();
+          }}
+        />
+      )}
+
+      {prompts.data && (
+        <div className="mt-3 flex flex-col gap-2">
+          {prompts.data.prompts.map((prompt) => (
+            <PromptEditor key={prompt.id} prompt={prompt} />
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PromptEditor({ prompt }: { prompt: PromptEntry }) {
+  const t = useT();
+  const save = useSavePrompt();
+  const reset = useResetPrompt();
+  const [draft, setDraft] = useState(prompt.content);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setDraft(prompt.content);
+  }, [prompt.content]);
+
+  const dirty = draft !== prompt.content;
+
+  async function handleSave() {
+    setMessage(null);
+    setError(null);
+    try {
+      await save.mutateAsync({ id: prompt.id, content: draft });
+      setMessage(t('Prompt saved.'));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('Could not save the prompt'));
+    }
+  }
+
+  async function handleReset() {
+    const confirmed = await confirmAction({
+      title: t('Reset Prompt'),
+      message: t('“{name}” will revert to the built-in prompt.', { name: t(prompt.label) }),
+      confirmLabel: t('Reset Prompt'),
+    });
+    if (!confirmed) return;
+
+    setMessage(null);
+    setError(null);
+    try {
+      await reset.mutateAsync({ id: prompt.id });
+      setMessage(t('Prompt reset to default.'));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('Could not reset the prompt'));
+    }
+  }
+
+  return (
+    <details className="group rounded-xl border border-zinc-200 bg-white">
+      <summary className="flex cursor-pointer list-none items-center gap-2 px-4 py-3 [&::-webkit-details-marker]:hidden">
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="size-3.5 shrink-0 text-zinc-400 transition-transform group-open:rotate-90"
+          aria-hidden="true"
+        >
+          <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.168 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.5 4.25a.75.75 0 0 1 0 1.08l-4.5 4.25a.75.75 0 0 1-1.06-.02Z" clipRule="evenodd" />
+        </svg>
+        <span className="text-sm font-medium text-zinc-900">{t(prompt.label)}</span>
+        {prompt.customized && (
+          <span className="rounded bg-blue-100 px-1.5 py-0.5 text-[10px] font-medium text-blue-700">
+            {t('Customized')}
+          </span>
+        )}
+        <span className="ml-auto truncate text-[11px] text-zinc-400">{prompt.id}</span>
+      </summary>
+
+      <div className="border-t border-zinc-100 px-4 py-3">
+        <textarea
+          value={draft}
+          onChange={(event) => {
+            setDraft(event.target.value);
+            setMessage(null);
+            setError(null);
+          }}
+          rows={14}
+          aria-label={t('{name} prompt', { name: t(prompt.label) })}
+          className="w-full resize-y rounded-[10px] border border-zinc-200 bg-white px-3 py-2 font-mono text-[12px] leading-relaxed text-zinc-900"
+        />
+
+        <div className="mt-2 flex flex-wrap items-center gap-2">
+          <Button
+            variant="primary"
+            onClick={() => { void handleSave(); }}
+            disabled={!dirty || draft.trim() === '' || save.isPending}
+          >
+            {save.isPending ? t('Saving…') : t('Save Prompt')}
+          </Button>
+          <Button
+            onClick={() => { void handleReset(); }}
+            disabled={!prompt.customized || reset.isPending}
+          >
+            {reset.isPending ? t('Resetting…') : t('Reset to Default')}
+          </Button>
+          <span className="ml-auto text-[11px] text-zinc-500">
+            {t('{count} characters', { count: draft.length })}
+          </span>
+        </div>
+
+        {message && <p className="mt-2 text-xs text-emerald-700">{message}</p>}
+        {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+      </div>
+    </details>
+  );
+}
+
+const TIME_ZONE_SUGGESTIONS: ReadonlyArray<string> = (() => {
+  try {
+    const supported = (
+      Intl as unknown as { supportedValuesOf?: (key: string) => string[] }
+    ).supportedValuesOf?.('timeZone');
+    return supported ?? [];
+  } catch {
+    return [];
+  }
+})();
+
+function ClocksSection() {
+  const t = useT();
+  const { zones, addZone, removeZone } = useClocksStore();
+  const [draft, setDraft] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const now = useNow();
+  const intlLocale = useLocale() === 'zh' ? 'zh-CN' : 'en';
+
+  const atLimit = zones.length >= MAX_CLOCKS;
+
+  function handleSubmit(event: FormEvent) {
+    event.preventDefault();
+    setError(null);
+
+    const trimmed = draft.trim();
+    if (trimmed === '') {
+      setError(t('Enter a time zone, for example Asia/Tokyo.'));
+      return;
+    }
+
+    const result = addZone(trimmed);
+    if (result === 'invalid') {
+      setError(t('“{name}” is not a valid IANA time zone.', { name: trimmed }));
+      return;
+    }
+    if (result === 'duplicate') {
+      setError(t('That time zone is already on the list.'));
+      return;
+    }
+    if (result === 'limit') {
+      setError(t('You can add up to {total} time zones.', { total: MAX_CLOCKS }));
+      return;
+    }
+
+    setDraft('');
+  }
+
+  async function handleRemove(zone: string) {
+    const confirmed = await confirmAction({
+      title: t('Remove Clock'),
+      message: t('{name} will be removed from the Dashboard.', { name: timeZoneLabel(zone) }),
+      confirmLabel: t('Remove Clock'),
+    });
+    if (!confirmed) return;
+    removeZone(zone);
+  }
+
+  return (
+    <section className="mt-8 border-t border-zinc-200 pt-5">
+      <h2 className="text-[15px] font-semibold text-zinc-900">{t('Clocks')}</h2>
+      <p className="mt-1 max-w-[560px] text-xs text-zinc-500">
+        {t('Up to three world clocks, shown beneath the date on the Dashboard.')}
+      </p>
+
+      {zones.length > 0 && (
+        <ul className="mt-3 flex flex-col gap-2">
+          {zones.map((zone) => (
+            <li
+              key={zone}
+              className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-3"
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-medium text-zinc-900">{timeZoneLabel(zone)}</p>
+                <p className="truncate text-[11px] text-zinc-500">
+                  {zone} · {formatClockDay(zone, now, intlLocale)} · {formatClockOffset(zone, now, intlLocale)}
+                </p>
+              </div>
+              <span className="font-mono text-sm font-semibold tabular-nums text-zinc-900">
+                {formatClockTime(zone, now, intlLocale)}
+              </span>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleRemove(zone);
+                }}
+                aria-label={t('Remove {name}', { name: timeZoneLabel(zone) })}
+                title={t('Remove clock')}
+                className="inline-flex size-8 shrink-0 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-red-50 hover:text-red-600"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="size-4"
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <form onSubmit={handleSubmit} className="mt-3 flex flex-wrap items-end gap-2">
+        <div className="min-w-[240px] flex-1">
+          <Field
+            label={t('Add a time zone')}
+            hint={t('IANA name, for example Asia/Tokyo. {count} of {total} used.', {
+              count: zones.length,
+              total: MAX_CLOCKS,
+            })}
+          >
+            <Input
+              list="clock-time-zones"
+              value={draft}
+              onChange={(event) => {
+                setDraft(event.target.value);
+                setError(null);
+              }}
+              placeholder="Asia/Tokyo"
+              disabled={atLimit}
+            />
+          </Field>
+          <datalist id="clock-time-zones">
+            {TIME_ZONE_SUGGESTIONS.map((zone) => (
+              <option key={zone} value={zone} />
+            ))}
+          </datalist>
+        </div>
+        <Button type="submit" variant="primary" disabled={atLimit || draft.trim() === ''}>
+          {t('Add Clock')}
+        </Button>
+      </form>
+
+      {atLimit && (
+        <p className="mt-2 text-xs text-zinc-500">
+          {t('Maximum of {total} time zones reached. Remove one to add another.', {
+            total: MAX_CLOCKS,
+          })}
+        </p>
+      )}
+      {error && <p className="mt-2 text-xs text-red-600">{error}</p>}
+    </section>
+  );
+}
+
 function KeyBindingsSection() {
+  const t = useT();
   const { bindings, setBinding, resetBinding, resetAll } = useKeybindingsStore();
   const [recording, setRecording] = useState<string | null>(null);
   const [recordingError, setRecordingError] = useState<string | null>(null);
@@ -735,7 +1110,7 @@ function KeyBindingsSection() {
       const newBinding = parts.join('+');
       const target = ALL_SHORTCUTS.find((shortcut) => shortcut.id === id);
       if (!target?.allowBareKey && parts.length === 1 && newBinding.length === 1) {
-        setRecordingError('Include a modifier key (⌘ / Ctrl) to avoid conflicts.');
+        setRecordingError(t('Include a modifier key (⌘ / Ctrl) to avoid conflicts.'));
         return;
       }
 
@@ -745,7 +1120,7 @@ function KeyBindingsSection() {
           (bindings[other.id] ?? other.defaultBinding) === newBinding,
       );
       if (conflict) {
-        setRecordingError(`Already used by “${conflict.label}”.`);
+        setRecordingError(t('Already used by “{name}”.', { name: t(conflict.label) }));
         return;
       }
 
@@ -758,7 +1133,7 @@ function KeyBindingsSection() {
     return () => {
       window.removeEventListener('keydown', handleKeyDown, true);
     };
-  }, [recording, bindings, setBinding]);
+  }, [recording, bindings, setBinding, t]);
 
   // Focus the recorder so the focus ring is visible and clicking away cancels.
   useEffect(() => {
@@ -773,9 +1148,11 @@ function KeyBindingsSection() {
     <section className="mt-8 border-t border-zinc-200 pt-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-[15px] font-semibold text-zinc-900">Key Bindings</h2>
+          <h2 className="text-[15px] font-semibold text-zinc-900">{t('Key Bindings')}</h2>
           <p className="mt-1 max-w-[480px] text-xs text-zinc-500">
-            Keyboard shortcuts available in the app. Click a configurable shortcut to change it.
+            {t(
+              'Keyboard shortcuts available in the app. Click a configurable shortcut to change it.',
+            )}
           </p>
         </div>
         {hasCustom && (
@@ -784,7 +1161,7 @@ function KeyBindingsSection() {
             className="shrink-0 text-xs text-zinc-400 hover:text-zinc-700"
             onClick={resetAll}
           >
-            Reset All
+            {t('Reset All')}
           </button>
         )}
       </div>
@@ -800,8 +1177,8 @@ function KeyBindingsSection() {
           return (
             <li key={shortcut.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
               <div className="min-w-0">
-                <p className="text-sm font-medium text-zinc-900">{shortcut.label}</p>
-                <p className="text-xs text-zinc-500">{shortcut.description}</p>
+                <p className="text-sm font-medium text-zinc-900">{t(shortcut.label)}</p>
+                <p className="text-xs text-zinc-500">{t(shortcut.description)}</p>
                 {isRecording && recordingError && (
                   <p className="mt-0.5 text-xs text-red-500">{recordingError}</p>
                 )}
@@ -817,18 +1194,18 @@ function KeyBindingsSection() {
                       autoFocus
                       onBlur={() => { setRecording(null); setRecordingError(null); }}
                     >
-                      Press keys… (Esc to cancel)
+                      {t('Press keys… (Esc to cancel)')}
                     </button>
                   ) : (
                     <button
                       type="button"
                       className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-white"
                       onClick={() => { startRecording(shortcut.id); }}
-                      title="Click to Change"
+                      title={t('Click to Change')}
                     >
                       <Kbd>{bindingLabel(current)}</Kbd>
                       {isCustom && (
-                        <span className="ml-0.5 rounded bg-blue-100 px-1 py-0.5 text-[10px] font-medium text-blue-700">custom</span>
+                        <span className="ml-0.5 rounded bg-blue-100 px-1 py-0.5 text-[10px] font-medium text-blue-700">{t('custom')}</span>
                       )}
                     </button>
                   )
@@ -841,9 +1218,9 @@ function KeyBindingsSection() {
                     type="button"
                     className="text-xs text-zinc-400 hover:text-zinc-600"
                     onClick={() => { resetBinding(shortcut.id); }}
-                    title="Reset to Default"
+                    title={t('Reset to Default')}
                   >
-                    Reset
+                    {t('Reset')}
                   </button>
                 )}
               </div>
@@ -860,15 +1237,17 @@ function KeyBindingsSection() {
  * dialog; this section shows which ones are left out of AI requests (FR-25).
  */
 function PrivacySection() {
+  const t = useT();
   const projects = useProjects();
   const excluded = (projects.data?.projects ?? []).filter((project) => project.aiExcluded);
 
   return (
     <section className="mt-8 border-t border-zinc-200 pt-5">
-      <h2 className="text-[15px] font-semibold text-zinc-900">Privacy</h2>
+      <h2 className="text-[15px] font-semibold text-zinc-900">{t('Privacy')}</h2>
       <p className="mt-1 max-w-[560px] text-xs text-zinc-500">
-        Excluded projects and their tasks are left out of every AI request. Change it in a
-        project&rsquo;s settings.
+        {t(
+          'Excluded projects and their tasks are left out of every AI request. Change it in a project’s settings.',
+        )}
       </p>
 
       {projects.error && (
@@ -881,7 +1260,7 @@ function PrivacySection() {
       )}
 
       {excluded.length === 0 ? (
-        <p className="mt-3 text-sm text-zinc-500">No projects are excluded.</p>
+        <p className="mt-3 text-sm text-zinc-500">{t('No projects are excluded.')}</p>
       ) : (
         <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
           {excluded.map((project) => (

@@ -3,7 +3,9 @@ import { useHotkeys } from 'react-hotkeys-hook';
 import { useNavigate } from 'react-router';
 import { useNavSummary } from '../api/nav';
 import { cx } from '../lib/cx';
+import { useT } from '../lib/i18n';
 import { useKeybindingsStore } from '../store/keybindings';
+import { useThemeStore } from '../store/theme';
 import { useUiStore } from '../store/ui';
 import { Kbd } from './Kbd';
 
@@ -21,11 +23,13 @@ type Command = {
  * the highlight, Enter opens, Esc dismisses (native <dialog>).
  */
 export function CommandPalette() {
+  const t = useT();
   const navigate = useNavigate();
   const nav = useNavSummary();
   const openCapture = useUiStore((state) => state.openCapture);
   const openProjectDialog = useUiStore((state) => state.openProjectDialog);
   const openChat = useUiStore((state) => state.openChat);
+  const setThemeMode = useThemeStore((state) => state.setMode);
   const paletteKey = useKeybindingsStore((s) => s.bindings.commandPalette ?? 'mod+p');
 
   const [isOpen, setIsOpen] = useState(false);
@@ -45,43 +49,66 @@ export function CommandPalette() {
     const go = (to: string) => () => { void navigate(to); };
 
     return [
-      { id: 'page:dashboard', label: 'Dashboard', group: 'Pages', run: go('/') },
-      { id: 'page:inbox', label: 'Inbox', group: 'Pages', run: go('/inbox') },
-      { id: 'page:today', label: 'Today', group: 'Pages', run: go('/today') },
-      { id: 'page:tasks', label: 'All Tasks', group: 'Pages', run: go('/tasks') },
-      { id: 'page:reviews', label: 'Reviews', group: 'Pages', run: go('/reviews') },
-      { id: 'page:archived', label: 'Archived Projects', group: 'Pages', run: go('/projects/archived') },
-      { id: 'page:settings', label: 'Settings', group: 'Pages', run: go('/settings') },
+      { id: 'page:dashboard', label: t('Dashboard'), group: t('Pages'), run: go('/') },
+      { id: 'page:inbox', label: t('Inbox'), group: t('Pages'), run: go('/inbox') },
+      { id: 'page:today', label: t('Today'), group: t('Pages'), run: go('/today') },
+      { id: 'page:tasks', label: t('All Tasks'), group: t('Pages'), run: go('/tasks') },
+      { id: 'page:reviews', label: t('Reviews'), group: t('Pages'), run: go('/reviews') },
+      { id: 'page:logbook', label: t('Logbook'), group: t('Pages'), run: go('/logbook') },
+      { id: 'page:guide', label: t('User Guide'), group: t('Pages'), run: go('/guide') },
+      { id: 'page:archived', label: t('Archived Projects'), group: t('Pages'), run: go('/projects/archived') },
+      { id: 'page:settings', label: t('Settings'), group: t('Pages'), run: go('/settings') },
       {
         id: 'action:new-task',
-        label: 'New Task',
-        group: 'Actions',
+        label: t('New Task'),
+        group: t('Actions'),
         keywords: 'capture add create',
         run: () => { openCapture(); },
       },
       {
         id: 'action:new-project',
-        label: 'New Project',
-        group: 'Actions',
+        label: t('New Project'),
+        group: t('Actions'),
         keywords: 'create add',
         run: () => { openProjectDialog({ mode: 'create' }); },
       },
       {
         id: 'action:assistant',
-        label: 'Ask Assistant',
-        group: 'Actions',
+        label: t('Ask Assistant'),
+        group: t('Actions'),
         keywords: 'chat ai help',
         run: () => { openChat(); },
+      },
+      {
+        id: 'theme:light',
+        label: t('Light Theme'),
+        group: t('Appearance'),
+        keywords: 'theme light appearance mode',
+        run: () => { setThemeMode('light'); },
+      },
+      {
+        id: 'theme:dark',
+        label: t('Dark Theme'),
+        group: t('Appearance'),
+        keywords: 'theme dark appearance mode',
+        run: () => { setThemeMode('dark'); },
+      },
+      {
+        id: 'theme:system',
+        label: t('Automatic Theme'),
+        group: t('Appearance'),
+        keywords: 'theme automatic system appearance mode machine',
+        run: () => { setThemeMode('system'); },
       },
       ...(nav.data?.projects ?? []).map((project) => ({
         id: `project:${project.id}`,
         label: project.name,
-        group: 'Projects',
+        group: t('Projects'),
         keywords: 'project',
         run: go(`/projects/${project.id}`),
       })),
     ];
-  }, [navigate, nav.data?.projects, openCapture, openProjectDialog, openChat]);
+  }, [navigate, nav.data?.projects, openCapture, openProjectDialog, openChat, setThemeMode, t]);
 
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
@@ -99,10 +126,23 @@ export function CommandPalette() {
       setQuery('');
       setActive(0);
       if (!dialog.open) dialog.showModal();
-      inputRef.current?.focus();
     } else if (dialog.open) {
       dialog.close();
     }
+  }, [isOpen]);
+
+  // Wait for the dialog to be in the top layer before moving the caret in;
+  // showModal() and the query reset both happen on the same frame.
+  useEffect(() => {
+    if (!isOpen) return;
+
+    const frame = requestAnimationFrame(() => {
+      inputRef.current?.focus({ preventScroll: true });
+    });
+
+    return () => {
+      cancelAnimationFrame(frame);
+    };
   }, [isOpen]);
 
   // Keep the highlight in range as the query narrows the list.
@@ -152,7 +192,7 @@ export function CommandPalette() {
       }}
     >
       <h2 id="command-palette-title" className="sr-only">
-        Command Palette
+        {t('Command Palette')}
       </h2>
 
       <div className="flex items-center gap-2 border-b border-zinc-200 px-4">
@@ -177,16 +217,16 @@ export function CommandPalette() {
             setActive(0);
           }}
           onKeyDown={handleInputKeyDown}
-          placeholder="Search Pages, Projects and Actions…"
-          aria-label="Search Commands"
+          placeholder={t('Search Pages, Projects and Actions…')}
+          aria-label={t('Search Commands')}
           className="min-h-12 w-full border-0 bg-transparent px-0 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-0"
         />
         <Kbd>Esc</Kbd>
       </div>
 
-      <ul className="max-h-[min(56vh,420px)] overflow-y-auto p-2">
+      <ul className="max-h-[min(56vh,420px)] overflow-y-auto overscroll-contain p-2">
         {filtered.length === 0 && (
-          <li className="px-3 py-6 text-center text-sm text-zinc-500">No matches.</li>
+          <li className="px-3 py-6 text-center text-sm text-zinc-500">{t('No matches.')}</li>
         )}
 
         {filtered.map((command, index) => {
@@ -220,7 +260,8 @@ export function CommandPalette() {
 
       <div className="flex flex-wrap items-center gap-1.5 border-t border-zinc-200 px-4 py-3 text-xs text-zinc-500">
         <Kbd>↑</Kbd>
-        <Kbd>↓</Kbd> to navigate · <Kbd>↵</Kbd> to open · <Kbd>Esc</Kbd> to close
+        <Kbd>↓</Kbd> {t('to navigate')} · <Kbd>↵</Kbd> {t('to open')} · <Kbd>Esc</Kbd>{' '}
+        {t('to close')}
       </div>
     </dialog>
   );

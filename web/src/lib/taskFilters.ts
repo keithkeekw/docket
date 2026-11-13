@@ -15,6 +15,8 @@ export type TaskFilter = {
   dueTo?: string;
   q?: string;
   tag?: string;
+  /** Omit for open work; `only` powers the Logbook. */
+  completed?: 'only' | 'all';
 };
 
 /** Semantic due ranges so "Today" stays today after midnight. */
@@ -39,6 +41,7 @@ export function taskFilterQuery(filter: TaskFilter): string {
   if (filter.dueTo) params.set('due_to', filter.dueTo);
   if (filter.q) params.set('q', filter.q);
   if (filter.tag) params.set('tag', filter.tag);
+  if (filter.completed) params.set('completed', filter.completed);
 
   const search = params.toString();
   return search ? `?${search}` : '';

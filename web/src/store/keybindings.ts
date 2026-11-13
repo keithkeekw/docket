@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { NAV_SHORTCUTS } from '../lib/navShortcuts';
 
 export type KeyBinding = {
   id: string;
@@ -20,6 +21,7 @@ const DEFAULT_BINDINGS: Record<string, string> = {
   askAssistant: 'ctrl+alt+shift+meta+a',
   shortcutHelp: 'shift+space',
   commandPalette: 'mod+p',
+  ...Object.fromEntries(NAV_SHORTCUTS.map((shortcut) => [shortcut.id, shortcut.binding])),
 };
 
 function loadBindings(): Record<string, string> {
@@ -116,6 +118,15 @@ export const ALL_SHORTCUTS: KeyBinding[] = [
     defaultBinding: 'shift+space',
     configurable: true,
   },
+  ...NAV_SHORTCUTS.map((shortcut) => ({
+    id: shortcut.id,
+    label: shortcut.label,
+    description: shortcut.description,
+    binding: shortcut.binding,
+    defaultBinding: shortcut.binding,
+    configurable: true,
+    allowBareKey: true,
+  })),
   {
     id: 'saveCapture',
     label: 'Save Capture',

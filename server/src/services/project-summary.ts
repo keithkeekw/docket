@@ -10,7 +10,7 @@ export async function generateProjectSummary(
   db: Db,
   projectId: string,
 ): Promise<AiProjectSummaryResponse> {
-  requireFeatureConfig(db, 'capture');
+  requireFeatureConfig(db, 'summarize');
 
   const project = db
     .select({ id: projects.id, name: projects.name, description: projects.description, targetDate: projects.targetDate })
@@ -52,8 +52,8 @@ export async function generateProjectSummary(
   ].filter(Boolean);
 
   const complete = makeCompletion(db);
-  const system = loadPrompt('project-summary');
-  const result = await complete({ feature: 'capture', system, user: lines.join('\n') });
+  const system = loadPrompt(db, 'project-summary');
+  const result = await complete({ feature: 'summarize', system, user: lines.join('\n') });
 
   // The model returns plain prose; wrap it
   const text = result.text.trim();

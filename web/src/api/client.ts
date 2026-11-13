@@ -108,3 +108,12 @@ export async function apiUpload<T>(
 export async function apiDelete(path: string): Promise<void> {
   await request(path, { method: 'DELETE' });
 }
+
+/** DELETE that answers with a body, such as a reset resource. */
+export async function apiDeleteJson<T>(
+  path: string,
+  schema: ZodType<T>,
+): Promise<T> {
+  const response = await request(path, { method: 'DELETE' });
+  return parseJson(response, schema, path);
+}

@@ -3,6 +3,8 @@ import { useEffect, useRef, useState, type MouseEvent, type ReactNode } from 're
 import { Link } from 'react-router';
 import { useApplyProposal, useDiscardProposal } from '../api/proposals';
 import { cx } from '../lib/cx';
+import { useT } from '../lib/i18n';
+import { confirmAction } from '../store/confirm';
 import { useUiStore } from '../store/ui';
 import { Badge, LinkBadge } from './Badge';
 import { Button } from './Button';
@@ -27,6 +29,7 @@ type Draft = { item: ProposalItem; included: boolean; title: string };
  * simply not sent. Apply is one transaction on the server (NFR-6).
  */
 export function ProposalModal() {
+  const t = useT();
   const proposal = useUiStore((state) => state.proposal);
   const close = useUiStore((state) => state.closeProposal);
 
@@ -77,6 +80,8 @@ export function ProposalModal() {
   const count = included.length;
   const hasMilestones = included.some((draft) => draft.item.op === 'create_milestone');
   const noun = hasMilestones ? 'item' : 'task';
+  const countNoun = count === 1 ? noun : `${noun}s`;
+  const totalNoun = drafts.length === 1 ? noun : `${noun}s`;
 
   async function handleApply() {
     if (!proposal) return;
@@ -91,18 +96,25 @@ export function ProposalModal() {
       });
       close();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not add those tasks');
+      setError(cause instanceof Error ? cause.message : t('Could not add those tasks'));
     }
   }
 
   async function handleDiscard() {
     if (!proposal) return;
 
+    const confirmed = await confirmAction({
+      title: t('Discard Proposal'),
+      message: t('This proposal will be discarded and nothing will be added.'),
+      confirmLabel: t('Discard Proposal'),
+    });
+    if (!confirmed) return;
+
     try {
       await discard.mutateAsync({ id: proposal.id });
       close();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not discard the proposal');
+      setError(cause instanceof Error ? cause.message : t('Could not discard the proposal'));
     }
   }
 
@@ -127,21 +139,27 @@ export function ProposalModal() {
       <div className="flex max-h-[calc(100vh-2rem)] flex-col">
         <header className="flex flex-wrap items-baseline justify-between gap-2 px-5 pt-5 pb-2">
           <h2 id="proposal-title" className="text-[15px] font-semibold text-zinc-900">
-            {proposal.feature === 'breakdown' ? 'Proposed Plan' : 'Proposed Tasks'}
+            {proposal.feature === 'breakdown' ? t('Proposed Plan') : t('Proposed Tasks')}
           </h2>
           <p className="text-xs text-zinc-500">
-            Parsed by: {FEATURE_LABELS[proposal.feature]} model ·{' '}
+            {t('Parsed by: {feature} model', {
+              feature: t(FEATURE_LABELS[proposal.feature]),
+            })}
+            {' · '}
             <Link to="/settings" className="text-blue-600 hover:underline">
-              Change in Settings
+              {t('Change in Settings')}
             </Link>
           </p>
         </header>
 
         <p className="px-5 text-xs text-zinc-500">
-          {count} of {drafts.length} {drafts.length === 1 ? noun : `${noun}s`} will be added.
+          {t(`{count} of {total} ${totalNoun} will be added.`, {
+            count,
+            total: drafts.length,
+          })}
         </p>
 
-        <ul className="min-h-0 flex-1 overflow-y-auto px-5 py-3 flex flex-col gap-2">
+        <ul className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-3 flex flex-col gap-2">
           {drafts.map((draft, index) => (
             <li
               key={draft.item.id}
@@ -154,7 +172,7 @@ export function ProposalModal() {
                 <span className="mt-0.5 flex h-5 items-center">
                   <Checkbox
                     checked={draft.included}
-                    label={`Include "${draft.title || 'untitled'}"`}
+                    label={t('Include "{title}"', { title: draft.title || t('untitled') })}
                     onChange={(checked) => {
                       setDrafts((current) =>
                         current.map((entry, position) =>
@@ -169,7 +187,7 @@ export function ProposalModal() {
                   <div className="flex flex-wrap items-center gap-2">
                     <input
                       autoFocus={index === 0}
-                      aria-label={`Title for proposed task ${index + 1}`}
+                      aria-label={t('Title for proposed task {index}', { index: index + 1 })}
                       className="min-h-9 min-w-0 flex-1 rounded-lg border border-zinc-200 px-2 text-sm text-zinc-900 placeholder:text-zinc-500"
                       value={draft.title}
                       onChange={(event) => {
@@ -181,29 +199,35 @@ export function ProposalModal() {
                         );
                       }}
                     />
-                    <Badge>{OP_LABEL[draft.item.op]}</Badge>
+                    <Badge>{t(OP_LABEL[draft.item.op])}</Badge>
                   </div>
 
                   <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
-                    <Field label="Project" value={draft.item.display.projectName ?? 'Inbox'} />
-                    <Field label="Milestone" value={draft.item.display.milestoneName ?? '—'} />
-                    <Field label="Status" value={draft.item.display.statusName ?? 'To do'} />
                     <Field
-                      label="Priority"
+                      label={t('Project')}
+                      value={draft.item.display.projectName ?? t('Inbox')}
+                    />
+                    <Field label={t('Milestone')} value={draft.item.display.milestoneName ?? '—'} />
+                    <Field
+                      label={t('Status')}
+                      value={draft.item.display.statusName ?? t('To do')}
+                    />
+                    <Field
+                      label={t('Priority')}
                       value={draft.item.fields.priority ? `P${draft.item.fields.priority}` : '—'}
                     />
-                    <Field label="Due" value={draft.item.fields.dueDate ?? '—'} />
+                    <Field label={t('Due')} value={draft.item.fields.dueDate ?? '—'} />
                     <Field
-                      label="Estimate"
+                      label={t('Estimate')}
                       value={
                         draft.item.fields.estimateMinutes
                           ? `${draft.item.fields.estimateMinutes}m`
                           : '—'
                       }
                     />
-                    <Field label="Tags" value={draft.item.fields.tags?.join(', ') ?? '—'} />
+                    <Field label={t('Tags')} value={draft.item.fields.tags?.join(', ') ?? '—'} />
                     <Field
-                      label="Link"
+                      label={t('Link')}
                       value={
                         draft.item.fields.link ? (
                           <LinkBadge href={draft.item.fields.link.url}>
@@ -235,19 +259,19 @@ export function ProposalModal() {
 
         <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 px-5 py-3">
           <p className="text-xs text-zinc-500">
-            Enter to add · Esc to cancel · nothing is saved until you confirm
+            {t('Enter to add · Esc to cancel · nothing is saved until you confirm')}
           </p>
 
           <div className="flex items-center gap-2">
             <Button onClick={handleDiscard} disabled={discard.isPending || apply.isPending}>
-              {discard.isPending ? 'Discarding…' : 'Discard'}
+              {discard.isPending ? t('Discarding…') : t('Discard')}
             </Button>
             <Button
               variant="primary"
               onClick={handleApply}
               disabled={count === 0 || apply.isPending}
             >
-              {apply.isPending ? 'Adding…' : `Add ${count} ${count === 1 ? noun : `${noun}s`}`}
+              {apply.isPending ? t('Adding…') : t(`Add {count} ${countNoun}`, { count })}
             </Button>
           </div>
         </footer>

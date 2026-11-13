@@ -17,6 +17,19 @@ export type SortDir = 'asc' | 'desc';
 export type TableSort = { key: SortKey; dir: SortDir };
 export type TableGroup = 'none' | 'project' | 'status' | 'priority';
 
+/** English sort-field labels; translate them with `t()` at the render site. */
+export const SORT_LABELS: Record<SortKey, string> = {
+  title: 'Title',
+  project: 'Project',
+  milestone: 'Milestone',
+  status: 'Status',
+  priority: 'Priority',
+  due: 'Due Date',
+  estimate: 'Estimate',
+  repeat: 'Repeat',
+  links: 'Links',
+};
+
 export type TaskGroup = { key: string; label: string; tasks: Task[] };
 
 const text = (value: string | null | undefined): string => value ?? '';

@@ -1,5 +1,7 @@
 import { useRef, useState, type FormEvent } from 'react';
 import { useCreateTask } from '../api/tasks';
+import { useT } from '../lib/i18n';
+import { parseTaskInput } from '../lib/parseTask';
 import { modKeyLabel } from '../lib/platform';
 import { Kbd } from './Kbd';
 
@@ -9,6 +11,7 @@ import { Kbd } from './Kbd';
  * Inbox (FR-2); anything smarter is M2.
  */
 export function CaptureBar() {
+  const t = useT();
   const createTask = useCreateTask();
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [title, setTitle] = useState('');
@@ -21,12 +24,12 @@ export function CaptureBar() {
     if (!trimmed || createTask.isPending) return;
 
     try {
-      await createTask.mutateAsync({ title: trimmed });
+      await createTask.mutateAsync(parseTaskInput(trimmed));
       setTitle('');
       setError(null);
       inputRef.current?.focus();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not save the task');
+      setError(cause instanceof Error ? cause.message : t('Could not save the task'));
     }
   }
 
@@ -43,8 +46,8 @@ export function CaptureBar() {
         <input
           ref={inputRef}
           className="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm text-zinc-900 placeholder:text-zinc-500 focus-visible:ring-0 focus-visible:outline-none"
-          aria-label="Quick Capture"
-          placeholder="What needs doing?"
+          aria-label={t('Quick Capture')}
+          placeholder={t('What needs doing?')}
           value={title}
           onChange={(event) => {
             setTitle(event.target.value);

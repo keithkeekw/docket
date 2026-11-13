@@ -1,9 +1,63 @@
-import { aiSettingsSchema, type AiProvider, type AiSettings, type UpdateAiSettingsBody } from '@app/shared';
+import {
+  aiSettingsSchema,
+  promptListSchema,
+  promptResponseSchema,
+  type AiProvider,
+  type AiSettings,
+  type PromptEntry,
+  type PromptList,
+  type UpdateAiSettingsBody,
+} from '@app/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { z } from 'zod';
-import { apiGet, apiMutate } from './client';
+import { apiDeleteJson, apiGet, apiMutate } from './client';
 
 export const aiSettingsQueryKey = ['ai-settings'] as const;
+export const promptsQueryKey = ['prompts'] as const;
+
+/** The server's system prompts, editable in Settings → Prompt Management. */
+export function usePrompts() {
+  return useQuery<PromptList>({
+    queryKey: promptsQueryKey,
+    queryFn: ({ signal }) => apiGet('/api/settings/prompts', promptListSchema, signal),
+  });
+}
+
+function replacePrompt(list: PromptList | undefined, prompt: PromptEntry): PromptList | undefined {
+  if (!list) return list;
+  return {
+    prompts: list.prompts.map((entry) => (entry.id === prompt.id ? prompt : entry)),
+  };
+}
+
+export function useSavePrompt() {
+  const queryClient = useQueryClient();
+
+  return useMutation<PromptEntry, Error, { id: string; content: string }>({
+    mutationFn: async ({ id, content }) =>
+      (await apiMutate(`/api/settings/prompts/${id}`, 'PUT', { content }, promptResponseSchema))
+        .prompt,
+    onSuccess: (prompt) => {
+      queryClient.setQueryData<PromptList>(promptsQueryKey, (list) =>
+        replacePrompt(list, prompt),
+      );
+    },
+  });
+}
+
+export function useResetPrompt() {
+  const queryClient = useQueryClient();
+
+  return useMutation<PromptEntry, Error, { id: string }>({
+    mutationFn: async ({ id }) =>
+      (await apiDeleteJson(`/api/settings/prompts/${id}`, promptResponseSchema)).prompt,
+    onSuccess: (prompt) => {
+      queryClient.setQueryData<PromptList>(promptsQueryKey, (list) =>
+        replacePrompt(list, prompt),
+      );
+    },
+  });
+}
 
 /** Which features have a provider/model, and which providers have a key (FR-24/26). */
 export function useAiSettings() {

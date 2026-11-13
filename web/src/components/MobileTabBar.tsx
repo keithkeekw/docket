@@ -1,6 +1,7 @@
 import { NavLink } from 'react-router';
 import { useNavSummary } from '../api/nav';
 import { cx } from '../lib/cx';
+import { useT } from '../lib/i18n';
 
 const tabs = [
   {
@@ -45,6 +46,16 @@ const tabs = [
     ),
   },
   {
+    to: '/logbook',
+    end: false,
+    label: 'Logbook',
+    icon: (
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5" aria-hidden="true">
+        <path fillRule="evenodd" d="M10 2c-1.716 0-3.408.106-5.07.31C3.806 2.45 3 3.414 3 4.517V17.25a.75.75 0 0 0 1.075.676L10 15.082l5.925 2.844A.75.75 0 0 0 17 17.25V4.517c0-1.103-.806-2.068-1.93-2.207A41.403 41.403 0 0 0 10 2Z" clipRule="evenodd" />
+      </svg>
+    ),
+  },
+  {
     to: '/settings',
     end: false,
     label: 'Settings',
@@ -58,6 +69,7 @@ const tabs = [
 
 /** Bottom tab bar shown only on mobile (hidden from sm up). */
 export function MobileTabBar() {
+  const t = useT();
   const nav = useNavSummary();
   const counts = nav.data?.counts;
 
@@ -70,7 +82,7 @@ export function MobileTabBar() {
 
   return (
     <nav
-      aria-label="Mobile Navigation"
+      aria-label={t('Mobile Navigation')}
       className="fixed inset-x-0 bottom-0 z-40 flex border-t border-zinc-200 bg-white/95 backdrop-blur sm:hidden"
     >
       {tabs.map((tab) => {
@@ -88,7 +100,7 @@ export function MobileTabBar() {
             }
           >
             {tab.icon}
-            <span>{tab.label === 'All Tasks' ? 'Tasks' : tab.label}</span>
+            <span>{t(tab.label === 'All Tasks' ? 'Tasks' : tab.label)}</span>
             {count !== undefined && count > 0 && (
               <span className="absolute top-1.5 right-[calc(50%-14px)] flex size-4 items-center justify-center rounded-full bg-zinc-800 text-[9px] text-white">
                 {count > 99 ? '99+' : count}

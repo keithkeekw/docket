@@ -1,6 +1,6 @@
 {
   "name": "project-management",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
   "workspaces": [
@@ -12,7 +12,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "start": "npm run build && NODE_ENV=production npm -w server run start",
+    "start": "node scripts/serve.mjs",
     "dev": "concurrently -n server,web -c blue,magenta \"npm:dev:server\" \"npm:dev:web\"",
     "dev:server": "npm -w server run dev",
     "dev:web": "npm -w web run dev",

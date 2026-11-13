@@ -1,3 +1,4 @@
+import { format, parseISO } from 'date-fns';
 import { useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
 import { useArchiveProject, useCreateMilestone, useMilestones, useProject, useProjectSummary } from '../api/projects';
@@ -10,9 +11,10 @@ import { Field, Input } from '../components/Field';
 import { InlineError } from '../components/InlineError';
 import { AddMilestonePill, MilestonePill } from '../components/MilestonePill';
 import { PageHeader } from '../components/PageHeader';
+import { QuickCaptureButton } from '../components/QuickCaptureButton';
 import { TaskViewBody } from '../components/TaskViewBody';
 import { ViewSwitcher } from '../components/ViewSwitcher';
-import { modKeyLabel } from '../lib/platform';
+import { useDateLocale, useLocale, useT } from '../lib/i18n';
 import { useUiStore } from '../store/ui';
 import { useViewStore } from '../store/view';
 
@@ -23,9 +25,16 @@ import { useViewStore } from '../store/view';
 export function ProjectRoute() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const t = useT();
+  const dateLocale = useDateLocale();
+  const locale = useLocale();
   const project = useProject(id);
   const milestones = useMilestones(id);
-  const tasks = useTasks({ project: id }, Boolean(id));
+  const view = useViewStore((state) => state.view);
+  const tasks = useTasks(
+    { project: id, ...(view === 'kanban' ? { completed: 'all' as const } : {}) },
+    Boolean(id),
+  );
   const statuses = useStatuses();
   const completeTask = useCompleteTask();
   const updateTask = useUpdateTask();
@@ -35,7 +44,6 @@ export function ProjectRoute() {
   const openProjectDialog = useUiStore((state) => state.openProjectDialog);
   const openProposal = useUiStore((state) => state.openProposal);
 
-  const view = useViewStore((state) => state.view);
   const setView = useViewStore((state) => state.setView);
   const tableSort = useViewStore((state) => state.tableSort);
   const tableGroup = useViewStore((state) => state.tableGroup);
@@ -62,7 +70,7 @@ export function ProjectRoute() {
   if (project.error) {
     return (
       <>
-        <PageHeader title="Project" />
+        <PageHeader title={t('Project')} />
         <InlineError
           message={project.error.message}
           onRetry={() => {
@@ -76,8 +84,8 @@ export function ProjectRoute() {
   if (!project.data) {
     return (
       <>
-        <PageHeader title="Project" />
-        <p className="mt-6 text-sm text-zinc-500">Loading…</p>
+        <PageHeader title={t('Project')} />
+        <p className="mt-6 text-sm text-zinc-500">{t('Loading…')}</p>
       </>
     );
   }
@@ -99,7 +107,7 @@ export function ProjectRoute() {
       setBreakdownError(null);
     } catch (cause) {
       setBreakdownError({
-        message: cause instanceof Error ? cause.message : 'Could not break down the project',
+        message: cause instanceof Error ? cause.message : t('Could not break down the project'),
         needsSettings: cause instanceof ApiError && cause.status === 503,
       });
     }
@@ -121,7 +129,7 @@ export function ProjectRoute() {
       const result = await projectSummary.mutateAsync({ projectId: id });
       setSummaryText(result.summary);
     } catch (cause) {
-      setSummaryError(cause instanceof Error ? cause.message : 'Could not generate summary');
+      setSummaryError(cause instanceof Error ? cause.message : t('Could not generate summary'));
     }
   }
 
@@ -160,7 +168,9 @@ export function ProjectRoute() {
 
   return (
     <>
-      <p className="text-[13px] text-zinc-500">Projects / {data.name}</p>
+      <p className="text-[13px] text-zinc-500">
+        {t('Projects')} / {data.name}
+      </p>
 
       <div className="mt-1">
         <PageHeader
@@ -173,27 +183,27 @@ export function ProjectRoute() {
                   openProjectDialog({ mode: 'edit', projectId: data.id });
                 }}
               >
-                Edit Project
+                {t('Edit Project')}
               </Button>
               <Button
                 onClick={() => { void handleSummarize(); }}
                 disabled={projectSummary.isPending}
               >
-                {projectSummary.isPending ? 'Summarizing…' : 'Summarize'}
+                {projectSummary.isPending ? t('Summarizing…') : t('Summarize')}
               </Button>
               {confirmArchive ? (
                 <>
-                  <span className="text-xs text-zinc-500">Archive this project?</span>
+                  <span className="text-xs text-zinc-500">{t('Archive this project?')}</span>
                   <Button
                     onClick={handleArchiveConfirm}
                     disabled={archiveProject.isPending}
                   >
-                    {archiveProject.isPending ? 'Archiving…' : 'Confirm Archive'}
+                    {archiveProject.isPending ? t('Archiving…') : t('Confirm Archive')}
                   </Button>
-                  <Button onClick={() => { setConfirmArchive(false); }}>Cancel</Button>
+                  <Button onClick={() => { setConfirmArchive(false); }}>{t('Cancel')}</Button>
                 </>
               ) : (
-                <Button onClick={() => { setConfirmArchive(true); }}>Archive</Button>
+                <Button onClick={() => { setConfirmArchive(true); }}>{t('Archive')}</Button>
               )}
               <Button
                 onClick={() => {
@@ -201,22 +211,34 @@ export function ProjectRoute() {
                 }}
                 disabled={breakdown.isPending}
               >
-                {breakdown.isPending ? 'Thinking…' : 'Break Down with AI'}
+                {breakdown.isPending ? t('Thinking…') : t('Break Down with AI')}
               </Button>
               <Button variant="primary" onClick={() => openCapture({ projectId: data.id })}>
-                New Task
+                {t('New Task')}
               </Button>
             </>
           }
         />
       </div>
 
+      <p className="mt-2 flex items-center gap-1.5 text-xs text-zinc-500">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-3.5 shrink-0" aria-hidden="true">
+          <path fillRule="evenodd" d="M5.75 2a.75.75 0 0 1 .75.75V4h7V2.75a.75.75 0 0 1 1.5 0V4h.25A2.75 2.75 0 0 1 18 6.75v8.5A2.75 2.75 0 0 1 15.25 18H4.75A2.75 2.75 0 0 1 2 15.25v-8.5A2.75 2.75 0 0 1 4.75 4H5V2.75A.75.75 0 0 1 5.75 2Zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75Z" clipRule="evenodd" />
+        </svg>
+        <span>{t('Target Date:')}</span>
+        <span className="font-medium text-zinc-700">
+          {data.targetDate
+            ? format(parseISO(data.targetDate), locale === 'zh' ? 'yyyy年M月d日' : 'd MMMM yyyy', { locale: dateLocale })
+            : t('Not set')}
+        </span>
+      </p>
+
       {breakdownError && (
         <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-zinc-50 px-3 py-2.5 text-xs text-zinc-700">
           <span>{breakdownError.message}</span>
           {breakdownError.needsSettings && (
             <Link to="/settings" className="text-blue-600 hover:underline">
-              Open Settings
+              {t('Open Settings')}
             </Link>
           )}
         </div>
@@ -238,7 +260,7 @@ export function ProjectRoute() {
         {addingMilestone ? (
           <form className="flex items-end gap-2" onSubmit={addMilestone}>
             <div className="w-[200px]">
-              <Field label="New Milestone">
+              <Field label={t('New Milestone')}>
                 <Input
                   autoFocus
                   value={milestoneName}
@@ -249,7 +271,7 @@ export function ProjectRoute() {
               </Field>
             </div>
             <Button type="submit" disabled={!milestoneName.trim() || createMilestone.isPending}>
-              Add
+              {t('Add')}
             </Button>
             <Button
               onClick={() => {
@@ -257,7 +279,7 @@ export function ProjectRoute() {
                 setMilestoneName('');
               }}
             >
-              Cancel
+              {t('Cancel')}
             </Button>
           </form>
         ) : (
@@ -270,9 +292,18 @@ export function ProjectRoute() {
       </div>
 
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 pb-3">
-        <ViewSwitcher value={view} onChange={setView} />
+        <div className="flex items-center gap-2">
+          <ViewSwitcher value={view} onChange={setView} />
+          <QuickCaptureButton
+            onClick={() => {
+              openCapture({ projectId: data.id });
+            }}
+          />
+        </div>
         <p className="text-xs text-zinc-500">
-          Showing: {activeMilestone ? activeMilestone.name : 'all tasks'}
+          {t('Showing: {value}', {
+            value: activeMilestone ? activeMilestone.name : t('all tasks'),
+          })}
         </p>
       </div>
 
@@ -310,13 +341,13 @@ export function ProjectRoute() {
         }}
         emptyMessage={
           activeMilestone
-            ? `No tasks in ${activeMilestone.name}.`
-            : `No tasks in this project yet. Press ${modKeyLabel()} K to capture.`
+            ? t('No tasks in {project}.', { project: activeMilestone.name })
+            : t('No tasks in this project yet.')
         }
         listLabel={data.name}
-        tableFooter={`${visibleTasks.length} ${
-          visibleTasks.length === 1 ? 'task' : 'tasks'
-        } · sorted by due date`}
+        tableFooter={t(visibleTasks.length === 1 ? '{count} task' : '{count} tasks', {
+          count: visibleTasks.length,
+        })}
         sort={tableSort}
         group={tableGroup}
         onSort={toggleTableSort}
@@ -334,12 +365,12 @@ export function ProjectRoute() {
             onClick={(e) => { e.stopPropagation(); }}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
-              <h2 className="text-[15px] font-semibold text-zinc-900">Project Summary</h2>
+              <h2 className="text-[15px] font-semibold text-zinc-900">{t('Project Summary')}</h2>
               <button
                 type="button"
                 className="shrink-0 text-zinc-400 hover:text-zinc-600"
                 onClick={() => { setSummaryText(null); setCopied(false); }}
-                aria-label="Close"
+                aria-label={t('Close')}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-4">
                   <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
@@ -354,7 +385,7 @@ export function ProjectRoute() {
                 variant="primary"
                 onClick={() => { void handleCopySummary(); }}
               >
-                {copied ? 'Copied!' : 'Copy'}
+                {copied ? t('Copied!') : t('Copy')}
               </Button>
             </div>
           </div>

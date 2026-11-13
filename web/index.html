@@ -7,6 +7,22 @@
     <link rel="preload" href="/fonts/inter-400.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/inter-500.woff2" as="font" type="font/woff2" crossorigin />
     <link rel="preload" href="/fonts/inter-600.woff2" as="font" type="font/woff2" crossorigin />
+    <script>
+      // Apply the saved theme before the bundle loads to avoid a light flash.
+      try {
+        var stored = localStorage.getItem('docket:theme');
+        var mode = stored === 'light' || stored === 'dark' || stored === 'system'
+          ? stored
+          : 'system';
+        var dark = mode === 'dark' ||
+          (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (dark) document.documentElement.classList.add('dark');
+        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+        document.documentElement.dataset.theme = mode;
+      } catch (error) {
+        // localStorage can be unavailable; the app store applies it later.
+      }
+    </script>
     <!-- Title is set from APP_NAME in src/main.tsx -->
     <title></title>
   </head>

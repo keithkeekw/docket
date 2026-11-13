@@ -1,7 +1,11 @@
 import {
+  bulkDeleteTasksResponseSchema,
+  reorderTasksResponseSchema,
   taskListSchema,
   taskResponseSchema,
+  type BulkDeleteTasksBody,
   type CreateTaskBody,
+  type ReorderTasksBody,
   type Task,
   type TaskList,
   type UpdateTaskBody,
@@ -55,6 +59,12 @@ function dropCachedTask(queryClient: QueryClient, id: string): void {
   );
 }
 
+function dropCachedTasks(queryClient: QueryClient, ids: Set<string>): void {
+  queryClient.setQueriesData<TaskList>({ queryKey: TASKS_KEY }, (data) =>
+    data ? { tasks: data.tasks.filter((task) => !ids.has(task.id)) } : data,
+  );
+}
+
 /** Counts and project progress change with any task write. */
 function invalidateTaskData(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: TASKS_KEY });
@@ -93,9 +103,23 @@ export function useUpdateTask() {
   });
 }
 
+/** Rows fade for this long before the completed task leaves the open lists. */
+export const COMPLETE_FADE_MS = 3000;
+
+/** Pending removals, so re-checking a task within the fade cancels its timer. */
+const completionTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function cancelCompletionTimer(id: string): void {
+  const timer = completionTimers.get(id);
+  if (timer) clearTimeout(timer);
+  completionTimers.delete(id);
+}
+
 /**
- * Ticking is the most frequent write, so it updates the cached lists first and
- * reverts the snapshot if the request fails (DESIGN §6 "Saving").
+ * Ticking updates the cached lists first and reverts the snapshot on failure
+ * (DESIGN §6 "Saving"). Completed rows deliberately stay in those caches for
+ * COMPLETE_FADE_MS so the UI can fade them out before the open-list refetch
+ * removes them; unchecking during that window cancels the removal.
  */
 export function useCompleteTask() {
   const queryClient = useQueryClient();
@@ -114,6 +138,60 @@ export function useCompleteTask() {
         completedAt: done ? (task.completedAt ?? now) : null,
       }));
 
+      return { snapshot };
+    },
+    onError: (_error, _variables, context) => {
+      if (context) restoreTaskLists(queryClient, context.snapshot);
+    },
+    onSuccess: (task) => {
+      patchCachedTask(queryClient, task.id, () => task);
+      cancelCompletionTimer(task.id);
+
+      if (task.completedAt) {
+        completionTimers.set(
+          task.id,
+          setTimeout(() => {
+            completionTimers.delete(task.id);
+            dropCachedTask(queryClient, task.id);
+            invalidateTaskData(queryClient);
+          }, COMPLETE_FADE_MS),
+        );
+        return;
+      }
+
+      invalidateTaskData(queryClient);
+    },
+  });
+}
+
+/** List View drag order: positions become 0..n-1 in the submitted order. */
+export function useReorderTasks() {
+  const queryClient = useQueryClient();
+
+  return useMutation<{ reordered: number }, Error, ReorderTasksBody>({
+    mutationFn: async (body) =>
+      apiMutate('/api/tasks/reorder', 'POST', body, reorderTasksResponseSchema),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: TASKS_KEY });
+    },
+  });
+}
+
+export function useBulkDeleteTasks() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    { deleted: number },
+    Error,
+    BulkDeleteTasksBody,
+    { snapshot: TaskSnapshot }
+  >({
+    mutationFn: async (body) =>
+      apiMutate('/api/tasks/bulk-delete', 'POST', body, bulkDeleteTasksResponseSchema),
+    onMutate: async ({ ids }) => {
+      await queryClient.cancelQueries({ queryKey: TASKS_KEY });
+      const snapshot = snapshotTaskLists(queryClient);
+      dropCachedTasks(queryClient, new Set(ids));
       return { snapshot };
     },
     onError: (_error, _variables, context) => {

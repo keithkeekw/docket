@@ -28,7 +28,7 @@ export function NavItem({
     <NavLink
       to={to}
       end={end}
-      title={collapsed ? label : undefined}
+      data-tooltip={collapsed ? label : undefined}
       className={({ isActive }) =>
         cx(
           'flex min-h-10 items-center rounded-lg text-sm',
@@ -47,7 +47,15 @@ export function NavItem({
         <>
           {dot && <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-zinc-400" />}
           <span className="min-w-0 flex-1 truncate">{label}</span>
-          {count !== undefined && count > 0 && <span className="text-xs text-zinc-500">{count}</span>}
+          {count !== undefined && count > 0 && (
+            <span className="relative inline-flex min-w-4 items-center justify-center tabular-nums">
+              <span
+                aria-hidden="true"
+                className="absolute inline-flex size-full animate-ping rounded-full bg-zinc-400/50 [animation-duration:2.5s] motion-reduce:animate-none"
+              />
+              <span className="relative text-xs text-zinc-500">{count}</span>
+            </span>
+          )}
         </>
       )}
     </NavLink>

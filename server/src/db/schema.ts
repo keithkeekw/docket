@@ -242,7 +242,7 @@ export const aiSettings = sqliteTable(
   'ai_settings',
   {
     feature: text('feature', {
-      enum: ['capture', 'breakdown', 'review_daily', 'review_weekly', 'chat'],
+      enum: ['capture', 'breakdown', 'summarize', 'review_daily', 'review_weekly', 'chat'],
     }).primaryKey(),
     provider: text('provider', { enum: ['deepseek', 'openrouter'] }).notNull(),
     model: text('model').notNull(),
@@ -250,7 +250,7 @@ export const aiSettings = sqliteTable(
   (t) => [
     check(
       'ai_settings_feature_check',
-      sql`${t.feature} in ('capture', 'breakdown', 'review_daily', 'review_weekly', 'chat')`,
+      sql`${t.feature} in ('capture', 'breakdown', 'summarize', 'review_daily', 'review_weekly', 'chat')`,
     ),
     check('ai_settings_provider_check', sql`${t.provider} in ('deepseek', 'openrouter')`),
   ],

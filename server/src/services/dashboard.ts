@@ -19,11 +19,11 @@ const PROJECT_LIMIT = 6;
 export function getDashboard(db: Db, now: Date = new Date()): Dashboard {
   const today = localDateString(now);
 
-  const overdue = listTasks(db, { dueBefore: today, openOnly: true });
-  const dueToday = listTasks(db, { dueFrom: today, dueTo: today, openOnly: true });
+  const overdue = listTasks(db, { dueBefore: today, openOnly: true, order: 'due' });
+  const dueToday = listTasks(db, { dueFrom: today, dueTo: today, openOnly: true, order: 'due' });
 
   // Inbox work with no date, or a date still ahead: the "unsorted" pile.
-  const inbox = listTasks(db, { project: 'none', openOnly: true }).filter(
+  const inbox = listTasks(db, { project: 'none', openOnly: true, order: 'due' }).filter(
     (task) => task.dueDate === null || task.dueDate > today,
   );
 

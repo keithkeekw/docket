@@ -1,7 +1,17 @@
 import type { Status, Task } from '@app/shared';
-import { groupTasks, sortTasks, type SortKey, type TableGroup, type TableSort } from '../lib/table';
+import type { ReactNode } from 'react';
+import { useT } from '../lib/i18n';
+import {
+  SORT_LABELS,
+  groupTasks,
+  sortTasks,
+  type SortKey,
+  type TableGroup,
+  type TableSort,
+} from '../lib/table';
 import { DataTable } from './DataTable';
 import { EmptyState } from './EmptyState';
+import { Select } from './Field';
 import { InlineError } from './InlineError';
 import { KanbanBoard } from './KanbanBoard';
 import { TaskListPanel } from './TaskListPanel';
@@ -36,6 +46,8 @@ export function TaskViewBody({
   group,
   onSort,
   onGroupChange,
+  autoAssign = false,
+  viewSwitcher,
 }: {
   view: ViewMode;
   tasks: Task[];
@@ -54,7 +66,13 @@ export function TaskViewBody({
   group: TableGroup;
   onSort: (key: SortKey) => void;
   onGroupChange: (group: TableGroup) => void;
+  /** Show the Auto-Assign Top 3 action in List view. */
+  autoAssign?: boolean;
+  /** View control shown with the list actions or above Table/Kanban. */
+  viewSwitcher?: ReactNode;
 }) {
+  const t = useT();
+
   // The list owns its own loading, empty and error states (one implementation).
   if (view === 'list') {
     return (
@@ -66,44 +84,88 @@ export function TaskViewBody({
         emptyMessage={emptyMessage}
         onOpen={onOpen}
         onToggle={onToggle}
+        autoAssign={autoAssign}
+        viewSwitcher={viewSwitcher}
       />
     );
   }
 
+  const switcherRow = viewSwitcher ? (
+    <div className="mt-6 flex justify-end">{viewSwitcher}</div>
+  ) : null;
+
   if (isLoading) {
-    return <p className="mt-6 text-sm text-zinc-500">Loading…</p>;
+    return (
+      <>
+        {switcherRow}
+        <p className="mt-2 text-sm text-zinc-500">{t('Loading…')}</p>
+      </>
+    );
   }
 
   if (error) {
-    return <InlineError message={error} onRetry={onRetry} />;
+    return (
+      <>
+        {switcherRow}
+        <InlineError message={error} onRetry={onRetry} />
+      </>
+    );
   }
 
   if (view === 'table') {
-    if (tasks.length === 0) return <EmptyState message={emptyMessage} />;
+    if (tasks.length === 0) {
+      return (
+        <>
+          {switcherRow}
+          <EmptyState message={emptyMessage} />
+        </>
+      );
+    }
 
     const sorted = sortTasks(tasks, sort);
     const visible = sorted.slice(0, TABLE_ROW_LIMIT);
     const truncated = sorted.length > TABLE_ROW_LIMIT;
 
+    const sortField = t(SORT_LABELS[sort.key]);
+    const sortedBy =
+      sort.dir === 'desc'
+        ? t('{label} (desc)', { label: t('sorted by {field}', { field: sortField }) })
+        : t('sorted by {field}', { field: sortField });
+    const footer = [
+      tableFooter,
+      sortedBy,
+      truncated
+        ? t('showing first {limit} of {total}', {
+            limit: TABLE_ROW_LIMIT,
+            total: tasks.length,
+          })
+        : null,
+    ]
+      .filter(Boolean)
+      .join(' · ');
+
     return (
       <>
-        <div className="mt-4 flex items-center gap-2">
-          <label htmlFor="table-group" className="text-xs text-zinc-500">
-            Group by
-          </label>
-          <select
-            id="table-group"
-            className="min-h-9 rounded-[10px] border border-zinc-200 bg-white px-2 text-[13px] text-zinc-900"
-            value={group}
-            onChange={(event) => {
-              onGroupChange(event.target.value as TableGroup);
-            }}
-          >
-            <option value="none">Nothing</option>
-            <option value="project">Project</option>
-            <option value="status">Status</option>
-            <option value="priority">Priority</option>
-          </select>
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <label htmlFor="table-group" className="text-xs text-zinc-500">
+              {t('Group by')}
+            </label>
+            <Select
+              id="table-group"
+              wrapperClassName="w-40"
+              value={group}
+              onChange={(event) => {
+                onGroupChange(event.target.value as TableGroup);
+              }}
+            >
+              <option value="none">{t('Nothing')}</option>
+              <option value="project">{t('Project')}</option>
+              <option value="status">{t('Status')}</option>
+              <option value="priority">{t('Priority')}</option>
+            </Select>
+          </div>
+          {viewSwitcher}
         </div>
 
         <DataTable
@@ -112,25 +174,31 @@ export function TaskViewBody({
           onSort={onSort}
           onOpen={onOpen}
           onToggle={onToggle}
-          footer={`${tableFooter.replace(' · sorted by due date', '')} · sorted by ${sort.key}${
-            sort.dir === 'desc' ? ' (desc)' : ''
-          }${truncated ? ` · showing first ${TABLE_ROW_LIMIT} of ${tasks.length}` : ''}`}
+          footer={footer}
         />
       </>
     );
   }
 
   if (statuses.length === 0) {
-    return <p className="mt-6 text-sm text-zinc-500">Loading…</p>;
+    return (
+      <>
+        {switcherRow}
+        <p className="mt-2 text-sm text-zinc-500">{t('Loading…')}</p>
+      </>
+    );
   }
 
   return (
-    <KanbanBoard
-      statuses={statuses}
-      tasks={tasks}
-      onOpen={onOpen}
-      onStatusChange={onStatusChange}
-      onAddTask={onAddTask}
-    />
+    <>
+      {switcherRow}
+      <KanbanBoard
+        statuses={statuses}
+        tasks={tasks}
+        onOpen={onOpen}
+        onStatusChange={onStatusChange}
+        onAddTask={onAddTask}
+      />
+    </>
   );
 }

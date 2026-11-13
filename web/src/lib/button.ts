@@ -1,6 +1,6 @@
 import { cx } from './cx';
 
-export type ButtonVariant = 'primary' | 'secondary';
+export type ButtonVariant = 'primary' | 'secondary' | 'danger';
 
 const BASE =
   'inline-flex items-center justify-center gap-2 rounded-lg min-h-10 px-3.5 text-[13px] font-medium disabled:cursor-not-allowed disabled:opacity-50';
@@ -8,6 +8,7 @@ const BASE =
 const VARIANTS: Record<ButtonVariant, string> = {
   primary: 'bg-zinc-900 text-white',
   secondary: 'bg-white border border-zinc-200 text-zinc-900',
+  danger: 'bg-red-600 text-white hover:bg-red-700',
 };
 
 /**

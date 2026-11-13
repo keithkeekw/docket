@@ -95,7 +95,7 @@ describe('PATCH /api/statuses/:id', () => {
     await send('PATCH', `/api/statuses/${id}`, { category: 'done' });
 
     const done = taskListSchema
-      .parse(await (await app.request('/api/tasks')).json())
+      .parse(await (await app.request('/api/tasks?completed=all')).json())
       .tasks.find((entry) => entry.id === task.id);
     expect(done?.statusCategory).toBe('done');
     expect(done?.completedAt).not.toBeNull();
@@ -103,7 +103,7 @@ describe('PATCH /api/statuses/:id', () => {
     await send('PATCH', `/api/statuses/${id}`, { category: 'active' });
 
     const reopened = taskListSchema
-      .parse(await (await app.request('/api/tasks')).json())
+      .parse(await (await app.request('/api/tasks?completed=all')).json())
       .tasks.find((entry) => entry.id === task.id);
     expect(reopened?.completedAt).toBeNull();
   });

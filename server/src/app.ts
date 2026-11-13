@@ -24,6 +24,7 @@ import { registerStatusRoutes } from './routes/statuses';
 import { registerTagRoutes } from './routes/tags';
 import { registerUndoRoutes } from './routes/undo';
 import { registerTaskRoutes } from './routes/tasks';
+import { registerUpdateRoutes } from './routes/updates';
 import { getNavSummary } from './services/nav';
 
 /**
@@ -74,12 +75,10 @@ export function createApp(
   // App shell: sidebar counts and the active project list.
   app.get('/api/nav', (c) => c.json(getNavSummary(db)));
 
+  const uploadsDir = options.uploadsDir ?? path.join(REPO_ROOT, 'data/uploads');
+
   registerTaskRoutes(app, db);
-  registerAttachmentRoutes(
-    app,
-    db,
-    options.uploadsDir ?? path.join(REPO_ROOT, 'data/uploads'),
-  );
+  registerAttachmentRoutes(app, db, uploadsDir);
   registerDashboardRoutes(app, db);
   registerStatusRoutes(app, db);
   registerProjectRoutes(app, db);
@@ -88,12 +87,13 @@ export function createApp(
   registerLinkRoutes(app, db);
   registerTagRoutes(app, db);
   registerAiSettingsRoutes(app, db);
-  registerAiRoutes(app, db);
+  registerAiRoutes(app, db, uploadsDir);
   registerProposalRoutes(app, db);
   registerReviewRoutes(app, db);
   registerExportRoutes(app, db);
   registerUndoRoutes(app, db);
   registerBackupRoutes(app, db, options.backupsDir);
+  registerUpdateRoutes(app);
 
   // Production: serve the built frontend and fall back to index.html for SPA routing.
   if (options.staticDir) {

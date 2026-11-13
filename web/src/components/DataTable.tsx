@@ -1,6 +1,8 @@
 import type { Task } from '@app/shared';
 import { Fragment } from 'react';
+import { cx } from '../lib/cx';
 import { formatEstimate } from '../lib/estimate';
+import { useT } from '../lib/i18n';
 import { describeRecurrence } from '../lib/recurrence';
 import type { SortKey, TaskGroup, TableSort } from '../lib/table';
 import { LinkBadge, StatusChip } from './Badge';
@@ -53,11 +55,12 @@ export function DataTable({
   onToggle: (id: string, done: boolean) => void;
   footer: string;
 }) {
+  const t = useT();
   const grouped = groups.length > 1 || (groups[0]?.label ?? '') !== '';
 
   return (
     <div className="mt-4 overflow-hidden rounded-xl border border-zinc-200 bg-white">
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto overscroll-x-contain">
         <table className="w-full min-w-[980px] border-collapse text-left">
           <thead>
             <tr className="border-b border-zinc-200 text-[13px] font-medium text-zinc-600">
@@ -80,7 +83,7 @@ export function DataTable({
                     className={column.srOnly ? 'w-10 py-2.5 pl-4' : 'py-2.5 pr-3 font-medium'}
                   >
                     {column.key === null ? (
-                      <span className="sr-only">{column.label}</span>
+                      <span className="sr-only">{t(column.label)}</span>
                     ) : (
                       <button
                         type="button"
@@ -89,7 +92,7 @@ export function DataTable({
                           onSort(column.key as SortKey);
                         }}
                       >
-                        {column.label}
+                        {t(column.label)}
                         <SortIndicator active={active} dir={sort.dir} />
                       </button>
                     )}
@@ -108,21 +111,28 @@ export function DataTable({
                       colSpan={COLUMNS.length}
                       className="px-4 py-1.5 text-xs font-medium text-zinc-500"
                     >
-                      {group.label}
+                      {t(group.label)}
                       <span className="ml-2 text-zinc-500">{group.tasks.length}</span>
                     </td>
                   </tr>
                 )}
 
                 {group.tasks.map((task) => (
-                  <tr key={task.id} className="h-12 border-b border-zinc-100 last:border-b-0">
+                  <tr
+                    key={task.id}
+                    className={cx(
+                      'h-12 border-b border-zinc-100 last:border-b-0',
+                      task.statusCategory === 'done' &&
+                        'animate-[task-fade-out_3s_ease-in_forwards] motion-reduce:animate-none',
+                    )}
+                  >
                     <td className="py-1 pl-4">
                       <Checkbox
                         checked={task.statusCategory === 'done'}
                         label={
                           task.statusCategory === 'done'
-                            ? `Mark "${task.title}" as not done`
-                            : `Mark "${task.title}" as done`
+                            ? t('Mark "{title}" as not done', { title: task.title })
+                            : t('Mark "{title}" as done', { title: task.title })
                         }
                         onChange={(done) => {
                           onToggle(task.id, done);
@@ -147,7 +157,7 @@ export function DataTable({
                     </td>
 
                     <td className="py-1 pr-3 text-[13px] text-zinc-600">
-                      {task.projectName ?? <span className="text-zinc-500">Inbox</span>}
+                      {task.projectName ?? <span className="text-zinc-500">{t('Inbox')}</span>}
                     </td>
 
                     <td className="py-1 pr-3 text-[13px] text-zinc-600">

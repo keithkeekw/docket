@@ -2,8 +2,14 @@ import { APP_NAME } from '@app/shared';
 import { useEffect } from 'react';
 import { Link } from 'react-router';
 import { useNavSummary } from '../api/nav';
+import { useUpdateInfo } from '../api/updates';
+import { useT } from '../lib/i18n';
+import { bindingLabel } from '../lib/platform';
+import { useKeybindingsStore } from '../store/keybindings';
 import { useUiStore } from '../store/ui';
+import { Kbd } from './Kbd';
 import { NavItem } from './NavItem';
+import { PrelineTooltip } from './PrelineTooltip';
 
 const icons = {
   dashboard: (
@@ -33,6 +39,11 @@ const icons = {
       <path fillRule="evenodd" d="M.664 10.59a1.651 1.651 0 0 1 0-1.186A10.004 10.004 0 0 1 10 3c4.257 0 7.893 2.66 9.336 6.41.147.381.146.804 0 1.186A10.004 10.004 0 0 1 10 17c-4.257 0-7.893-2.66-9.336-6.41ZM14 10a4 4 0 1 1-8 0 4 4 0 0 1 8 0Z" clipRule="evenodd" />
     </svg>
   ),
+  logbook: (
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-4" aria-hidden="true">
+      <path fillRule="evenodd" d="M10 2c-1.716 0-3.408.106-5.07.31C3.806 2.45 3 3.414 3 4.517V17.25a.75.75 0 0 0 1.075.676L10 15.082l5.925 2.844A.75.75 0 0 0 17 17.25V4.517c0-1.103-.806-2.068-1.93-2.207A41.403 41.403 0 0 0 10 2Z" clipRule="evenodd" />
+    </svg>
+  ),
   settings: (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-4" aria-hidden="true">
       <path fillRule="evenodd" d="M7.84 1.804A1 1 0 0 1 8.82 1h2.36a1 1 0 0 1 .98.804l.331 1.652a6.993 6.993 0 0 1 1.929 1.115l1.598-.54a1 1 0 0 1 1.186.447l1.18 2.044a1 1 0 0 1-.205 1.251l-1.267 1.113a7.047 7.047 0 0 1 0 2.228l1.267 1.113a1 1 0 0 1 .206 1.25l-1.18 2.045a1 1 0 0 1-1.187.447l-1.598-.54a6.993 6.993 0 0 1-1.929 1.115l-.33 1.652a1 1 0 0 1-.98.804H8.82a1 1 0 0 1-.98-.804l-.331-1.652a6.993 6.993 0 0 1-1.929-1.115l-1.598.54a1 1 0 0 1-1.186-.447l-1.18-2.044a1 1 0 0 1 .205-1.251l1.267-1.114a7.05 7.05 0 0 1 0-2.227L1.821 7.773a1 1 0 0 1-.206-1.25l1.18-2.045a1 1 0 0 1 1.187-.447l1.598.54A6.992 6.992 0 0 1 7.51 3.456l.33-1.652ZM10 13a3 3 0 1 0 0-6 3 3 0 0 0 0 6Z" clipRule="evenodd" />
@@ -46,12 +57,17 @@ const icons = {
  * - sm–lg (640–1023px): auto-collapsed icon-rail (56 px)
  */
 export function Sidebar() {
+  const t = useT();
   const nav = useNavSummary();
   const openProjectDialog = useUiStore((state) => state.openProjectDialog);
   const collapsed = useUiStore((state) => state.sidebarCollapsed);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
+  const paletteKey = useKeybindingsStore((s) => s.bindings.commandPalette ?? 'mod+p');
+  const shortcutsKey = useKeybindingsStore((s) => s.bindings.shortcutHelp ?? 'shift+space');
   const counts = nav.data?.counts;
   const projects = nav.data?.projects ?? [];
+  const updateInfo = useUpdateInfo();
+  const latestRelease = updateInfo.data?.updateAvailable ? updateInfo.data.latest : null;
 
   // Auto-collapse on tablet; restore on desktop
   useEffect(() => {
@@ -67,15 +83,16 @@ export function Sidebar() {
   return (
     /* Floating card: margin creates the rounded-corner gap from the viewport edge */
     <aside className={`
-      sticky top-0 flex h-screen flex-col overflow-y-auto
+      sticky top-3 flex h-[calc(100dvh_-_1.5rem)] flex-col overflow-y-auto overscroll-contain
       m-3 rounded-2xl border border-zinc-200 bg-white shadow-sm
-      transition-all duration-200
+      transition-[width,background-color] duration-200 ease-out transition-discrete
+      motion-reduce:transition-none
       ${collapsed ? 'w-14' : 'w-[220px]'}
     `}>
       <div className="flex flex-1 flex-col px-2 py-4">
 
         {/* Logo + toggle */}
-        <div className={`flex items-center ${collapsed ? 'flex-col gap-1' : 'justify-between'} mb-3`}>
+        <div className={`flex items-center ${collapsed ? 'mb-3 flex-col gap-1' : 'justify-between'}`}>
           <Link
             to="/"
             title={APP_NAME}
@@ -84,40 +101,47 @@ export function Sidebar() {
             <img src="/docket-mark.svg" alt="" aria-hidden="true" className="size-[20px] shrink-0 rounded-md" />
             {!collapsed && <span className="truncate text-sm font-semibold">{APP_NAME}</span>}
           </Link>
-          <button
-            type="button"
-            onClick={toggleSidebar}
-            title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
-            className="flex size-7 items-center justify-center rounded-lg text-zinc-300 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-3.5" aria-hidden="true">
-              {collapsed ? (
-                <path fillRule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clipRule="evenodd" />
-              ) : (
-                <path fillRule="evenodd" d="M17 10a.75.75 0 0 0-.75-.75H5.612l4.158-3.96a.75.75 0 1 0-1.04-1.08l-5.5 5.25a.75.75 0 0 0 0 1.08l5.5 5.25a.75.75 0 1 0 1.04-1.08L5.612 10.75H16.25A.75.75 0 0 0 17 10Z" clipRule="evenodd" />
-              )}
-            </svg>
-          </button>
+          <PrelineTooltip label={collapsed ? t('Expand Sidebar') : t('Collapse Sidebar')}>
+            <button
+              type="button"
+              onClick={toggleSidebar}
+              aria-label={collapsed ? t('Expand Sidebar') : t('Collapse Sidebar')}
+              className="flex size-7 items-center justify-center rounded-lg text-zinc-300 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-3.5" aria-hidden="true">
+                {collapsed ? (
+                  <path fillRule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clipRule="evenodd" />
+                ) : (
+                  <path fillRule="evenodd" d="M17 10a.75.75 0 0 0-.75-.75H5.612l4.158-3.96a.75.75 0 1 0-1.04-1.08l-5.5 5.25a.75.75 0 0 0 0 1.08l5.5 5.25a.75.75 0 1 0 1.04-1.08L5.612 10.75H16.25A.75.75 0 0 0 17 10Z" clipRule="evenodd" />
+                )}
+              </svg>
+            </button>
+          </PrelineTooltip>
         </div>
 
+        {!collapsed && (
+          <p className="mb-3 px-2 text-[11px] leading-snug text-zinc-400">
+            {t('Your to-do list, minus the guilt.')}
+          </p>
+        )}
+
         {/* Primary nav */}
-        <nav aria-label="Primary">
+        <nav aria-label={t('Primary')}>
           <ul className="flex flex-col gap-0.5">
-            <li><NavItem to="/" end label="Dashboard" collapsed={collapsed} icon={icons.dashboard} /></li>
-            <li><NavItem to="/inbox" label="Inbox" count={counts?.inbox} collapsed={collapsed} icon={icons.inbox} /></li>
-            <li><NavItem to="/today" label="Today" count={counts?.today} collapsed={collapsed} icon={icons.today} /></li>
-            <li><NavItem to="/tasks" label="All Tasks" count={counts?.all} collapsed={collapsed} icon={icons.tasks} /></li>
-            <li><NavItem to="/reviews" label="Reviews" collapsed={collapsed} icon={icons.reviews} /></li>
+            <li><NavItem to="/" end label={t('Dashboard')} collapsed={collapsed} icon={icons.dashboard} /></li>
+            <li><NavItem to="/inbox" label={t('Inbox')} count={counts?.inbox} collapsed={collapsed} icon={icons.inbox} /></li>
+            <li><NavItem to="/today" label={t('Today')} count={counts?.today} collapsed={collapsed} icon={icons.today} /></li>
+            <li><NavItem to="/tasks" label={t('All Tasks')} count={counts?.all} collapsed={collapsed} icon={icons.tasks} /></li>
+            <li><NavItem to="/reviews" label={t('Reviews')} collapsed={collapsed} icon={icons.reviews} /></li>
+            <li><NavItem to="/logbook" label={t('Logbook')} collapsed={collapsed} icon={icons.logbook} /></li>
           </ul>
         </nav>
 
         {/* Projects section */}
         {!collapsed ? (
           <div className="mt-5">
-            <p className="px-3 pb-1 text-xs font-medium text-zinc-400">Projects</p>
-            {projects.length === 0 ? (
-              <p className="px-3 py-1 text-xs text-zinc-400">No projects yet</p>
-            ) : (
+            <p className="px-3 pb-1 text-xs font-medium text-zinc-400">{t('Projects')}</p>
+            {projects.length > 0 && (
               <ul className="flex flex-col gap-0.5">
                 {projects.map((project) => (
                   <li key={project.id}>
@@ -132,31 +156,72 @@ export function Sidebar() {
               onClick={() => { openProjectDialog({ mode: 'create' }); }}
             >
               <span aria-hidden="true" className="text-base leading-none">+</span>
-              New Project
+              {t('New Project')}
             </button>
             <Link
               to="/projects/archived"
               className="mt-1 flex w-full items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-600"
             >
-              Archived Projects
+              {t('Archived Projects')}
             </Link>
           </div>
         ) : (
           <div className="mt-3">
-            <button
-              type="button"
-              title="New Project"
-              className="flex w-full items-center justify-center rounded-xl border border-dashed border-zinc-300 py-2 text-zinc-400 transition-colors hover:border-zinc-400 hover:text-zinc-600"
-              onClick={() => { openProjectDialog({ mode: 'create' }); }}
-            >
-              <span aria-hidden="true" className="text-sm leading-none">+</span>
-            </button>
+            <PrelineTooltip label={t('New Project')} className="w-full">
+              <button
+                type="button"
+                aria-label={t('New Project')}
+                className="flex w-full items-center justify-center rounded-xl border border-dashed border-zinc-300 py-2 text-zinc-400 transition-colors hover:border-zinc-400 hover:text-zinc-600"
+                onClick={() => { openProjectDialog({ mode: 'create' }); }}
+              >
+                <span aria-hidden="true" className="text-sm leading-none">+</span>
+              </button>
+            </PrelineTooltip>
           </div>
         )}
 
-        {/* Settings pinned to bottom */}
+        {/* Shortcut legend + Settings pinned to bottom */}
         <div className="mt-auto pt-4">
-          <NavItem to="/settings" label="Settings" collapsed={collapsed} icon={icons.settings} />
+          {!collapsed && (
+            <div className="mb-2 flex items-center justify-between gap-2 px-3">
+              <span className="font-mono text-[10px] tabular-nums text-zinc-400">
+                v{__APP_VERSION__}
+              </span>
+              {latestRelease && (
+                <Link
+                  to="/settings#about-updates"
+                  aria-label={t('Update available: {version}', {
+                    version: latestRelease.tag,
+                  })}
+                  title={t('Update available: {version}', { version: latestRelease.tag })}
+                  className="inline-flex min-w-0 items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700 transition-colors hover:bg-blue-200"
+                >
+                  <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-blue-600" />
+                  <span className="truncate">
+                    {t('Update {version}', { version: latestRelease.tag })}
+                  </span>
+                </Link>
+              )}
+            </div>
+          )}
+          {!collapsed && (
+            <div className="mb-2 rounded-xl border border-zinc-100 bg-zinc-50 px-2.5 py-2">
+              <p className="px-0.5 text-[10px] font-medium tracking-wide text-zinc-400 uppercase">
+                {t('Shortcuts')}
+              </p>
+              <ul className="mt-1 flex flex-col gap-1">
+                <li className="flex items-center justify-between gap-2 text-[11px] text-zinc-500">
+                  <span className="truncate">{t('Command Palette')}</span>
+                  <Kbd>{bindingLabel(paletteKey)}</Kbd>
+                </li>
+                <li className="flex items-center justify-between gap-2 text-[11px] text-zinc-500">
+                  <span className="truncate">{t('Keyboard Shortcuts')}</span>
+                  <Kbd>{bindingLabel(shortcutsKey)}</Kbd>
+                </li>
+              </ul>
+            </div>
+          )}
+          <NavItem to="/settings" label={t('Settings')} collapsed={collapsed} icon={icons.settings} />
         </div>
       </div>
     </aside>

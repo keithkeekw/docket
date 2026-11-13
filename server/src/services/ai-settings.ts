@@ -5,10 +5,11 @@ import type { Db } from '../db/types';
 import { env } from '../env';
 import { ServiceError } from '../lib/errors';
 
-/** Fixed display order — the settings screen renders these five rows always. */
+/** Fixed display order — the settings screen renders these six rows always. */
 const FEATURE_ORDER: readonly AiFeature[] = [
   'capture',
   'breakdown',
+  'summarize',
   'review_daily',
   'review_weekly',
   'chat',

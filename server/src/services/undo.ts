@@ -40,39 +40,85 @@ export function runUndo(): string | null {
   return entry.label;
 }
 
+type TaskSnapshot = {
+  row: typeof tasks.$inferSelect;
+  children: {
+    checklist: (typeof checklistItems.$inferSelect)[];
+    links: (typeof taskLinks.$inferSelect)[];
+    attachments: (typeof taskAttachments.$inferSelect)[];
+    tags: (typeof taskTags.$inferSelect)[];
+  };
+};
+
+function snapshotTask(db: Db, taskId: string): TaskSnapshot | null {
+  const row = db.select().from(tasks).where(eq(tasks.id, taskId)).get();
+  if (!row) return null;
+
+  return {
+    row,
+    children: {
+      checklist: db.select().from(checklistItems).where(eq(checklistItems.taskId, taskId)).all(),
+      links: db.select().from(taskLinks).where(eq(taskLinks.taskId, taskId)).all(),
+      attachments: db
+        .select()
+        .from(taskAttachments)
+        .where(eq(taskAttachments.taskId, taskId))
+        .all(),
+      tags: db.select().from(taskTags).where(eq(taskTags.taskId, taskId)).all(),
+    },
+  };
+}
+
+/** Children reference the task, so every parent row must exist first. */
+function restoreTaskSnapshots(db: Db, snapshots: TaskSnapshot[]): void {
+  const ordered = [...snapshots].sort(
+    (a, b) => Number(Boolean(a.row.recurrenceParentId)) - Number(Boolean(b.row.recurrenceParentId)),
+  );
+
+  for (const snapshot of ordered) db.insert(tasks).values(snapshot.row).run();
+
+  for (const { children } of ordered) {
+    if (children.checklist.length > 0) {
+      db.insert(checklistItems).values(children.checklist).run();
+    }
+    if (children.links.length > 0) db.insert(taskLinks).values(children.links).run();
+    // Attachment rows are restored here; their files deliberately stay on
+    // disk until the next startup prune (so undo brings the uploads back).
+    if (children.attachments.length > 0) {
+      db.insert(taskAttachments).values(children.attachments).run();
+    }
+    if (children.tags.length > 0) db.insert(taskTags).values(children.tags).run();
+  }
+}
+
 /**
  * Snapshots a task and its children before deletion, then registers the restore.
  * Call immediately before `DELETE`.
  */
 export function undoableTaskDelete(db: Db, taskId: string): void {
-  const row = db.select().from(tasks).where(eq(tasks.id, taskId)).get();
-  if (!row) return;
-
-  const children = {
-    checklist: db.select().from(checklistItems).where(eq(checklistItems.taskId, taskId)).all(),
-    links: db.select().from(taskLinks).where(eq(taskLinks.taskId, taskId)).all(),
-    attachments: db
-      .select()
-      .from(taskAttachments)
-      .where(eq(taskAttachments.taskId, taskId))
-      .all(),
-    tags: db.select().from(taskTags).where(eq(taskTags.taskId, taskId)).all(),
-  };
+  const snapshot = snapshotTask(db, taskId);
+  if (!snapshot) return;
 
   rememberUndo({
-    label: `Task “${row.title}” deleted`,
+    label: `Task “${snapshot.row.title}” deleted`,
     undo: () => {
-      db.insert(tasks).values(row).run();
-      if (children.checklist.length > 0) {
-        db.insert(checklistItems).values(children.checklist).run();
-      }
-      if (children.links.length > 0) db.insert(taskLinks).values(children.links).run();
-      // Attachment rows are restored here; their files deliberately stay on
-      // disk until the next startup prune (so undo brings the uploads back).
-      if (children.attachments.length > 0) {
-        db.insert(taskAttachments).values(children.attachments).run();
-      }
-      if (children.tags.length > 0) db.insert(taskTags).values(children.tags).run();
+      restoreTaskSnapshots(db, [snapshot]);
+    },
+  });
+}
+
+/** One undo entry for a bulk delete, so the whole batch comes back together. */
+export function undoableTaskBulkDelete(db: Db, taskIds: string[]): void {
+  const snapshots = taskIds
+    .map((id) => snapshotTask(db, id))
+    .filter((snapshot): snapshot is TaskSnapshot => snapshot !== null);
+
+  if (snapshots.length === 0) return;
+
+  rememberUndo({
+    label: `${snapshots.length} ${snapshots.length === 1 ? 'task' : 'tasks'} deleted`,
+    undo: () => {
+      restoreTaskSnapshots(db, snapshots);
     },
   });
 }

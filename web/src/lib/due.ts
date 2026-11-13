@@ -1,4 +1,5 @@
-import { format, isBefore, isValid, parse, startOfDay } from 'date-fns';
+import { format, isBefore, isValid, parse, startOfDay, type Locale } from 'date-fns';
+import { enUS } from 'date-fns/locale';
 
 export type DueDescription = {
   /** DESIGN §4: "10:00" (today with time), "Today", "Mon 16 Nov". */
@@ -6,6 +7,13 @@ export type DueDescription = {
   /** Absolute form for the tooltip and screen readers, e.g. "Sat 14 Nov, 14:00". */
   absolute: string;
   overdue: boolean;
+};
+
+type DescribeDueOptions = {
+  /** date-fns locale for weekday and month names. */
+  locale?: Locale;
+  /** Word used when the due date is today and has no time. */
+  todayLabel?: string;
 };
 
 /**
@@ -19,7 +27,10 @@ export function describeDue(
   dueDate: string,
   dueTime: string | null = null,
   now: Date = new Date(),
+  options: DescribeDueOptions = {},
 ): DueDescription {
+  const locale = options.locale ?? enUS;
+  const todayLabel = options.todayLabel ?? 'Today';
   const day = parse(dueDate, 'yyyy-MM-dd', now);
 
   if (!isValid(day)) {
@@ -36,12 +47,14 @@ export function describeDue(
   const label = isToday
     ? validMoment
       ? format(validMoment, 'HH:mm')
-      : 'Today'
-    : format(day, 'EEE d MMM');
+      : todayLabel
+    : format(day, 'EEE d MMM', { locale });
 
   return {
     label,
-    absolute: validMoment ? format(validMoment, 'EEE d MMM, HH:mm') : format(day, 'EEE d MMM'),
+    absolute: validMoment
+      ? format(validMoment, 'EEE d MMM, HH:mm', { locale })
+      : format(day, 'EEE d MMM', { locale }),
     overdue,
   };
 }

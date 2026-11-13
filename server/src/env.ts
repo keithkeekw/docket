@@ -13,7 +13,7 @@ export const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url
 loadDotenv({ path: path.join(REPO_ROOT, '.env'), quiet: true });
 
 const EnvSchema = z.object({
-  PORT: z.coerce.number().int().min(1).max(65535).default(8787),
+  PORT: z.coerce.number().int().min(1).max(65535).default(9000),
   DATABASE_PATH: z.string().min(1).default('./data/app.db'),
   // Optional provider overrides (PROGRESS D51): a proxy, or a stub in tests.
   DEEPSEEK_BASE_URL: z.string().url().optional(),

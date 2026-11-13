@@ -1,13 +1,29 @@
 import OpenAI from 'openai';
-import { updateAiSettingsBodySchema } from '@app/shared';
+import { updateAiSettingsBodySchema, updatePromptBodySchema } from '@app/shared';
 import type { Hono } from 'hono';
 import { BASE_URLS, API_KEYS } from '../ai/client';
+import { listPrompts, resetPrompt, savePrompt } from '../ai/prompts';
 import type { Db } from '../db/types';
 import { invalidBody, readJson } from '../lib/http';
 import { getAiSettings, updateAiSettings } from '../services/ai-settings';
 
 export function registerAiSettingsRoutes(app: Hono, db: Db): void {
   app.get('/api/settings/ai', (c) => c.json(getAiSettings(db)));
+
+  // Settings → Prompt Management: every system prompt the app sends today.
+  app.get('/api/settings/prompts', (c) => c.json({ prompts: listPrompts(db) }));
+
+  app.put('/api/settings/prompts/:id', async (c) => {
+    const parsed = updatePromptBodySchema.safeParse(await readJson(c));
+    if (!parsed.success) return invalidBody(c, parsed.error);
+
+    return c.json({ prompt: savePrompt(db, c.req.param('id'), parsed.data.content) });
+  });
+
+  // Reset returns to the built-in Markdown prompt.
+  app.delete('/api/settings/prompts/:id', (c) =>
+    c.json({ prompt: resetPrompt(db, c.req.param('id')) }),
+  );
 
   app.put('/api/settings/ai', async (c) => {
     const parsed = updateAiSettingsBodySchema.safeParse(await readJson(c));

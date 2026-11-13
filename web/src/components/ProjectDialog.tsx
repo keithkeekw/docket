@@ -11,8 +11,11 @@ import {
   useUpdateMilestone,
   useUpdateProject,
 } from '../api/projects';
+import { confirmAction } from '../store/confirm';
 import { useUiStore } from '../store/ui';
+import { useT } from '../lib/i18n';
 import { Button } from './Button';
+import { DatePicker } from './DatePicker';
 import { Field, Input, Textarea } from './Field';
 import { InlineError } from './InlineError';
 
@@ -77,6 +80,7 @@ export function ProjectDialog() {
 }
 
 function CreateProjectForm({ onClose }: { onClose: () => void }) {
+  const t = useT();
   const navigate = useNavigate();
   const createProject = useCreateProject();
   const [form, setForm] = useState<FormState>({
@@ -91,7 +95,7 @@ function CreateProjectForm({ onClose }: { onClose: () => void }) {
     event.preventDefault();
     const name = form.name.trim();
     if (!name) {
-      setError('A project needs a name.');
+      setError(t('A project needs a name.'));
       return;
     }
 
@@ -104,19 +108,21 @@ function CreateProjectForm({ onClose }: { onClose: () => void }) {
       onClose();
       void navigate(`/projects/${project.id}`);
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not create the project');
+      setError(cause instanceof Error ? cause.message : t('Could not create the project'));
     }
   }
 
   return (
     <form className="p-5" onSubmit={handleSubmit}>
       <h2 id="project-dialog-title" className="text-[15px] font-semibold text-zinc-900">
-        New Project
+        {t('New Project')}
       </h2>
-      <p className="mt-1 text-xs text-zinc-500">A project groups related tasks and milestones.</p>
+      <p className="mt-1 text-xs text-zinc-500">
+        {t('A project groups related tasks and milestones.')}
+      </p>
 
       <div className="mt-4 flex flex-col gap-3">
-        <Field label="Name">
+        <Field label={t('Name')}>
           <Input
             autoFocus
             value={form.name}
@@ -127,7 +133,7 @@ function CreateProjectForm({ onClose }: { onClose: () => void }) {
           />
         </Field>
 
-        <Field label="Description">
+        <Field label={t('Description')}>
           <Textarea
             rows={3}
             value={form.description}
@@ -137,12 +143,11 @@ function CreateProjectForm({ onClose }: { onClose: () => void }) {
           />
         </Field>
 
-        <Field label="Target Date" hint="Optional.">
-          <Input
-            type="date"
+        <Field label={t('Target Date')} hint={t('Optional.')}>
+          <DatePicker
             value={form.targetDate}
-            onChange={(event) => {
-              setForm({ ...form, targetDate: event.target.value });
+            onChange={(targetDate) => {
+              setForm({ ...form, targetDate });
             }}
           />
         </Field>
@@ -151,9 +156,9 @@ function CreateProjectForm({ onClose }: { onClose: () => void }) {
       {error && <InlineError message={error} />}
 
       <div className="mt-4 flex justify-end gap-2">
-        <Button onClick={onClose}>Cancel</Button>
+        <Button onClick={onClose}>{t('Cancel')}</Button>
         <Button type="submit" variant="primary" disabled={createProject.isPending}>
-          {createProject.isPending ? 'Creating…' : 'Create Project'}
+          {createProject.isPending ? t('Creating…') : t('Create Project')}
         </Button>
       </div>
     </form>
@@ -161,6 +166,7 @@ function CreateProjectForm({ onClose }: { onClose: () => void }) {
 }
 
 function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: () => void }) {
+  const t = useT();
   const navigate = useNavigate();
   const showUndo = useUiStore((store) => store.showUndo);
   const project = useProject(projectId);
@@ -169,7 +175,6 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
 
   const [form, setForm] = useState<FormState | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const seededRef = useRef<string | null>(null);
 
   // Seed once per project so a background refetch cannot wipe typing.
@@ -180,7 +185,6 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
     seededRef.current = data.id;
     setForm(toForm(data));
     setError(null);
-    setConfirmingDelete(false);
   }, [project.data]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -189,7 +193,7 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
 
     const name = form.name.trim();
     if (!name) {
-      setError('A project needs a name.');
+      setError(t('A project needs a name.'));
       return;
     }
 
@@ -203,7 +207,7 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
       });
       onClose();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not save the project');
+      setError(cause instanceof Error ? cause.message : t('Could not save the project'));
     }
   }
 
@@ -213,20 +217,30 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
     try {
       await updateProject.mutateAsync({ id: project.data.id, archived: !project.data.archived });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not update the project');
+      setError(cause instanceof Error ? cause.message : t('Could not update the project'));
     }
   }
 
   async function handleDelete() {
     if (!project.data) return;
 
+    const confirmed = await confirmAction({
+      title: t('Delete Project'),
+      message: t(
+        '“{name}” will be deleted. Its tasks move to the Inbox and its milestones are removed.',
+        { name: project.data.name },
+      ),
+      confirmLabel: t('Delete Project'),
+    });
+    if (!confirmed) return;
+
     try {
       await deleteProject.mutateAsync({ id: project.data.id });
-      showUndo(`Project “${project.data.name}” deleted`);
+      showUndo(t('Project “{name}” deleted', { name: project.data.name }));
       onClose();
       void navigate('/inbox');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not delete the project');
+      setError(cause instanceof Error ? cause.message : t('Could not delete the project'));
     }
   }
 
@@ -234,7 +248,7 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
     return (
       <div className="p-5">
         <h2 id="project-dialog-title" className="text-[15px] font-semibold text-zinc-900">
-          Project
+          {t('Project')}
         </h2>
         <InlineError
           message={project.error.message}
@@ -243,7 +257,7 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
           }}
         />
         <div className="mt-4 flex justify-end">
-          <Button onClick={onClose}>Close</Button>
+          <Button onClick={onClose}>{t('Close')}</Button>
         </div>
       </div>
     );
@@ -253,24 +267,26 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
     return (
       <div className="p-5">
         <h2 id="project-dialog-title" className="text-[15px] font-semibold text-zinc-900">
-          Project
+          {t('Project')}
         </h2>
-        <p className="mt-2 text-sm text-zinc-500">Loading…</p>
+        <p className="mt-2 text-sm text-zinc-500">{t('Loading…')}</p>
       </div>
     );
   }
 
   return (
-    <div className="max-h-[calc(100vh-4rem)] overflow-y-auto p-5">
+    <div className="max-h-[calc(100vh-4rem)] overflow-y-auto overscroll-contain p-5">
       <h2 id="project-dialog-title" className="text-[15px] font-semibold text-zinc-900">
-        Edit Project
+        {t('Edit Project')}
       </h2>
       <p className="mt-1 text-xs text-zinc-500">
-        {project.data.archived ? 'This project is archived.' : 'Changes save to this project.'}
+        {project.data.archived
+          ? t('This project is archived.')
+          : t('Changes save to this project.')}
       </p>
 
       <form id="project-dialog-form" className="mt-4 flex flex-col gap-3" onSubmit={handleSubmit}>
-        <Field label="Name">
+        <Field label={t('Name')}>
           <Input
             autoFocus
             value={form.name}
@@ -281,7 +297,7 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
           />
         </Field>
 
-        <Field label="Description">
+        <Field label={t('Description')}>
           <Textarea
             rows={3}
             value={form.description}
@@ -291,12 +307,11 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
           />
         </Field>
 
-        <Field label="Target Date" hint="Optional.">
-          <Input
-            type="date"
+        <Field label={t('Target Date')} hint={t('Optional.')}>
+          <DatePicker
             value={form.targetDate}
-            onChange={(event) => {
-              setForm({ ...form, targetDate: event.target.value });
+            onChange={(targetDate) => {
+              setForm({ ...form, targetDate });
             }}
           />
         </Field>
@@ -310,7 +325,7 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
               setForm({ ...form, aiExcluded: event.target.checked });
             }}
           />
-          Exclude This Project from AI
+          {t('Exclude This Project from AI')}
         </label>
       </form>
 
@@ -321,56 +336,37 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-4">
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={toggleArchive} disabled={updateProject.isPending}>
-            {project.data.archived ? 'Restore Project' : 'Archive Project'}
+            {project.data.archived ? t('Restore Project') : t('Archive Project')}
           </Button>
 
-          {confirmingDelete ? (
-            <>
-              <Button onClick={handleDelete} disabled={deleteProject.isPending}>
-                {deleteProject.isPending ? 'Deleting…' : 'Confirm Delete'}
-              </Button>
-              <Button
-                onClick={() => {
-                  setConfirmingDelete(false);
-                }}
-              >
-                Cancel
-              </Button>
-            </>
-          ) : (
-            <Button
-              onClick={() => {
-                setConfirmingDelete(true);
-              }}
-            >
-              Delete Project
-            </Button>
-          )}
+          <Button
+            onClick={() => {
+              void handleDelete();
+            }}
+            disabled={deleteProject.isPending}
+          >
+            {deleteProject.isPending ? t('Deleting…') : t('Delete Project')}
+          </Button>
         </div>
 
         <div className="flex items-center gap-2">
-          <Button onClick={onClose}>Cancel</Button>
+          <Button onClick={onClose}>{t('Cancel')}</Button>
           <Button
             type="submit"
             form="project-dialog-form"
             variant="primary"
             disabled={updateProject.isPending}
           >
-            {updateProject.isPending ? 'Saving…' : 'Save'}
+            {updateProject.isPending ? t('Saving…') : t('Save')}
           </Button>
         </div>
       </div>
-
-      {confirmingDelete && (
-        <p className="mt-2 text-xs text-zinc-500">
-          Deleting keeps every task and moves it to the Inbox. Milestones are removed.
-        </p>
-      )}
     </div>
   );
 }
 
 function MilestoneManager({ projectId }: { projectId: string }) {
+  const t = useT();
   const milestones = useMilestones(projectId);
   const createMilestone = useCreateMilestone(projectId);
   const updateMilestone = useUpdateMilestone(projectId);
@@ -390,7 +386,7 @@ function MilestoneManager({ projectId }: { projectId: string }) {
       await createMilestone.mutateAsync({ name: trimmed });
       setName('');
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not add the milestone');
+      setError(cause instanceof Error ? cause.message : t('Could not add the milestone'));
     }
   }
 
@@ -414,7 +410,7 @@ function MilestoneManager({ projectId }: { projectId: string }) {
         }
       }
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not reorder milestones');
+      setError(cause instanceof Error ? cause.message : t('Could not reorder milestones'));
     }
   }
 
@@ -425,24 +421,33 @@ function MilestoneManager({ projectId }: { projectId: string }) {
         completedAt: milestone.completedAt ? null : new Date().toISOString(),
       });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not update the milestone');
+      setError(cause instanceof Error ? cause.message : t('Could not update the milestone'));
     }
   }
 
   async function remove(milestone: Milestone) {
+    const confirmed = await confirmAction({
+      title: t('Delete Milestone'),
+      message: t('“{name}” will be removed. Its tasks stay in the project.', {
+        name: milestone.name,
+      }),
+      confirmLabel: t('Delete Milestone'),
+    });
+    if (!confirmed) return;
+
     try {
       await deleteMilestone.mutateAsync({ id: milestone.id });
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : 'Could not delete the milestone');
+      setError(cause instanceof Error ? cause.message : t('Could not delete the milestone'));
     }
   }
 
   return (
     <section className="mt-5 border-t border-zinc-100 pt-4">
-      <h3 className="text-xs font-medium text-zinc-500">Milestones</h3>
+      <h3 className="text-xs font-medium text-zinc-500">{t('Milestones')}</h3>
 
       {items.length === 0 ? (
-        <p className="mt-2 text-xs text-zinc-500">No milestones yet. They are optional.</p>
+        <p className="mt-2 text-xs text-zinc-500">{t('No milestones yet. They are optional.')}</p>
       ) : (
         <ul className="mt-2 flex flex-col gap-2">
           {items.map((milestone, index) => (
@@ -455,7 +460,7 @@ function MilestoneManager({ projectId }: { projectId: string }) {
                 void updateMilestone
                   .mutateAsync({ id: milestone.id, name: next })
                   .catch((cause: unknown) => {
-                    setError(cause instanceof Error ? cause.message : 'Could not rename');
+                    setError(cause instanceof Error ? cause.message : t('Could not rename'));
                   });
               }}
               onMoveUp={() => {
@@ -477,7 +482,7 @@ function MilestoneManager({ projectId }: { projectId: string }) {
 
       <form className="mt-3 flex items-end gap-2" onSubmit={addMilestone}>
         <div className="flex-1">
-          <Field label="Add Milestone">
+          <Field label={t('Add Milestone')}>
             <Input
               value={name}
               onChange={(event) => {
@@ -487,7 +492,7 @@ function MilestoneManager({ projectId }: { projectId: string }) {
           </Field>
         </div>
         <Button type="submit" disabled={!name.trim() || createMilestone.isPending}>
-          Add
+          {t('Add')}
         </Button>
       </form>
 
@@ -515,6 +520,7 @@ function MilestoneRow({
   onToggleDone: () => void;
   onDelete: () => void;
 }) {
+  const t = useT();
   const [name, setName] = useState(milestone.name);
 
   useEffect(() => {
@@ -524,7 +530,7 @@ function MilestoneRow({
   return (
     <li className="flex flex-wrap items-center gap-2">
       <Input
-        aria-label={`Milestone name: ${milestone.name}`}
+        aria-label={t('Milestone name: {name}', { name: milestone.name })}
         className="min-w-[10rem] flex-1"
         value={name}
         onChange={(event) => {
@@ -544,17 +550,28 @@ function MilestoneRow({
           checked={Boolean(milestone.completedAt)}
           onChange={onToggleDone}
         />
-        Done
+        {t('Done')}
       </label>
 
-      <Button onClick={onMoveUp} disabled={first} aria-label={`Move ${milestone.name} up`}>
-        Up
+      <Button
+        onClick={onMoveUp}
+        disabled={first}
+        aria-label={t('Move {name} up', { name: milestone.name })}
+      >
+        {t('Up')}
       </Button>
-      <Button onClick={onMoveDown} disabled={last} aria-label={`Move ${milestone.name} down`}>
-        Down
+      <Button
+        onClick={onMoveDown}
+        disabled={last}
+        aria-label={t('Move {name} down', { name: milestone.name })}
+      >
+        {t('Down')}
       </Button>
-      <Button onClick={onDelete} aria-label={`Delete milestone ${milestone.name}`}>
-        Delete
+      <Button
+        onClick={onDelete}
+        aria-label={t('Delete milestone {name}', { name: milestone.name })}
+      >
+        {t('Delete')}
       </Button>
     </li>
   );

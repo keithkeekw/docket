@@ -1,5 +1,6 @@
-import { aiSettingsSchema } from '@app/shared';
+import { aiSettingsSchema, promptListSchema, promptResponseSchema } from '@app/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { loadPrompt } from '../ai/prompts';
 import { createApp } from '../app';
 import type { Db } from '../db/types';
 import { env } from '../env';
@@ -39,12 +40,13 @@ async function put(body: unknown) {
 const configured = (key: string) => key.trim() !== '';
 
 describe('GET /api/settings/ai', () => {
-  it('lists all five features unconfigured and reports which providers have a key', async () => {
+  it('lists all six features unconfigured and reports which providers have a key', async () => {
     const body = await getSettings();
 
     expect(body.features).toEqual([
       { feature: 'capture', provider: null, model: null },
       { feature: 'breakdown', provider: null, model: null },
+      { feature: 'summarize', provider: null, model: null },
       { feature: 'review_daily', provider: null, model: null },
       { feature: 'review_weekly', provider: null, model: null },
       { feature: 'chat', provider: null, model: null },
@@ -74,6 +76,7 @@ describe('PUT /api/settings/ai', () => {
     expect(aiSettingsSchema.parse(body).features).toEqual([
       { feature: 'capture', provider: 'deepseek', model: 'deepseek-chat' },
       { feature: 'breakdown', provider: null, model: null },
+      { feature: 'summarize', provider: null, model: null },
       { feature: 'review_daily', provider: null, model: null },
       { feature: 'review_weekly', provider: null, model: null },
       { feature: 'chat', provider: null, model: null },
@@ -86,13 +89,13 @@ describe('PUT /api/settings/ai', () => {
   it('updates a feature and clears it with nulls', async () => {
     await put({ features: [{ feature: 'chat', provider: 'openrouter', model: 'model-a' }] });
     await put({ features: [{ feature: 'chat', provider: 'openrouter', model: 'model-b' }] });
-    expect((await getSettings()).features[4]).toMatchObject({
+    expect((await getSettings()).features[5]).toMatchObject({
       provider: 'openrouter',
       model: 'model-b',
     });
 
     await put({ features: [{ feature: 'chat', provider: null, model: null }] });
-    expect((await getSettings()).features[4]).toMatchObject({ provider: null, model: null });
+    expect((await getSettings()).features[5]).toMatchObject({ provider: null, model: null });
   });
 
   it('rejects a provider without a model, and a model without a provider', async () => {
@@ -112,6 +115,74 @@ describe('PUT /api/settings/ai', () => {
       features: [{ feature: 'summarise', provider: 'deepseek', model: 'x' }],
     });
     expect(response.status).toBe(400);
+  });
+});
+
+describe('GET /api/settings/prompts', () => {
+  it('lists every prompt the app currently sends, in display order', async () => {
+    const response = await app.request('/api/settings/prompts');
+    expect(response.status).toBe(200);
+
+    const body = promptListSchema.parse(await response.json());
+    expect(body.prompts.map((prompt) => prompt.id)).toEqual([
+      'capture',
+      'breakdown',
+      'project-summary',
+      'checklist',
+      'review',
+      'chat',
+    ]);
+
+    for (const prompt of body.prompts) {
+      expect(prompt.label.length).toBeGreaterThan(0);
+      expect(prompt.content.length).toBeGreaterThan(20);
+      expect(prompt.customized).toBe(false);
+      expect(prompt.content).toBe(prompt.defaultContent);
+    }
+  });
+
+  it('saves an override, uses it for AI calls, and resets to the built-in prompt', async () => {
+    const edited = 'You are a concise capture assistant. Reply with JSON only.';
+
+    const response = await app.request('/api/settings/prompts/capture', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify({ content: edited }),
+    });
+    expect(response.status).toBe(200);
+
+    const saved = promptResponseSchema.parse(await response.json()).prompt;
+    expect(saved).toMatchObject({ id: 'capture', content: edited, customized: true });
+    expect(saved.defaultContent).not.toBe(edited);
+    expect(loadPrompt(db, 'capture')).toBe(edited);
+
+    const listed = promptListSchema.parse(
+      await (await app.request('/api/settings/prompts')).json(),
+    );
+    expect(listed.prompts.find((prompt) => prompt.id === 'capture')).toEqual(saved);
+
+    const reset = await app.request('/api/settings/prompts/capture', { method: 'DELETE' });
+    expect(reset.status).toBe(200);
+    const defaults = promptResponseSchema.parse(await reset.json()).prompt;
+    expect(defaults.customized).toBe(false);
+    expect(defaults.content).toBe(defaults.defaultContent);
+    expect(loadPrompt(db, 'capture')).toBe(defaults.defaultContent);
+  });
+
+  it('rejects an empty prompt and an unknown prompt id', async () => {
+    const empty = await app.request('/api/settings/prompts/capture', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify({ content: '   ' }),
+    });
+    expect(empty.status).toBe(400);
+
+    const unknown = await app.request('/api/settings/prompts/nope', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify({ content: 'Hello' }),
+    });
+    expect(unknown.status).toBe(404);
   });
 });
 

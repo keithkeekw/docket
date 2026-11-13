@@ -5,12 +5,17 @@ import { useUiStore } from '../store/ui';
 import { CaptureDialog } from './CaptureDialog';
 import { ChatDrawer } from './ChatDrawer';
 import { CommandPalette } from './CommandPalette';
+import { ConfirmDialog } from './ConfirmDialog';
 import { MobileTabBar } from './MobileTabBar';
+import { NavHotkeys } from './NavHotkeys';
 import { ProjectDialog } from './ProjectDialog';
 import { ProposalModal } from './ProposalModal';
+import { ScrollToTopButton } from './ScrollToTopButton';
 import { ShortcutHelpDialog } from './ShortcutHelpDialog';
 import { Sidebar } from './Sidebar';
 import { TaskDrawer } from './TaskDrawer';
+import { TopBarActions } from './TopBarActions';
+import { TooltipLayer } from './TooltipLayer';
 import { UndoBar } from './UndoBar';
 
 export function AppShell() {
@@ -40,13 +45,16 @@ export function AppShell() {
       </div>
 
       {/* Main content */}
-      <main className="min-w-0 flex-1 overflow-x-hidden px-4 pt-5 pb-20 sm:px-6 sm:pb-10 lg:px-8 lg:pt-6">
+      <main className="min-w-0 flex-1 overflow-x-hidden pt-5 pr-36 pb-20 pl-4 sm:pb-10 sm:pl-6 lg:pt-6 lg:pr-36 lg:pl-8">
         <UndoBar />
         <Outlet />
       </main>
 
       {/* Bottom tab bar on mobile only */}
       <MobileTabBar />
+      <NavHotkeys />
+      <TopBarActions />
+      <ScrollToTopButton />
 
       <CaptureDialog />
       <ChatDrawer />
@@ -55,6 +63,8 @@ export function AppShell() {
       <ProposalModal />
       <ShortcutHelpDialog />
       <CommandPalette />
+      <ConfirmDialog />
+      <TooltipLayer />
     </div>
   );
 }
