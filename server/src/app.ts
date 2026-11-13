@@ -5,6 +5,7 @@ import { cors } from 'hono/cors';
 import { statuses } from './db/schema';
 import type { Db } from './db/types';
 import { ServiceError } from './lib/errors';
+import { registerAiSettingsRoutes } from './routes/ai-settings';
 import { registerBackupRoutes } from './routes/backups';
 import { registerChecklistRoutes } from './routes/checklist';
 import { registerDashboardRoutes } from './routes/dashboard';
@@ -65,6 +66,7 @@ export function createApp(db: Db, options: { backupsDir?: string } = {}): Hono {
   registerChecklistRoutes(app, db);
   registerLinkRoutes(app, db);
   registerTagRoutes(app, db);
+  registerAiSettingsRoutes(app, db);
   registerBackupRoutes(app, db, options.backupsDir);
 
   // Services throw ServiceError with the intended status; anything else is a bug

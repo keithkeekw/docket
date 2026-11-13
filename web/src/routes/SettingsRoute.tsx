@@ -1,7 +1,15 @@
-import type { Status, StatusCategory } from '@app/shared';
+import type {
+  AiFeature,
+  AiProvider,
+  Status,
+  StatusCategory,
+} from '@app/shared';
 import { format, parseISO } from 'date-fns';
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Link } from 'react-router';
+import { useAiSettings, useUpdateAiSettings } from '../api/aiSettings';
 import { useBackups, useCreateBackup, useRestoreBackup } from '../api/backups';
+import { useProjects } from '../api/projects';
 import {
   useCreateStatus,
   useDeleteStatus,
@@ -33,6 +41,8 @@ export function SettingsRoute() {
 
       <div className="mt-6 max-w-[720px]">
         <StatusesSection />
+        <AiSection />
+        <PrivacySection />
         <DataSection />
       </div>
     </>
@@ -418,6 +428,238 @@ function DataSection() {
 
       {message && <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2.5 text-xs text-zinc-700">{message}</p>}
       {error && <InlineError message={error} />}
+    </section>
+  );
+}
+
+const FEATURE_LABELS: ReadonlyArray<{ feature: AiFeature; label: string }> = [
+  { feature: 'capture', label: 'Capture' },
+  { feature: 'breakdown', label: 'Breakdown' },
+  { feature: 'review_daily', label: 'Daily review' },
+  { feature: 'review_weekly', label: 'Weekly review' },
+  { feature: 'chat', label: 'Chat' },
+];
+
+const PROVIDER_LABELS: Record<AiProvider, string> = {
+  deepseek: 'DeepSeek',
+  openrouter: 'OpenRouter',
+};
+
+type Draft = Record<AiFeature, { provider: AiProvider | ''; model: string }>;
+
+function emptyDraft(): Draft {
+  return {
+    capture: { provider: '', model: '' },
+    breakdown: { provider: '', model: '' },
+    review_daily: { provider: '', model: '' },
+    review_weekly: { provider: '', model: '' },
+    chat: { provider: '', model: '' },
+  };
+}
+
+/**
+ * DESIGN §5.5 *AI providers* and *AI features* (FR-24, FR-26). Keys live in
+ * `.env` and are only ever reported as present/absent (NFR-2, D48); the model
+ * is free text because TECHSTACK §6.1 says not to hard-code model IDs.
+ */
+function AiSection() {
+  const ai = useAiSettings();
+  const save = useUpdateAiSettings();
+
+  const [draft, setDraft] = useState<Draft | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const seededRef = useRef(false);
+
+  useEffect(() => {
+    if (!ai.data || seededRef.current) return;
+
+    seededRef.current = true;
+    setDraft(
+      ai.data.features.reduce<Draft>((accumulator, entry) => {
+        accumulator[entry.feature] = {
+          provider: entry.provider ?? '',
+          model: entry.model ?? '',
+        };
+        return accumulator;
+      }, emptyDraft()),
+    );
+  }, [ai.data]);
+
+  async function handleSave() {
+    if (!draft) return;
+
+    for (const { feature, label } of FEATURE_LABELS) {
+      const entry = draft[feature];
+      if (entry.provider !== '' && entry.model.trim() === '') {
+        setError(`Enter a model for ${label}, or set it to Not configured.`);
+        return;
+      }
+    }
+
+    try {
+      const saved = await save.mutateAsync({
+        features: FEATURE_LABELS.map(({ feature }) => {
+          const entry = draft[feature];
+
+          return entry.provider === ''
+            ? { feature, provider: null, model: null }
+            : { feature, provider: entry.provider, model: entry.model.trim() };
+        }),
+      });
+
+      seededRef.current = false;
+      setDraft(
+        saved.features.reduce<Draft>((accumulator, entry) => {
+          accumulator[entry.feature] = {
+            provider: entry.provider ?? '',
+            model: entry.model ?? '',
+          };
+          return accumulator;
+        }, emptyDraft()),
+      );
+      seededRef.current = true;
+      setError(null);
+      setMessage('AI settings saved.');
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not save the AI settings');
+    }
+  }
+
+  return (
+    <section className="mt-8 border-t border-zinc-200 pt-5">
+      <h2 className="text-[15px] font-semibold text-zinc-900">AI</h2>
+      <p className="mt-1 max-w-[560px] text-xs text-zinc-500">
+        Nothing leaves this machine until a feature below is configured and its provider has a key.
+        Keys are read from <code>.env</code> at server start and are never shown here.
+      </p>
+
+      {ai.isLoading && <p className="mt-3 text-sm text-zinc-500">Loading…</p>}
+
+      {ai.error && (
+        <InlineError
+          message={ai.error.message}
+          onRetry={() => {
+            void ai.refetch();
+          }}
+        />
+      )}
+
+      {ai.data && (
+        <>
+          <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-zinc-600">
+            {ai.data.providers.map((provider) => (
+              <li key={provider.provider} className="flex items-center gap-1.5">
+                <span className="font-medium text-zinc-700">{PROVIDER_LABELS[provider.provider]}</span>
+                <span className={provider.configured ? 'text-zinc-600' : 'text-zinc-500'}>
+                  {provider.configured ? 'Configured' : 'Not configured'}
+                </span>
+              </li>
+            ))}
+          </ul>
+
+          {!ai.data.providers.some((provider) => provider.configured) && (
+            <p className="mt-2 text-xs text-zinc-500">
+              Add <code>DEEPSEEK_API_KEY</code> or <code>OPENROUTER_API_KEY</code> to{' '}
+              <code>.env</code> and restart the server.
+            </p>
+          )}
+
+          {draft && (
+            <div className="mt-4">
+              <div className="grid grid-cols-[7rem_9rem_1fr] items-center gap-2 pb-1 text-[11px] text-zinc-500">
+                <span>Feature</span>
+                <span>Provider</span>
+                <span>Model</span>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                {FEATURE_LABELS.map(({ feature, label }) => (
+                  <div key={feature} className="grid grid-cols-[7rem_9rem_1fr] items-center gap-2">
+                    <span className="text-[13px] text-zinc-900">{label}</span>
+
+                    <Select
+                      aria-label={`Provider for ${label}`}
+                      value={draft[feature].provider}
+                      onChange={(event) => {
+                        const provider = event.target.value as AiProvider | '';
+                        setDraft({ ...draft, [feature]: { ...draft[feature], provider } });
+                        setMessage(null);
+                      }}
+                    >
+                      <option value="">Not configured</option>
+                      <option value="deepseek">DeepSeek</option>
+                      <option value="openrouter">OpenRouter</option>
+                    </Select>
+
+                    <Input
+                      aria-label={`Model for ${label}`}
+                      placeholder="e.g. deepseek-chat"
+                      disabled={draft[feature].provider === ''}
+                      value={draft[feature].model}
+                      onChange={(event) => {
+                        setDraft({ ...draft, [feature]: { ...draft[feature], model: event.target.value } });
+                        setMessage(null);
+                      }}
+                    />
+                  </div>
+                ))}
+              </div>
+
+              <div className="mt-3 flex items-center gap-3">
+                <Button onClick={handleSave} disabled={save.isPending}>
+                  {save.isPending ? 'Saving…' : 'Save AI settings'}
+                </Button>
+                {message && <span className="text-xs text-zinc-600">{message}</span>}
+              </div>
+            </div>
+          )}
+        </>
+      )}
+
+      {error && <InlineError message={error} />}
+    </section>
+  );
+}
+
+/**
+ * DESIGN §5.5 *Privacy*: the excluded projects are toggled in the project
+ * dialog; this section shows which ones are left out of AI requests (FR-25).
+ */
+function PrivacySection() {
+  const projects = useProjects();
+  const excluded = (projects.data?.projects ?? []).filter((project) => project.aiExcluded);
+
+  return (
+    <section className="mt-8 border-t border-zinc-200 pt-5">
+      <h2 className="text-[15px] font-semibold text-zinc-900">Privacy</h2>
+      <p className="mt-1 max-w-[560px] text-xs text-zinc-500">
+        Excluded projects and their tasks are left out of every AI request. Change it in a
+        project&rsquo;s settings.
+      </p>
+
+      {projects.error && (
+        <InlineError
+          message={projects.error.message}
+          onRetry={() => {
+            void projects.refetch();
+          }}
+        />
+      )}
+
+      {excluded.length === 0 ? (
+        <p className="mt-3 text-sm text-zinc-500">No projects are excluded.</p>
+      ) : (
+        <ul className="mt-3 flex flex-wrap gap-x-4 gap-y-1">
+          {excluded.map((project) => (
+            <li key={project.id}>
+              <Link to={`/projects/${project.id}`} className="text-[13px] text-blue-600 hover:underline">
+                {project.name}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
     </section>
   );
 }

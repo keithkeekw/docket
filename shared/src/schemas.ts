@@ -431,3 +431,55 @@ export const restoreResponseSchema = z.object({
 export type BackupEntry = z.infer<typeof backupEntrySchema>;
 export type BackupList = z.infer<typeof backupListSchema>;
 
+// ---------------------------------------------------------------------------
+// AI settings (FR-24–FR-26) — never carries a key
+// ---------------------------------------------------------------------------
+
+export const aiFeatureSchema = z.enum([
+  'capture',
+  'breakdown',
+  'review_daily',
+  'review_weekly',
+  'chat',
+]);
+
+export const aiProviderSchema = z.enum(['deepseek', 'openrouter']);
+
+/** Which providers have a key on this machine. The key itself never leaves the server. */
+export const aiProviderStatusSchema = z.object({
+  provider: aiProviderSchema,
+  configured: z.boolean(),
+});
+
+/** `provider: null` means the feature is not configured. */
+export const aiFeatureSettingSchema = z.object({
+  feature: aiFeatureSchema,
+  provider: aiProviderSchema.nullable(),
+  model: z.string().nullable(),
+});
+
+export const aiSettingsSchema = z.object({
+  providers: z.array(aiProviderStatusSchema),
+  features: z.array(aiFeatureSettingSchema),
+});
+
+export const updateAiSettingsBodySchema = z.strictObject({
+  features: z
+    .array(
+      z.strictObject({
+        feature: aiFeatureSchema,
+        provider: aiProviderSchema.nullable(),
+        model: z.string().trim().min(1).max(200).nullable(),
+      }),
+    )
+    .min(1)
+    .max(5),
+});
+
+export type AiFeature = z.infer<typeof aiFeatureSchema>;
+export type AiProvider = z.infer<typeof aiProviderSchema>;
+export type AiProviderStatus = z.infer<typeof aiProviderStatusSchema>;
+export type AiFeatureSetting = z.infer<typeof aiFeatureSettingSchema>;
+export type AiSettings = z.infer<typeof aiSettingsSchema>;
+export type UpdateAiSettingsBody = z.infer<typeof updateAiSettingsBodySchema>;
+

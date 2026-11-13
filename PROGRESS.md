@@ -4,7 +4,7 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 `docs/DESIGN.md` at the start of every session.
 
 - **Last updated:** 13 Nov 2026
-- **Current step:** M2-S11 (next) — settings: providers, per-feature models, AI exclusion
+- **Current step:** M2-S12 (next) — AI client, proposal schema, proposals wiring
 - **Spec sources:** `docs/PRD.md` (behaviour), `docs/TECHSTACK.md` (implementation), `docs/DESIGN.md` (visuals)
 
 ---
@@ -23,7 +23,8 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 | M1-S8 | Statuses settings; recurrence service + tests | ✅ Done |
 | M1-S9 | Dashboard endpoint + screen | ✅ Done |
 | M1-S10 | Backup / restore | ✅ Done |
-| M2-S11–13 | Settings, AI client/proposals, AI capture + breakdown | ⬜ Next |
+| M2-S11 | Settings: providers, per-feature models, AI exclusion | ✅ Done |
+| M2-S12–13 | AI client/proposals, AI capture + breakdown | ⬜ Next |
 | M3-S14–15 | Reviews + scheduler, chat drawer | ⬜ |
 | M4-S16 | Undo, export, sort/group, state audit | ⬜ |
 
@@ -759,6 +760,71 @@ belong to M2; 14–16 to M3).
 
 ---
 
+## M2-S11 — AI settings ✅
+
+### Built
+
+- **`GET/PUT /api/settings/ai`** (`services/ai-settings.ts`): the five features
+  in a fixed order with `provider`/`model` (null when unconfigured), and each
+  provider's Configured / Not configured state derived from `.env`. Keys never
+  appear in a response (D48).
+- `PUT` replaces only the features in the body, in one transaction; `null`/`null`
+  clears one. A provider without a model (or the reverse) is a 400, so a feature
+  is either fully configured or explicitly off.
+- **Settings → AI** (DESIGN §5.5 *AI providers* + *AI features*): provider
+  status lines, a hint naming the `.env` variables when nothing is configured,
+  and a five-row Feature / Provider / Model grid. Choosing a provider enables its
+  model field; saving with a provider but no model is refused inline. Model is
+  free text (D49), with `deepseek-chat` only as a placeholder.
+- **Per-project exclusion** (D50): a checkbox in the project dialog, and a
+  Settings → Privacy section listing the excluded projects as links.
+- 7 route/service tests, including "never returns a key" and provider/model
+  pairing.
+
+### Verification performed
+
+```bash
+npm run typecheck   # clean
+npm test            # 139 passed across 16 files (7 new)
+npm run build       # clean
+```
+
+API, against a throwaway database copy:
+
+- `GET /api/settings/ai` on a fresh database → five features all
+  `{provider: null, model: null}`, both providers `configured: false`, and the
+  raw response contains no key material.
+- `PUT` capture → DeepSeek/`deepseek-chat`, persisted on a second `GET` while
+  the other four stayed unconfigured; `PUT` with `{provider:'deepseek',
+  model:null}` → 400; an unknown feature → 400; clearing with nulls → back to
+  unconfigured.
+- Toggling the project checkbox set `aiExcluded: true`, and
+  `GET /api/projects` reported it.
+
+UI, headless Chrome at 1280 × 980:
+
+- AI section rendered both provider statuses, the `.env` hint (both keys absent
+  here), five provider selects and five (disabled) model inputs.
+- Selecting DeepSeek for Capture enabled its model field; saving with Chat set
+  to OpenRouter and no model showed "Enter a model for Chat, or set it to Not
+  configured."; clearing Chat and saving showed "AI settings saved." and kept
+  Capture = DeepSeek / deepseek-chat.
+- Excluding the project from AI in its dialog made Settings → Privacy list it as
+  a link.
+
+### PRD IDs advanced
+
+- **FR-24 — done.** Provider and model per feature (capture, breakdown, daily
+  review, weekly review, chat).
+- **FR-26 — done for configuration.** Providers show Configured / Not configured
+  from server-side keys; the API can never return them. The DESIGN "Test" button
+  needs a real client and lands in M2-S12.
+- **FR-25 — partial.** The flag exists, is editable and is surfaced; enforcement
+  arrives with the AI client (D50).
+- **NFR-2** satisfied: keys live in `.env`, never in the browser or the database.
+
+---
+
 ## Decisions
 
 | # | Decision |
@@ -810,6 +876,9 @@ belong to M2; 14–16 to M3).
 | D45 | Restore copies the backup **into the live connection** (`ATTACH` + delete/insert every table inside one transaction, foreign keys deferred) instead of swapping the database file. Swapping would need the process to reopen the connection, which would leave every route holding a stale handle; copying keeps one connection and makes the restore all-or-nothing (NFR-6). A `pre-restore-*.db` snapshot is taken first, so a wrong pick is recoverable. |
 | D46 | Backups are `data/backups/app-<ISO stamp>.db` written with SQLite's online backup API (WAL-safe), listed newest first, downloadable via `GET /api/backups/:file`, and restorable by file name only — the route rejects paths and anything not in the directory. No uploads in M1 (D11); auto-pruning is not implemented. |
 | D47 | `Db` is `BetterSQLite3Database<Schema> & { $client: Database }`, so services can reach the raw better-sqlite3 handle. `drizzle()` returns that shape but its exported type omits `$client`; the alias restores it rather than casting at each call site. |
+| D48 | AI keys are **read from `.env` only** (`DEEPSEEK_API_KEY`, `OPENROUTER_API_KEY`) and are never entered through the UI. `GET /api/settings/ai` reports each provider as Configured / Not configured and nothing else, so no code path can return a key (NFR-2) and keys never enter the database or a backup. The Settings hint names the variables and the file. If Keith wants key entry in the app later, it needs a server-side secret store and an explicit decision — PRD Q1 (AI policy) is still open, which is another reason to keep keys out of the app for now. |
+| D49 | `ai_settings` starts **empty**: no model IDs are seeded, because TECHSTACK §6.1 says not to hard-code them ("confirm current model IDs in each provider's docs"). Every feature shows "Not configured" until Keith picks a provider and types the model, which also makes FR-26's not-configured state real rather than decorative. |
+| D50 | Per-project AI exclusion is edited in the project dialog ("Exclude this project from AI") and listed read-only in Settings → Privacy, matching DESIGN §5.5. The flag is stored and returned on every project; **enforcement** (leaving those projects and their tasks out of prompts and tools) starts in M2-S12/S13 with the AI client, per TECHSTACK §6.2. |
 
 ## Follow-ups / known gaps
 
@@ -847,12 +916,12 @@ belong to M2; 14–16 to M3).
 - PRD open questions for Keith: Q1 (company AI policy), Q5 (final app name).
   Neither blocks M1.
 
-## Next step — M2-S11
+## Next step — M2-S12
 
-Settings for AI: provider keys (stored server-side, never rendered back — NFR-2),
-a provider + model per feature (capture, breakdown, daily review, weekly review,
-chat), per-project "exclude from AI" (the flag already exists on the projects
-table), and the clear "Not configured" state FR-26 asks for. Keys come from
-`.env` in M1 terms but must be editable from the UI and never returned by the
-API. No AI calls yet — M2-S12 brings the client, the proposal schema and the
-proposal table wiring.
+The AI client and the proposal flow: one OpenAI-compatible client with the two
+base URLs, a per-feature provider/model lookup from `ai_settings`, the Proposal
+Zod schema, a `proposals` row saved as pending, and the ProposalModal that shows
+items for edit/untick before a single transactional `/apply` (FR-23, NFR-6,
+NFR-9). Prompts live under `server/src/ai/prompts/` as Markdown (TECHSTACK §6.5).
+Nothing calls a provider until a feature is configured **and** its provider has
+a key; every request must skip `ai_excluded` projects (FR-25).

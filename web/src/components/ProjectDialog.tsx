@@ -20,6 +20,7 @@ type FormState = {
   name: string;
   description: string;
   targetDate: string;
+  aiExcluded: boolean;
 };
 
 function toForm(project: ProjectSummary): FormState {
@@ -27,6 +28,7 @@ function toForm(project: ProjectSummary): FormState {
     name: project.name,
     description: project.description,
     targetDate: project.targetDate ?? '',
+    aiExcluded: project.aiExcluded,
   };
 }
 
@@ -77,7 +79,12 @@ export function ProjectDialog() {
 function CreateProjectForm({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
   const createProject = useCreateProject();
-  const [form, setForm] = useState<FormState>({ name: '', description: '', targetDate: '' });
+  const [form, setForm] = useState<FormState>({
+    name: '',
+    description: '',
+    targetDate: '',
+    aiExcluded: false,
+  });
   const [error, setError] = useState<string | null>(null);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -191,6 +198,7 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
         name,
         description: form.description,
         targetDate: form.targetDate === '' ? null : form.targetDate,
+        aiExcluded: form.aiExcluded,
       });
       onClose();
     } catch (cause) {
@@ -290,6 +298,18 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
             }}
           />
         </Field>
+
+        <label className="flex min-h-10 items-center gap-2 text-[13px] text-zinc-700">
+          <input
+            type="checkbox"
+            className="size-4 accent-blue-600"
+            checked={form.aiExcluded}
+            onChange={(event) => {
+              setForm({ ...form, aiExcluded: event.target.checked });
+            }}
+          />
+          Exclude this project from AI
+        </label>
       </form>
 
       <MilestoneManager projectId={project.data.id} />
