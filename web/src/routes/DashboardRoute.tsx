@@ -91,7 +91,7 @@ export function DashboardRoute() {
 
       {data && (
         <div className="mt-6 grid gap-6 min-[900px]:grid-cols-[3fr_2fr]">
-          <section aria-labelledby="dashboard-tasks">
+          <section aria-labelledby="dashboard-tasks" className="min-w-0 overflow-hidden">
             <div className="flex items-baseline justify-between gap-2">
               <h2 id="dashboard-tasks" className="text-[15px] font-semibold text-zinc-900">
                 Tasks
@@ -130,7 +130,7 @@ export function DashboardRoute() {
             )}
           </section>
 
-          <section aria-labelledby="dashboard-projects">
+          <section aria-labelledby="dashboard-projects" className="min-w-0 overflow-hidden">
             <div className="flex items-baseline justify-between gap-2">
               <h2 id="dashboard-projects" className="text-[15px] font-semibold text-zinc-900">
                 Active projects
