@@ -2,6 +2,7 @@ import { serve } from '@hono/node-server';
 import { APP_NAME } from '@app/shared';
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
+import { sqlite } from './db/client';
 import { env } from './env';
 
 const app = new Hono();
@@ -16,10 +17,25 @@ app.use(
   }),
 );
 
+function databaseHealth(): { ready: boolean; statuses?: number; error?: string } {
+  try {
+    const row = sqlite
+      .prepare('select count(*) as count from statuses')
+      .get() as { count: number } | undefined;
+    return { ready: true, statuses: row?.count ?? 0 };
+  } catch (error) {
+    return {
+      ready: false,
+      error: error instanceof Error ? error.message : 'Unknown database error',
+    };
+  }
+}
+
 app.get('/api/health', (c) =>
   c.json({
     ok: true,
     app: APP_NAME,
+    database: databaseHealth(),
     time: new Date().toISOString(),
   }),
 );

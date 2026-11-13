@@ -18,6 +18,8 @@ Personal task & project manager. Local-only: one SQLite file, one API bound to
 ```bash
 npm install
 cp .env.example .env     # first time only
+npm run db:migrate       # create data/app.db from the migrations
+npm run db:seed          # five default statuses + review schedule defaults
 npm run dev
 ```
 
@@ -34,6 +36,10 @@ dev server together; Vite proxies `/api` to port 8787.
 | `npm run dev` | Server + web dev servers |
 | `npm run dev:web` | Web only |
 | `npm run dev:server` | API only |
+| `npm run db:generate` | Generate a migration from `server/src/db/schema.ts` |
+| `npm run db:migrate` | Apply pending migrations to `data/app.db` |
+| `npm run db:seed` | Seed default statuses and app settings (idempotent) |
+| `npm run db:studio` | Open Drizzle Studio |
 | `npm run typecheck` | TypeScript across all workspaces |
 | `npm test` | Vitest |
 | `npm run build` | Type-check and production build of the web app |
