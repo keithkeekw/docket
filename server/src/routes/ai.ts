@@ -1,9 +1,10 @@
-import { aiBreakdownBodySchema, aiCaptureBodySchema, aiChatBodySchema, aiChecklistBodySchema } from '@app/shared';
+import { aiBreakdownBodySchema, aiCaptureBodySchema, aiChatBodySchema, aiChecklistBodySchema, aiProjectSummaryBodySchema } from '@app/shared';
 import type { Hono } from 'hono';
 import type { Db } from '../db/types';
 import { invalidBody, readJson } from '../lib/http';
 import { chat } from '../services/chat';
 import { generateChecklist } from '../services/checklist';
+import { generateProjectSummary } from '../services/project-summary';
 import { breakdownProposal, captureProposal } from '../services/proposals';
 
 export function registerAiRoutes(app: Hono, db: Db): void {
@@ -37,5 +38,13 @@ export function registerAiRoutes(app: Hono, db: Db): void {
     if (!parsed.success) return invalidBody(c, parsed.error);
 
     return c.json(await generateChecklist(db, parsed.data.taskId));
+  });
+
+  // Generates a prose summary of a project's current status using AI.
+  app.post('/api/ai/project-summary', async (c) => {
+    const parsed = aiProjectSummaryBodySchema.safeParse(await readJson(c));
+    if (!parsed.success) return invalidBody(c, parsed.error);
+
+    return c.json(await generateProjectSummary(db, parsed.data.projectId));
   });
 }

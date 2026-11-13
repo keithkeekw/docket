@@ -613,6 +613,16 @@ export const aiChecklistResponseSchema = z.object({
 
 export type AiChecklistResponse = z.infer<typeof aiChecklistResponseSchema>;
 
+export const aiProjectSummaryBodySchema = z.strictObject({
+  projectId: z.string().min(1),
+});
+
+export const aiProjectSummaryResponseSchema = z.object({
+  summary: z.string(),
+});
+
+export type AiProjectSummaryResponse = z.infer<typeof aiProjectSummaryResponseSchema>;
+
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
 export type AiChatResponse = z.infer<typeof aiChatResponseSchema>;
 

@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router';
 import { AppShell } from '../components/AppShell';
 import { AllTasksRoute } from './AllTasksRoute';
+import { ArchivedProjectsRoute } from './ArchivedProjectsRoute';
 import { DashboardRoute } from './DashboardRoute';
 import { InboxRoute } from './InboxRoute';
 import { NotFoundRoute } from './NotFoundRoute';
@@ -26,6 +27,7 @@ export const router = createBrowserRouter([
       { path: 'today', element: <TodayRoute /> },
       { path: 'tasks', element: <AllTasksRoute /> },
       { path: 'projects/:id', element: <ProjectRoute /> },
+      { path: 'projects/archived', element: <ArchivedProjectsRoute /> },
       { path: 'reviews', element: <ReviewsRoute /> },
       { path: 'settings', element: <SettingsRoute /> },
       { path: '*', element: <NotFoundRoute /> },

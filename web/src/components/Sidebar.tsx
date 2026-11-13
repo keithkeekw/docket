@@ -134,6 +134,12 @@ export function Sidebar() {
               <span aria-hidden="true" className="text-base leading-none">+</span>
               New project
             </button>
+            <Link
+              to="/projects/archived"
+              className="mt-1 flex w-full items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-600"
+            >
+              Archived projects
+            </Link>
           </div>
         ) : (
           <div className="mt-3">

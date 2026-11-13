@@ -1,8 +1,10 @@
 import {
+  aiProjectSummaryResponseSchema,
   milestoneListSchema,
   milestoneResponseSchema,
   projectListSchema,
   projectResponseSchema,
+  type AiProjectSummaryResponse,
   type CreateMilestoneBody,
   type CreateProjectBody,
   type Milestone,
@@ -92,6 +94,38 @@ export function useDeleteProject() {
       void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       void queryClient.invalidateQueries({ queryKey: navQueryKey });
     },
+  });
+}
+
+export function useArchivedProjects() {
+  return useQuery<ProjectList>({
+    queryKey: [...PROJECTS_KEY, 'archived'],
+    queryFn: ({ signal }) => apiGet('/api/projects?archived=true', projectListSchema, signal),
+  });
+}
+
+export function useArchiveProject() {
+  const queryClient = useQueryClient();
+  return useMutation<ProjectSummary, Error, { id: string }>({
+    mutationFn: async ({ id }) =>
+      (await apiMutate(`/api/projects/${id}`, 'PATCH', { archived: true }, projectResponseSchema)).project,
+    onSuccess: () => { invalidateProjectData(queryClient); },
+  });
+}
+
+export function useRestoreProject() {
+  const queryClient = useQueryClient();
+  return useMutation<ProjectSummary, Error, { id: string }>({
+    mutationFn: async ({ id }) =>
+      (await apiMutate(`/api/projects/${id}`, 'PATCH', { archived: false }, projectResponseSchema)).project,
+    onSuccess: () => { invalidateProjectData(queryClient); },
+  });
+}
+
+export function useProjectSummary() {
+  return useMutation<AiProjectSummaryResponse, Error, { projectId: string }>({
+    mutationFn: ({ projectId }) =>
+      apiMutate('/api/ai/project-summary', 'POST', { projectId }, aiProjectSummaryResponseSchema),
   });
 }
 
