@@ -1,10 +1,10 @@
 import { APP_NAME } from '@app/shared';
+import { useEffect } from 'react';
 import { Link } from 'react-router';
 import { useNavSummary } from '../api/nav';
 import { useUiStore } from '../store/ui';
 import { NavItem } from './NavItem';
 
-// Heroicons (mini) inlined as SVG to avoid a dependency.
 const icons = {
   dashboard: (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-4" aria-hidden="true">
@@ -13,7 +13,7 @@ const icons = {
   ),
   inbox: (
     <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-4" aria-hidden="true">
-      <path fillRule="evenodd" d="M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5v11.75A2.75 2.75 0 0 0 16.75 18h-12A2.75 2.75 0 0 1 2 15.25V3.5Zm3.75 7a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-4.5Zm0 3a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-4.5ZM5 5.75A.75.75 0 0 1 5.75 5h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 5 5.75Z" clipRule="evenodd" />
+      <path fillRule="evenodd" d="M2 3.5A1.5 1.5 0 0 1 3.5 2h9A1.5 1.5 0 0 1 14 3.5v11.75A2.75 2.75 0 0 0 16.75 18h-12A2.75 2.75 0 0 1 2 15.25V3.5Zm3.75 7a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-4.5ZM5 5.75A.75.75 0 0 1 5.75 5h6.5a.75.75 0 0 1 0 1.5h-6.5A.75.75 0 0 1 5 5.75Z" clipRule="evenodd" />
       <path d="M16.75 16.5a1.25 1.25 0 1 0 0-2.5 1.25 1.25 0 0 0 0 2.5Z" />
     </svg>
   ),
@@ -41,9 +41,9 @@ const icons = {
 };
 
 /**
- * DESIGN §3 app shell sidebar. 232 px on desktop with Settings pinned to the
- * bottom; below 900 px it stacks above the content (no hamburger for v1).
- * Collapses to a 56 px icon-rail on toggle.
+ * Desktop/tablet sidebar. Hidden on mobile (AppShell renders MobileTabBar there).
+ * - lg+ (≥1024px): full 232 px, manually collapsible
+ * - sm–lg (640–1023px): auto-collapsed icon-rail (56 px)
  */
 export function Sidebar() {
   const nav = useNavSummary();
@@ -53,87 +53,105 @@ export function Sidebar() {
   const counts = nav.data?.counts;
   const projects = nav.data?.projects ?? [];
 
-  const w = collapsed ? 'min-[900px]:w-14' : 'min-[900px]:w-[232px]';
+  // Auto-collapse on tablet; restore on desktop
+  useEffect(() => {
+    const mq = window.matchMedia('(min-width: 1024px)');
+    const handler = (e: MediaQueryListEvent | MediaQueryList) => {
+      useUiStore.setState({ sidebarCollapsed: !e.matches });
+    };
+    handler(mq);
+    mq.addEventListener('change', handler);
+    return () => mq.removeEventListener('change', handler);
+  }, []);
 
   return (
-    <aside className={`border-b border-zinc-200 bg-white px-2 py-5 transition-all duration-200 min-[900px]:sticky min-[900px]:top-0 min-[900px]:flex min-[900px]:h-screen min-[900px]:shrink-0 min-[900px]:flex-col min-[900px]:overflow-y-auto min-[900px]:border-b-0 min-[900px]:border-r ${w}`}>
+    /* Floating card: margin creates the rounded-corner gap from the viewport edge */
+    <aside className={`
+      sticky top-0 flex h-screen flex-col overflow-y-auto
+      m-3 rounded-2xl border border-zinc-200 bg-white shadow-sm
+      transition-all duration-200
+      ${collapsed ? 'w-14' : 'w-[220px]'}
+    `}>
+      <div className="flex flex-1 flex-col px-2 py-4">
 
-      {/* Logo + toggle */}
-      <div className={`flex items-center ${collapsed ? 'flex-col gap-2' : 'justify-between'} mb-2`}>
-        <Link
-          to="/"
-          title={APP_NAME}
-          className="flex min-h-10 items-center gap-2.5 rounded-lg px-1 text-zinc-900"
-        >
-          <img src="/docket-mark.svg" alt="" aria-hidden="true" className="size-[22px] shrink-0 rounded-md" />
-          {!collapsed && <span className="truncate text-sm font-semibold">{APP_NAME}</span>}
-        </Link>
-        <button
-          type="button"
-          onClick={toggleSidebar}
-          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          className="flex size-8 items-center justify-center rounded-lg text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-4" aria-hidden="true">
-            {collapsed ? (
-              <path fillRule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clipRule="evenodd" />
+        {/* Logo + toggle */}
+        <div className={`flex items-center ${collapsed ? 'flex-col gap-1' : 'justify-between'} mb-3`}>
+          <Link
+            to="/"
+            title={APP_NAME}
+            className="flex min-h-9 items-center gap-2 rounded-xl px-2 text-zinc-900"
+          >
+            <img src="/docket-mark.svg" alt="" aria-hidden="true" className="size-[20px] shrink-0 rounded-md" />
+            {!collapsed && <span className="truncate text-sm font-semibold">{APP_NAME}</span>}
+          </Link>
+          <button
+            type="button"
+            onClick={toggleSidebar}
+            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            className="flex size-7 items-center justify-center rounded-lg text-zinc-300 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-3.5" aria-hidden="true">
+              {collapsed ? (
+                <path fillRule="evenodd" d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10Z" clipRule="evenodd" />
+              ) : (
+                <path fillRule="evenodd" d="M17 10a.75.75 0 0 0-.75-.75H5.612l4.158-3.96a.75.75 0 1 0-1.04-1.08l-5.5 5.25a.75.75 0 0 0 0 1.08l5.5 5.25a.75.75 0 1 0 1.04-1.08L5.612 10.75H16.25A.75.75 0 0 0 17 10Z" clipRule="evenodd" />
+              )}
+            </svg>
+          </button>
+        </div>
+
+        {/* Primary nav */}
+        <nav aria-label="Primary">
+          <ul className="flex flex-col gap-0.5">
+            <li><NavItem to="/" end label="Dashboard" collapsed={collapsed} icon={icons.dashboard} /></li>
+            <li><NavItem to="/inbox" label="Inbox" count={counts?.inbox} collapsed={collapsed} icon={icons.inbox} /></li>
+            <li><NavItem to="/today" label="Today" count={counts?.today} collapsed={collapsed} icon={icons.today} /></li>
+            <li><NavItem to="/tasks" label="All tasks" count={counts?.all} collapsed={collapsed} icon={icons.tasks} /></li>
+            <li><NavItem to="/reviews" label="Reviews" collapsed={collapsed} icon={icons.reviews} /></li>
+          </ul>
+        </nav>
+
+        {/* Projects section */}
+        {!collapsed ? (
+          <div className="mt-5">
+            <p className="px-3 pb-1 text-xs font-medium text-zinc-400">Projects</p>
+            {projects.length === 0 ? (
+              <p className="px-3 py-1 text-xs text-zinc-400">No projects yet</p>
             ) : (
-              <path fillRule="evenodd" d="M17 10a.75.75 0 0 0-.75-.75H5.612l4.158-3.96a.75.75 0 1 0-1.04-1.08l-5.5 5.25a.75.75 0 0 0 0 1.08l5.5 5.25a.75.75 0 1 0 1.04-1.08L5.612 10.75H16.25A.75.75 0 0 0 17 10Z" clipRule="evenodd" />
+              <ul className="flex flex-col gap-0.5">
+                {projects.map((project) => (
+                  <li key={project.id}>
+                    <NavItem to={`/projects/${project.id}`} label={project.name} dot collapsed={false} />
+                  </li>
+                ))}
+              </ul>
             )}
-          </svg>
-        </button>
-      </div>
+            <button
+              type="button"
+              className="mt-1 flex w-full items-center gap-1.5 rounded-xl border border-dashed border-zinc-300 px-3 py-2 text-left text-xs text-zinc-400 transition-colors hover:border-zinc-400 hover:text-zinc-600"
+              onClick={() => { openProjectDialog({ mode: 'create' }); }}
+            >
+              <span aria-hidden="true" className="text-base leading-none">+</span>
+              New project
+            </button>
+          </div>
+        ) : (
+          <div className="mt-3">
+            <button
+              type="button"
+              title="New project"
+              className="flex w-full items-center justify-center rounded-xl border border-dashed border-zinc-300 py-2 text-zinc-400 transition-colors hover:border-zinc-400 hover:text-zinc-600"
+              onClick={() => { openProjectDialog({ mode: 'create' }); }}
+            >
+              <span aria-hidden="true" className="text-sm leading-none">+</span>
+            </button>
+          </div>
+        )}
 
-      <nav aria-label="Primary">
-        <ul className="flex flex-col gap-0.5">
-          <li><NavItem to="/" end label="Dashboard" collapsed={collapsed} icon={icons.dashboard} /></li>
-          <li><NavItem to="/inbox" label="Inbox" count={counts?.inbox} collapsed={collapsed} icon={icons.inbox} /></li>
-          <li><NavItem to="/today" label="Today" count={counts?.today} collapsed={collapsed} icon={icons.today} /></li>
-          <li><NavItem to="/tasks" label="All tasks" count={counts?.all} collapsed={collapsed} icon={icons.tasks} /></li>
-          <li><NavItem to="/reviews" label="Reviews" collapsed={collapsed} icon={icons.reviews} /></li>
-        </ul>
-      </nav>
-
-      {!collapsed && (
-        <div className="mt-5">
-          <p className="px-3 pb-1 text-xs font-medium text-zinc-500">Projects</p>
-          {projects.length === 0 ? (
-            <p className="px-3 py-2 text-xs text-zinc-500">No projects yet</p>
-          ) : (
-            <ul className="flex flex-col gap-0.5">
-              {projects.map((project) => (
-                <li key={project.id}>
-                  <NavItem to={`/projects/${project.id}`} label={project.name} dot collapsed={false} />
-                </li>
-              ))}
-            </ul>
-          )}
-          <button
-            type="button"
-            className="mt-1 flex w-full items-center gap-1.5 rounded-lg border border-dashed border-zinc-300 px-3 py-2 text-left text-xs text-zinc-400 transition-colors hover:border-zinc-400 hover:text-zinc-600"
-            onClick={() => { openProjectDialog({ mode: 'create' }); }}
-          >
-            <span aria-hidden="true" className="text-base leading-none">+</span>
-            New project
-          </button>
+        {/* Settings pinned to bottom */}
+        <div className="mt-auto pt-4">
+          <NavItem to="/settings" label="Settings" collapsed={collapsed} icon={icons.settings} />
         </div>
-      )}
-
-      {collapsed && (
-        <div className="mt-3">
-          <button
-            type="button"
-            title="New project"
-            className="flex w-full items-center justify-center rounded-lg border border-dashed border-zinc-300 py-2 text-zinc-400 transition-colors hover:border-zinc-400 hover:text-zinc-600"
-            onClick={() => { openProjectDialog({ mode: 'create' }); }}
-          >
-            <span aria-hidden="true" className="text-base leading-none">+</span>
-          </button>
-        </div>
-      )}
-
-      <div className="mt-4 min-[900px]:mt-auto min-[900px]:pt-4">
-        <NavItem to="/settings" label="Settings" collapsed={collapsed} icon={icons.settings} />
       </div>
     </aside>
   );
