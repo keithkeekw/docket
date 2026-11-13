@@ -40,15 +40,36 @@ export const statusSchema = z.object({
   name: z.string().min(1),
   category: statusCategorySchema,
   position: z.number().int(),
+  /** How many tasks use it — the settings screen explains a blocked delete. */
+  taskCount: z.number().int().nonnegative(),
 });
 
 export const statusListSchema = z.object({
   statuses: z.array(statusSchema),
 });
 
+export const statusResponseSchema = z.object({
+  status: statusSchema,
+});
+
 export type Status = z.infer<typeof statusSchema>;
 export type StatusCategory = z.infer<typeof statusCategorySchema>;
 export type StatusList = z.infer<typeof statusListSchema>;
+
+export const createStatusBodySchema = z.strictObject({
+  name: z.string().trim().min(1).max(60),
+  category: statusCategorySchema,
+  position: z.number().int().nonnegative().optional(),
+});
+
+export const updateStatusBodySchema = z.strictObject({
+  name: z.string().trim().min(1).max(60).optional(),
+  category: statusCategorySchema.optional(),
+  position: z.number().int().nonnegative().optional(),
+});
+
+export type CreateStatusBody = z.infer<typeof createStatusBodySchema>;
+export type UpdateStatusBody = z.infer<typeof updateStatusBodySchema>;
 
 // ---------------------------------------------------------------------------
 // Tasks (FR-4), checklist (FR-8), links (FR-16), tags (FR-30)
@@ -100,6 +121,7 @@ export const taskSchema = z.object({
   dueTime: localTimeSchema.nullable(),
   estimateMinutes: z.number().int().positive().nullable(),
   recurrenceRule: z.string().nullable(),
+  recurrenceParentId: z.string().nullable(),
   completedAt: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
@@ -164,6 +186,7 @@ export const createTaskBodySchema = z.strictObject({
   estimateMinutes: z.number().int().positive().max(100_000).nullish(),
   projectId: z.string().min(1).nullish(),
   milestoneId: z.string().min(1).nullish(),
+  recurrenceRule: z.string().trim().min(1).max(500).nullish(),
 });
 
 export const updateTaskBodySchema = z.strictObject({
@@ -176,6 +199,7 @@ export const updateTaskBodySchema = z.strictObject({
   estimateMinutes: z.number().int().positive().max(100_000).nullable().optional(),
   projectId: z.string().min(1).nullable().optional(),
   milestoneId: z.string().min(1).nullable().optional(),
+  recurrenceRule: z.string().trim().min(1).max(500).nullable().optional(),
 });
 
 export const completeTaskBodySchema = z.strictObject({

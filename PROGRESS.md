@@ -4,7 +4,7 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 `docs/DESIGN.md` at the start of every session.
 
 - **Last updated:** 13 Nov 2026
-- **Current step:** M1-S8 (next) — statuses settings, recurrence service + tests
+- **Current step:** M1-S9 (next) — dashboard endpoint + screen
 - **Spec sources:** `docs/PRD.md` (behaviour), `docs/TECHSTACK.md` (implementation), `docs/DESIGN.md` (visuals)
 
 ---
@@ -20,8 +20,8 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 | M1-S5 | Tasks CRUD + plain capture (`Ctrl/⌘ K`) | ✅ Done |
 | M1-S6 | Projects, milestones, checklist, links, tags, move-to-project | ✅ Done |
 | M1-S7 | List / Table / Kanban + shared filters + dnd-kit | ✅ Done |
-| M1-S8 | Statuses settings; recurrence service + tests | ⬜ Next |
-| M1-S9 | Dashboard endpoint + screen | ⬜ |
+| M1-S8 | Statuses settings; recurrence service + tests | ✅ Done |
+| M1-S9 | Dashboard endpoint + screen | ⬜ Next |
 | M1-S10 | Backup / restore | ⬜ |
 | M2-S11–13 | Settings, AI client/proposals, AI capture + breakdown | ⬜ |
 | M3-S14–15 | Reviews + scheduler, chat drawer | ⬜ |
@@ -565,6 +565,76 @@ UI, Playwright at 1280 × 860:
 
 ---
 
+## M1-S8 — Statuses settings, recurrence ✅
+
+### Built
+
+- **Statuses CRUD** (`server/src/services/statuses.ts`, `routes/statuses.ts`):
+  list with `taskCount`, create (appended), rename, recategorise, reorder via
+  `position`, delete. Guards: names unique case-insensitively, a status in use
+  returns **409** with the US-10 wording, and the last status cannot be deleted.
+  Changing a category rewrites `completed_at` for that status's tasks (D39).
+- **Recurrence** (`server/src/services/recurrence.ts`): `nextOccurrence` uses
+  `rrule` with `dtstart` = the task's due date and time; `createNextOccurrence`
+  copies the task, its links, tags and unticked checklist, sets
+  `recurrence_parent_id` to the series root and appends it to the collection.
+  It runs on the transition to done from **either** `/complete` or a PATCH to a
+  done status (D40), and a `(parent, due_date)` guard prevents duplicates.
+- **Settings screen** (DESIGN §5.5): the Statuses section — one compact row per
+  status with name (saves on blur), category select, usage count, Up/Down and
+  Delete (disabled while in use, with the reason in a tooltip), plus an add row.
+  Errors surface inline, so a duplicate name or a blocked delete explains itself.
+- **Task drawer**: a Repeat field with the four presets, keeping an unfamiliar
+  stored rule visible as "Custom (…)" (D41). Rows, the Table's Repeat column and
+  Kanban cards now show "Weekly" / "Every 2 weeks" instead of a generic marker.
+
+### Verification performed
+
+```bash
+npm run typecheck   # clean
+npm test            # 118 passed across 13 files
+npm run build       # clean
+```
+
+Counts per file: db 9, app/nav 4, api client 5, due 7, estimate 4, filters 12,
+recurrence lib 8, tasks 18, projects 12, task details 13, statuses 9,
+recurrence routes 8, recurrence unit 9.
+
+API, against a throwaway copy of the database:
+
+- Created status "Blocked" (position appended), renamed it, recategorised it to
+  Open, reordered it, then deleted it; `GET /api/statuses` reflected each step.
+- Deleting "Waiting" while it held a task → 409 with
+  "A status in use cannot be removed until its 1 task moves to another status";
+  recategorising a status to Done stamped `completed_at` on its tasks and
+  back-dated nothing on the way out.
+- Completing a `FREQ=WEEKLY` task due 13 Nov 16:00 produced one new task due
+  20 Nov 16:00 in "To do" with `recurrenceParentId` = the original; links, tags
+  and an unticked checklist came across; re-ticking did not duplicate it;
+  a monthly task moved one month; a task without a due date did not recur.
+
+UI, Playwright at 1280 × 900:
+
+- Settings: added "Blocked" (active), renamed it to "Blocked by vendor" on blur,
+  switched its category to Open, moved it up one place (order became Backlog,
+  To do, In progress, Waiting, Blocked by vendor, Done), then deleted it.
+  Delete was disabled for the three statuses holding tasks and enabled for the
+  unused one.
+- Task drawer: set Repeat to Weekly, saved; the row showed "↻ Weekly".
+  Ticking it created the 20 Nov occurrence, which the list rendered with the
+  same repeat label. Console clean.
+- Fixed during the pass: the status row wrapped onto three lines because the
+  control's `w-full` beat its fixed width — each control now sits in a sized
+  wrapper, and the row is one line at 720 px.
+
+### PRD IDs advanced
+
+- **FR-14 — done.** Custom status set with name, order and category.
+- **FR-15 — done.** Recurring tasks generate the next occurrence on completion.
+- **US-10, US-11** satisfied.
+
+---
+
 ## Decisions
 
 | # | Decision |
@@ -605,6 +675,11 @@ UI, Playwright at 1280 × 860:
 | D34 | `completed_at` follows the status **category**: PATCHing `statusId` to a `done` status stamps it (or keeps the original stamp), any other status clears it. Before this, picking "Done" in the drawer left the task counted as open in project progress, nav counts and list ordering. `/complete` stays the checkbox path and records the same truth. |
 | D35 | Kanban uses `@dnd-kit/core` 6.3.1 only (no `sortable`/`utilities`). The keyboard path is a custom `KeyboardCoordinateGetter` that jumps to the neighbouring column's centre, because dnd-kit's default moves 25 px per arrow press; Space picks up and drops, Enter still opens the drawer. |
 | D36 | A finished task never shows its due date in `orange-700`; `DueLabel` takes `isDone` and falls back to the neutral tone. Overdue only means something while the work is open. |
+| D37 | `rrule` is CommonJS: `import { RRule } from 'rrule'` type-checks and passes in Vitest but crashes Node ESM at boot ("does not provide an export named 'RRule'"). The server imports the default (`import rrule from 'rrule'; const { RRule } = rrule`). Verified by booting the real server, not just tests. |
+| D38 | Statuses are edited in Settings (FR-14). `taskCount` is part of `statusSchema`, so a row can explain why Delete is disabled; the **server** still enforces the guard (`409` "A status in use cannot be removed until its N tasks move to another status") and refuses to delete the last status. Names are unique case-insensitively. |
+| D39 | Changing a status's **category** rewrites `completed_at` for every task in it (done → stamp, otherwise clear), the same rule as D34. Otherwise recategorising "Waiting" to Done would leave its tasks counted as open. |
+| D40 | Recurrence is one row per occurrence (TECHSTACK §4). The next task copies title, notes, project, milestone, priority, estimate, rule, links and tags, and copies the checklist **unticked**; `recurrence_parent_id` points at the first task in the series. It is created on the transition to done from either `/complete` or a PATCH to a done status, and a guard on `(parent, due_date)` stops re-ticking a task from duplicating the next one. A task with no due date never recurs, and a rule without `FREQ` is rejected instead of defaulting to yearly. |
+| D41 | The drawer's Repeat select offers Daily / Weekly / Every 2 weeks / Monthly (US-11's "weekly on chosen days" is the due date's weekday, which is what `dtstart` means), and keeps any other stored rule visible as "Custom (…)" rather than silently rewriting it. |
 
 ## Follow-ups / known gaps
 
@@ -623,6 +698,11 @@ UI, Playwright at 1280 × 860:
   card's `position` is unchanged by a status move.
 - Server-side `sort`/`group` parameters from TECHSTACK §5 are still unwritten;
   they belong to M4-S16 with FR-13.
+- Recurrence has no UI for "weekly on chosen days" beyond the due date's
+  weekday; the API accepts any RRULE with `BYDAY`, and the drawer shows such a
+  rule as "Custom (…)" rather than dropping it.
+- Editing a recurring task's due date does not reschedule occurrences that were
+  already created — each occurrence is its own row (D40).
 - `npm audit` reports 4 moderate advisories from drizzle-kit's bundled
   `@esbuild-kit/esm-loader` (old esbuild). Dev-only CLI, not shipped, no dev
   server involved; **do not** run `npm audit fix --force` (it would downgrade
@@ -631,12 +711,11 @@ UI, Playwright at 1280 × 860:
 - PRD open questions for Keith: Q1 (company AI policy), Q5 (final app name).
   Neither blocks M1.
 
-## Next step — M1-S8
+## Next step — M1-S9
 
-Statuses settings and recurrence. The Settings screen gets its *Statuses*
-section (add, rename, recategorise, reorder, delete with the "move tasks first"
-guard from US-10), and the task service gains the FR-15 recurrence path: an
-RRULE string on completion creates the next occurrence, copying title, fields,
-links and checklist (unticked), with `recurrence_parent_id` pointing at the first
-task in the series (TECHSTACK §4). Add `rrule` to the task drawer's Repeat field.
-Deliverables feed FR-14, FR-15.
+The dashboard: `GET /api/dashboard` returning overdue, today, inbox, active
+projects and the latest review, then the DESIGN §5.1 screen — date as the page
+title with the summary line, the two-column Tasks / Active projects layout, and
+`ProjectCard` with progress, current milestone and "Next: …". The capture bar
+from DESIGN §4 lands here too, replacing the plain "Capture" button.
+Deliverables feed FR-9, FR-17 and the project half of US-7/US-13.

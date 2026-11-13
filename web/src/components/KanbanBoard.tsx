@@ -16,6 +16,7 @@ import {
 import { useState } from 'react';
 import { cx } from '../lib/cx';
 import { formatEstimate } from '../lib/estimate';
+import { describeRecurrence } from '../lib/recurrence';
 import { LinkBadge } from './Badge';
 import { DueLabel } from './DueLabel';
 import { PriorityLabel } from './PriorityLabel';
@@ -204,6 +205,7 @@ function KanbanCard({
 }) {
   const { attributes, listeners, setNodeRef } = useDraggable({ id: task.id });
   const estimate = formatEstimate(task.estimateMinutes);
+  const repeat = describeRecurrence(task.recurrenceRule);
   const done = task.statusCategory === 'done';
 
   return (
@@ -236,9 +238,9 @@ function KanbanCard({
           <PriorityLabel priority={task.priority} />
           <DueLabel dueDate={task.dueDate} dueTime={task.dueTime} isDone={done} />
           {estimate && <span title={`Estimate ${estimate}`}>{estimate}</span>}
-          {task.recurrenceRule && (
-            <span aria-label="Repeating task" title="Repeating task">
-              <span aria-hidden="true">↻</span>
+          {repeat && (
+            <span title={`Repeats ${repeat.toLowerCase()}`}>
+              <span aria-hidden="true">↻</span> {repeat}
             </span>
           )}
           {task.checklist.total > 0 && (

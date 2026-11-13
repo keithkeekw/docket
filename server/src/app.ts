@@ -67,7 +67,7 @@ export function createApp(db: Db): Hono {
   // and is logged rather than leaked to the client.
   app.onError((error, c) => {
     if (error instanceof ServiceError) {
-      return c.json({ error: error.message }, error.status as 400 | 404 | 500);
+      return c.json({ error: error.message }, error.status as 400 | 404 | 409 | 500);
     }
 
     console.error(error);

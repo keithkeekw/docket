@@ -15,6 +15,7 @@ import {
 } from '../api/taskDetail';
 import { useDeleteTask, useUpdateTask } from '../api/tasks';
 import { cx } from '../lib/cx';
+import { recurrenceOptions } from '../lib/recurrence';
 import { useUiStore } from '../store/ui';
 import { LinkBadge } from './Badge';
 import { Button } from './Button';
@@ -33,6 +34,7 @@ type FormState = {
   estimateMinutes: string;
   projectId: string;
   milestoneId: string;
+  recurrenceRule: string;
 };
 
 function toForm(task: TaskDetail): FormState {
@@ -46,6 +48,7 @@ function toForm(task: TaskDetail): FormState {
     estimateMinutes: task.estimateMinutes === null ? '' : String(task.estimateMinutes),
     projectId: task.projectId ?? '',
     milestoneId: task.milestoneId ?? '',
+    recurrenceRule: task.recurrenceRule ?? '',
   };
 }
 
@@ -71,6 +74,9 @@ function toPatch(task: TaskDetail, form: FormState): UpdateTaskBody {
 
   const estimate = form.estimateMinutes.trim() === '' ? null : Number(form.estimateMinutes);
   if (estimate !== task.estimateMinutes) patch.estimateMinutes = estimate;
+
+  const rule = form.recurrenceRule === '' ? null : form.recurrenceRule;
+  if (rule !== task.recurrenceRule) patch.recurrenceRule = rule;
 
   const projectId = form.projectId === '' ? null : form.projectId;
   const milestoneId = form.milestoneId === '' ? null : form.milestoneId;
@@ -343,6 +349,21 @@ export function TaskDrawer() {
                         setForm({ ...form, estimateMinutes: event.target.value });
                       }}
                     />
+                  </Field>
+
+                  <Field label="Repeat" hint="Weekly repeats on the due date's weekday.">
+                    <Select
+                      value={form.recurrenceRule}
+                      onChange={(event) => {
+                        setForm({ ...form, recurrenceRule: event.target.value });
+                      }}
+                    >
+                      {recurrenceOptions(form.recurrenceRule || null).map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </Select>
                   </Field>
                 </div>
               </form>

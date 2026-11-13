@@ -1,5 +1,6 @@
 import type { Task } from '@app/shared';
 import { formatEstimate } from '../lib/estimate';
+import { describeRecurrence } from '../lib/recurrence';
 import { LinkBadge, StatusChip } from './Badge';
 import { Checkbox } from './Checkbox';
 import { DueLabel } from './DueLabel';
@@ -128,7 +129,7 @@ export function DataTable({
                 </td>
 
                 <td className="py-1 pr-3 text-[13px] text-zinc-600">
-                  {task.recurrenceRule ? 'Recurring' : DASH}
+                  {describeRecurrence(task.recurrenceRule) ?? DASH}
                 </td>
 
                 <td className="py-1 pr-4">

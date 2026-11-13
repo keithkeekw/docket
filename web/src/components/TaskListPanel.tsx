@@ -1,4 +1,5 @@
 import type { Task } from '@app/shared';
+import { describeRecurrence } from '../lib/recurrence';
 import { EmptyState } from './EmptyState';
 import { GroupHeader } from './GroupHeader';
 import { InlineError } from './InlineError';
@@ -66,6 +67,7 @@ export function TaskListPanel({
                   tags: task.tags,
                   link: task.link ? { url: task.link.url, label: task.link.label } : null,
                   checklist: task.checklist.total > 0 ? task.checklist : null,
+                  repeatLabel: describeRecurrence(task.recurrenceRule),
                 }}
                 onOpen={() => {
                   onOpen(task);

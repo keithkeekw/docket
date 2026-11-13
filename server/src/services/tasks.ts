@@ -20,6 +20,7 @@ import {
 } from '../db/schema';
 import type { Db } from '../db/types';
 import { ServiceError } from '../lib/errors';
+import { createNextOccurrence } from './recurrence';
 import {
   defaultOpenStatusId,
   firstDoneStatusId,
@@ -43,6 +44,7 @@ const taskSelection = {
   dueTime: tasks.dueTime,
   estimateMinutes: tasks.estimateMinutes,
   recurrenceRule: tasks.recurrenceRule,
+  recurrenceParentId: tasks.recurrenceParentId,
   completedAt: tasks.completedAt,
   createdAt: tasks.createdAt,
   updatedAt: tasks.updatedAt,
@@ -64,6 +66,7 @@ type TaskRow = {
   dueTime: string | null;
   estimateMinutes: number | null;
   recurrenceRule: string | null;
+  recurrenceParentId: string | null;
   completedAt: string | null;
   createdAt: string;
   updatedAt: string;
@@ -354,6 +357,7 @@ export function createTask(db: Db, body: CreateTaskBody): Task {
       dueDate: body.dueDate ?? null,
       dueTime: body.dueTime ?? null,
       estimateMinutes: body.estimateMinutes ?? null,
+      recurrenceRule: body.recurrenceRule ?? null,
       position: nextPosition(db, projectId),
     })
     .returning({ id: tasks.id })
@@ -404,6 +408,7 @@ export function updateTask(db: Db, id: string, body: UpdateTaskBody): Task {
   if (body.dueDate !== undefined) patch.dueDate = body.dueDate;
   if (body.dueTime !== undefined) patch.dueTime = body.dueTime;
   if (body.estimateMinutes !== undefined) patch.estimateMinutes = body.estimateMinutes;
+  if (body.recurrenceRule !== undefined) patch.recurrenceRule = body.recurrenceRule;
   if (body.projectId !== undefined) patch.projectId = body.projectId;
   if (body.milestoneId !== undefined) patch.milestoneId = body.milestoneId;
 
@@ -419,7 +424,14 @@ export function updateTask(db: Db, id: string, body: UpdateTaskBody): Task {
 
   db.update(tasks).set(patch).where(eq(tasks.id, id)).run();
 
-  return getTask(db, id);
+  const updated = getTask(db, id);
+  const becameDone = existing.completedAt === null && updated.completedAt !== null;
+
+  // Completion is completion whichever path reached it (D34), so the next
+  // recurrence is created here too, not only from /complete (FR-15).
+  if (becameDone && updated.recurrenceRule) createNextOccurrence(db, updated.id);
+
+  return updated;
 }
 
 /**
@@ -470,7 +482,14 @@ export function setTaskDone(db: Db, id: string, done: boolean): Task {
     .where(eq(tasks.id, id))
     .run();
 
-  return getTask(db, id);
+  const updated = getTask(db, id);
+
+  // FR-15: the next occurrence is created when the task first becomes done.
+  if (done && existing.completedAt === null && updated.recurrenceRule) {
+    createNextOccurrence(db, updated.id);
+  }
+
+  return updated;
 }
 
 export function deleteTask(db: Db, id: string): void {
