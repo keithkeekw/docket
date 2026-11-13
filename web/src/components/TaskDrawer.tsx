@@ -8,6 +8,7 @@ import {
   useAddLink,
   useDeleteChecklistItem,
   useDeleteLink,
+  useGenerateChecklist,
   useSetTaskTags,
   useTaskDetail,
   useTags,
@@ -439,7 +440,9 @@ function ChecklistSection({ taskId, items }: { taskId: string; items: ChecklistI
   const addItem = useAddChecklistItem(taskId);
   const updateItem = useUpdateChecklistItem(taskId);
   const deleteItem = useDeleteChecklistItem(taskId);
+  const generate = useGenerateChecklist(taskId);
   const [title, setTitle] = useState('');
+  const [generateError, setGenerateError] = useState<string | null>(null);
 
   const done = items.filter((item) => item.done).length;
 
@@ -452,9 +455,36 @@ function ChecklistSection({ taskId, items }: { taskId: string; items: ChecklistI
     setTitle('');
   }
 
+  async function handleGenerate() {
+    setGenerateError(null);
+    try {
+      const result = await generate.mutateAsync();
+      for (const itemTitle of result.items) {
+        await addItem.mutateAsync({ title: itemTitle });
+      }
+    } catch (err) {
+      setGenerateError(err instanceof Error ? err.message : 'Generation failed');
+    }
+  }
+
   return (
     <section className="mt-5 border-t border-zinc-100 pt-4">
-      <SectionHeading title="Checklist" meta={`${done} of ${items.length}`} />
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="text-xs font-medium text-zinc-500">
+          Checklist <span className="font-normal">{done} of {items.length}</span>
+        </h3>
+        <button
+          type="button"
+          disabled={generate.isPending || addItem.isPending}
+          onClick={() => { void handleGenerate(); }}
+          className="text-xs text-zinc-500 underline underline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {generate.isPending ? 'Generating…' : 'Auto-generate'}
+        </button>
+      </div>
+      {generateError && (
+        <p className="mt-1 text-xs text-red-600">{generateError}</p>
+      )}
 
       {items.length > 0 && (
         <ul className="mt-2 flex flex-col gap-2">

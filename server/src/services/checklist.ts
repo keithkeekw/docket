@@ -1,5 +1,8 @@
-import type { ChecklistItem, CreateChecklistItemBody, UpdateChecklistItemBody } from '@app/shared';
+import type { AiChecklistResponse, ChecklistItem, CreateChecklistItemBody, UpdateChecklistItemBody } from '@app/shared';
 import { asc, eq, sql } from 'drizzle-orm';
+import { z } from 'zod';
+import { extractJson, makeCompletion, requireFeatureConfig } from '../ai/client';
+import { loadPrompt } from '../ai/prompts';
 import { checklistItems, tasks } from '../db/schema';
 import type { Db } from '../db/types';
 import { ServiceError } from '../lib/errors';
@@ -100,4 +103,43 @@ export function updateChecklistItem(
 export function deleteChecklistItem(db: Db, id: string): void {
   const result = db.delete(checklistItems).where(eq(checklistItems.id, id)).run();
   if (result.changes === 0) throw new ServiceError('Checklist item not found', 404);
+}
+
+const checklistOutputSchema = z.object({ items: z.array(z.string().min(1).max(200)).min(1) });
+
+/** Uses the 'capture' AI feature (the most general one) to generate checklist items. */
+export async function generateChecklist(db: Db, taskId: string): Promise<AiChecklistResponse> {
+  requireFeatureConfig(db, 'capture');
+
+  const task = db
+    .select({ title: tasks.title, notes: tasks.notes })
+    .from(tasks)
+    .where(eq(tasks.id, taskId))
+    .get();
+
+  if (!task) throw new ServiceError('Task not found', 404);
+
+  const complete = makeCompletion(db);
+  const system = loadPrompt('checklist');
+  const user = task.notes
+    ? `Task: ${task.title}\nNotes: ${task.notes}`
+    : `Task: ${task.title}`;
+
+  let result = await complete({ feature: 'capture', system, user });
+  let parsed = checklistOutputSchema.safeParse(extractJson(result.text));
+
+  if (!parsed.success) {
+    result = await complete({
+      feature: 'capture',
+      system,
+      user: `${user}\n\nReturn ONLY the JSON object {"items":[...]}. Previous attempt was invalid: ${parsed.error.message.slice(0, 200)}`,
+    });
+    parsed = checklistOutputSchema.safeParse(extractJson(result.text));
+  }
+
+  if (!parsed.success) {
+    throw new ServiceError('The model returned an unusable checklist. Nothing was saved.', 502);
+  }
+
+  return { items: parsed.data.items };
 }

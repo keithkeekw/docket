@@ -1,8 +1,9 @@
-import { aiBreakdownBodySchema, aiCaptureBodySchema, aiChatBodySchema } from '@app/shared';
+import { aiBreakdownBodySchema, aiCaptureBodySchema, aiChatBodySchema, aiChecklistBodySchema } from '@app/shared';
 import type { Hono } from 'hono';
 import type { Db } from '../db/types';
 import { invalidBody, readJson } from '../lib/http';
 import { chat } from '../services/chat';
+import { generateChecklist } from '../services/checklist';
 import { breakdownProposal, captureProposal } from '../services/proposals';
 
 export function registerAiRoutes(app: Hono, db: Db): void {
@@ -28,5 +29,13 @@ export function registerAiRoutes(app: Hono, db: Db): void {
     if (!parsed.success) return invalidBody(c, parsed.error);
 
     return c.json(await chat(db, parsed.data.messages));
+  });
+
+  // Generates a checklist for an existing task using AI.
+  app.post('/api/ai/checklist', async (c) => {
+    const parsed = aiChecklistBodySchema.safeParse(await readJson(c));
+    if (!parsed.success) return invalidBody(c, parsed.error);
+
+    return c.json(await generateChecklist(db, parsed.data.taskId));
   });
 }

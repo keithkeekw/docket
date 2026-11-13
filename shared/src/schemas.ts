@@ -603,6 +603,16 @@ export const aiChatResponseSchema = z.object({
   proposal: proposalSchema.nullable(),
 });
 
+export const aiChecklistBodySchema = z.strictObject({
+  taskId: z.string().min(1),
+});
+
+export const aiChecklistResponseSchema = z.object({
+  items: z.array(z.string().min(1).max(200)),
+});
+
+export type AiChecklistResponse = z.infer<typeof aiChecklistResponseSchema>;
+
 export type ChatMessage = z.infer<typeof chatMessageSchema>;
 export type AiChatResponse = z.infer<typeof aiChatResponseSchema>;
 

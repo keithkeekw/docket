@@ -1,9 +1,11 @@
 import {
+  aiChecklistResponseSchema,
   checklistItemResponseSchema,
   tagListSchema,
   taskDetailResponseSchema,
   taskLinkResponseSchema,
   taskTagsResponseSchema,
+  type AiChecklistResponse,
   type ChecklistItem,
   type CreateChecklistItemBody,
   type CreateTaskLinkBody,
@@ -96,6 +98,17 @@ export function useDeleteLink(taskId: string) {
   return useTaskPartMutation<void, { id: string }>(taskId, async ({ id }) =>
     apiDelete(`/api/links/${id}`),
   );
+}
+
+export function useGenerateChecklist(taskId: string) {
+  const queryClient = useQueryClient();
+  return useMutation<AiChecklistResponse, Error>({
+    mutationFn: () =>
+      apiMutate('/api/ai/checklist', 'POST', { taskId }, aiChecklistResponseSchema),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: taskDetailQueryKey(taskId) });
+    },
+  });
 }
 
 export function useSetTaskTags(taskId: string) {
