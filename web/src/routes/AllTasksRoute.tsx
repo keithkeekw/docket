@@ -33,6 +33,10 @@ export function AllTasksRoute() {
   const filters = useViewStore((state) => state.filters);
   const setFilters = useViewStore((state) => state.setFilters);
   const clearFilters = useViewStore((state) => state.clearFilters);
+  const tableSort = useViewStore((state) => state.tableSort);
+  const tableGroup = useViewStore((state) => state.tableGroup);
+  const toggleTableSort = useViewStore((state) => state.toggleTableSort);
+  const setTableGroup = useViewStore((state) => state.setTableGroup);
 
   const openTask = useUiStore((state) => state.openTask);
   const openCapture = useUiStore((state) => state.openCapture);
@@ -187,6 +191,10 @@ export function AllTasksRoute() {
         emptyMessage={emptyMessage}
         listLabel="All tasks"
         tableFooter={countLabel}
+        sort={tableSort}
+        group={tableGroup}
+        onSort={toggleTableSort}
+        onGroupChange={setTableGroup}
       />
     </>
   );

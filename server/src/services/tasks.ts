@@ -21,6 +21,7 @@ import {
 import type { Db } from '../db/types';
 import { ServiceError } from '../lib/errors';
 import { createNextOccurrence } from './recurrence';
+import { undoableTaskDelete } from './undo';
 import {
   defaultOpenStatusId,
   firstDoneStatusId,
@@ -505,6 +506,7 @@ export function setTaskDone(db: Db, id: string, done: boolean): Task {
 }
 
 export function deleteTask(db: Db, id: string): void {
+  undoableTaskDelete(db, id);
   const result = db.delete(tasks).where(eq(tasks.id, id)).run();
   if (result.changes === 0) throw new ServiceError('Task not found', 404);
 }

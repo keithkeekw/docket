@@ -5,6 +5,7 @@ import { ProjectDialog } from './ProjectDialog';
 import { ProposalModal } from './ProposalModal';
 import { Sidebar } from './Sidebar';
 import { TaskDrawer } from './TaskDrawer';
+import { UndoBar } from './UndoBar';
 
 /**
  * DESIGN §3 app shell: sidebar + main content in a wrapping flex row.
@@ -19,6 +20,7 @@ export function AppShell() {
     <div className="flex min-h-full flex-col bg-zinc-50 min-[900px]:flex-row">
       <Sidebar />
       <main className="min-w-0 flex-1 px-8 pt-6 pb-12">
+        <UndoBar />
         <Outlet />
       </main>
       <CaptureDialog />

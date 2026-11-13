@@ -16,7 +16,7 @@ import {
   useStatuses,
   useUpdateStatus,
 } from '../api/statuses';
-import { Button } from '../components/Button';
+import { Button, buttonClassName } from '../components/Button';
 import { Field, Input, Select } from '../components/Field';
 import { InlineError } from '../components/InlineError';
 import { PageHeader } from '../components/PageHeader';
@@ -428,6 +428,23 @@ function DataSection() {
 
       {message && <p className="mt-3 rounded-lg bg-zinc-50 px-3 py-2.5 text-xs text-zinc-700">{message}</p>}
       {error && <InlineError message={error} />}
+
+      <div className="mt-6 border-t border-zinc-100 pt-4">
+        <h3 className="text-[13px] font-medium text-zinc-900">Export</h3>
+        <p className="mt-1 max-w-[560px] text-xs text-zinc-500">
+          A full copy of your projects, tasks, reviews and settings — for keeping
+          outside the app. Keys are never included.
+        </p>
+
+        <div className="mt-2 flex flex-wrap gap-2">
+          <a href="/api/export?format=json" download className={buttonClassName('secondary')}>
+            Export JSON
+          </a>
+          <a href="/api/export?format=markdown" download className={buttonClassName('secondary')}>
+            Export Markdown
+          </a>
+        </div>
+      </div>
     </section>
   );
 }

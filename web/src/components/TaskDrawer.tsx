@@ -96,6 +96,7 @@ function toPatch(task: TaskDetail, form: FormState): UpdateTaskBody {
 export function TaskDrawer() {
   const drawerTask = useUiStore((state) => state.drawerTask);
   const closeTask = useUiStore((state) => state.closeTask);
+  const showUndo = useUiStore((state) => state.showUndo);
 
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const seededRef = useRef<string | null>(null);
@@ -173,6 +174,7 @@ export function TaskDrawer() {
 
     try {
       await deleteTask.mutateAsync({ id: task.id });
+      showUndo(`Task “${task.title}” deleted`);
       closeTask();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Could not delete the task');

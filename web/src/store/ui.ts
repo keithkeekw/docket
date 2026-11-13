@@ -19,6 +19,11 @@ type UiStore = {
   openTask: (task: Task) => void;
   closeTask: () => void;
 
+  /** Label of the last destructive action, shown in the undo bar (FR-29). */
+  undoLabel: string | null;
+  showUndo: (label: string) => void;
+  clearUndo: () => void;
+
   /** Chat drawer (FR-22), mounted once in the shell. */
   chatOpen: boolean;
   openChat: () => void;
@@ -60,6 +65,14 @@ export const useUiStore = create<UiStore>((set) => ({
   },
   closeTask: () => {
     set({ drawerTask: null });
+  },
+
+  undoLabel: null,
+  showUndo: (undoLabel) => {
+    set({ undoLabel });
+  },
+  clearUndo: () => {
+    set({ undoLabel: null });
   },
 
   chatOpen: false,

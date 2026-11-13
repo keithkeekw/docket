@@ -1,5 +1,6 @@
 import type { Priority } from '@app/shared';
 import { create } from 'zustand';
+import type { SortKey, TableGroup, TableSort } from '../lib/table';
 import { resolveDueRange, type DueRange, type TaskFilter } from '../lib/taskFilters';
 import type { ViewMode } from '../components/ViewSwitcher';
 
@@ -25,6 +26,11 @@ const EMPTY_FILTERS: UiFilters = {
 type ViewStore = {
   view: ViewMode;
   setView: (view: ViewMode) => void;
+  /** Table sorting and grouping (FR-13); kept here so a view switch keeps them. */
+  tableSort: TableSort;
+  tableGroup: TableGroup;
+  toggleTableSort: (key: SortKey) => void;
+  setTableGroup: (group: TableGroup) => void;
   filters: UiFilters;
   setFilters: (patch: Partial<UiFilters>) => void;
   clearFilters: () => void;
@@ -40,6 +46,19 @@ export const useViewStore = create<ViewStore>((set) => ({
   view: 'list',
   setView: (view) => {
     set({ view });
+  },
+  tableSort: { key: 'due', dir: 'asc' },
+  tableGroup: 'none',
+  toggleTableSort: (key) => {
+    set((state) => ({
+      tableSort:
+        state.tableSort.key === key
+          ? { key, dir: state.tableSort.dir === 'asc' ? 'desc' : 'asc' }
+          : { key, dir: 'asc' },
+    }));
+  },
+  setTableGroup: (tableGroup) => {
+    set({ tableGroup });
   },
   filters: EMPTY_FILTERS,
   setFilters: (patch) => {

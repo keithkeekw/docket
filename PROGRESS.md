@@ -4,7 +4,7 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 `docs/DESIGN.md` at the start of every session.
 
 - **Last updated:** 13 Nov 2026
-- **Current step:** M4-S16 (next) — undo, export, table sort/group, state audit
+- **Current step:** M1–M4 complete — see "Remaining work" for the open questions
 - **Spec sources:** `docs/PRD.md` (behaviour), `docs/TECHSTACK.md` (implementation), `docs/DESIGN.md` (visuals)
 
 ---
@@ -28,7 +28,7 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 | M2-S13 | Project breakdown from a proposal | ✅ Done |
 | M3-S14 | Review generation, scheduler, Reviews screen | ✅ Done |
 | M3-S15 | Chat drawer with read-only tools | ✅ Done |
-| M4-S16 | Undo, export, sort/group, state audit | ⬜ Next |
+| M4-S16 | Undo, export, sort/group, state audit, perf fixture | ✅ Done |
 
 ---
 
@@ -1085,6 +1085,71 @@ M3 is complete: reviews (FR-19–21) and chat (FR-22) are built and verified.
 
 ---
 
+## M4-S16 — Undo, export, sorting, state audit ✅
+
+### Built
+
+- **Undo** (FR-29, D66): one in-memory slot on the server. Deleting a task,
+  project or milestone snapshots what it needs and registers a restore;
+  `GET /api/undo` reports the label and `POST /api/undo` runs it. The shell shows
+  a persistent "… deleted · Undo · Dismiss" bar (DESIGN §6 forbids vanishing
+  toasts), and a restore clears the slot.
+- **Export** (FR-28, D68): `GET /api/export?format=json` (versioned dump of every
+  table, with tags/links/checklist nested under tasks) and `?format=markdown`
+  (project → milestone → task outline plus reviews and statuses). Both download
+  from the Settings → Data section.
+- **Table sorting and grouping** (FR-13): every column header sorts (asc/desc,
+  `aria-sort`, stable within equal values), and a "Group by" select groups by
+  project, status or priority with labelled group rows. The state lives in
+  `useViewStore`, so a view switch keeps it.
+- **`db:seed:perf`** (D69) and the NFR-4 fix it uncovered (D67): the Table now
+  renders a 300-row page after sorting the full set.
+- **State audit**: every screen has loading, empty and error states (Inbox,
+  Today, All tasks, project, Reviews, dashboard, Settings sections), no
+  placeholder bodies remain, and the AI surfaces show a configure message with a
+  Settings link instead of a raw error.
+
+### Verification performed
+
+```bash
+npm run typecheck   # clean
+npm test            # 207 passed across 24 files (16 new)
+npm run build       # clean
+```
+
+Performance, against 5,000 tasks / 50 projects:
+
+| Endpoint / view | Result |
+|---|---|
+| `GET /api/nav` | 3 ms |
+| `GET /api/dashboard` | 29 ms |
+| `GET /api/tasks` (all 5,000) | 43 ms |
+| Dashboard screen | 112 ms |
+| List view (5,000 rows) | 582 ms |
+| Table view before the fix | 5–10 s (failed NFR-4) |
+| Table view after the fix (300 rows) | 187 ms |
+
+Functional checks in the browser:
+
+- Sorting by Task flipped `aria-sort` between `ascending` and `descending` and
+  changed the first row; grouping by project produced 51 groups (50 projects and
+  Inbox) with the sorted order kept inside each.
+- Deleting a task took the list from 5,000 to 4,999 and showed
+  "Task “…” deleted · Undo · Dismiss"; Undo restored it to 5,000.
+- Settings shows the two export links, and the route sets an attachment
+  `Content-Disposition` (covered by tests too).
+- The undo bar disappears after Dismiss or after the next destructive action.
+
+### PRD IDs advanced
+
+- **FR-28 — done.** JSON and Markdown export.
+- **FR-29 — done for task, project and milestone deletes** (one step back).
+- **FR-13 — done.** Sorting by every column and grouping by project, status or
+  priority.
+- **NFR-4 — met**, with the Table row cap above.
+
+---
+
 ## Decisions
 
 | # | Decision |
@@ -1154,48 +1219,46 @@ M3 is complete: reviews (FR-19–21) and chat (FR-22) are built and verified.
 | D63 | Chat runs a real tool loop (max 4 rounds) with `list_tasks`, `get_task`, `list_projects`, `get_project_summary`, `get_review`. If the provider rejects tool calling, one attempt runs with a compact data summary in the system prompt (TECHSTACK §6.4) — that mode cannot propose tasks, and the reply says so. A 503 (unconfigured) is never swallowed into the fallback. |
 | D64 | Writes are impossible from chat: `propose_tasks` validates the same model-task shape as capture, resolves names through the same code and stores a **pending** proposal. The drawer hands it to the shared preview modal, so FR-23 holds for chat too. |
 | D65 | Every tool withholds AI-excluded projects: task lists filter them out, `get_task` and `get_project_summary` refuse with a sentence rather than leaking a title, and the fallback summary is filtered the same way (FR-25). |
+| D66 | Undo is one in-memory slot on the server (FR-29), not a history or a soft-delete column. Deleting a task snapshots the row plus its tags, links and checklist; deleting a project snapshots its row, milestones and the task links; deleting a milestone snapshots its row and the tasks inside it. The slot is cleared by a restore and by the next destructive action, and it does not survive a restart. |
+| D67 | NFR-4 failed on a real fixture: the List view painted 5,000 tasks in ~580 ms, the dashboard in ~110 ms, but the 10-column Table needed 5–10 s. The Table now sorts the whole set and renders the first 300 rows, with "showing first 300 of 5,000" in the footer — 187 ms afterwards. Lists are untouched because they already meet the budget. |
+| D68 | Export is a plain `GET /api/export?format=json` (or `markdown`) download (FR-28). JSON is a versioned dump of every table with tasks' tags/links/checklist nested; Markdown is a readable project → milestone → task outline plus reviews and statuses. Keys are not in the database, so neither format can contain one. |
+| D69 | `db:seed:perf` refuses to run against `data/app.db` (D18: never invent work in the real database) and needs `DATABASE_PATH=./data/perf.db`. It writes 50 projects, 150 milestones and 5,000 tasks with a fixed seed so measurements are comparable. |
 
 ## Follow-ups / known gaps
 
-- **ESLint + Prettier** not installed yet — decide in M4-S16 (the state audit
-  step) or ask Keith sooner if lint drift becomes a problem.
-- `preline/non-auto` chunk: **resolved in M1-S4** by removing the bundle (D25).
-  The task drawer and quick capture landed on a native `<dialog>` instead of a
-  Preline plugin (D26), so no Preline JS is loaded yet.
-- Placeholder bodies are gone; the only empty-by-design areas are the dashboard's
-  review card (M3) and the Settings sections after Statuses (M2).
-- The web bundle crossed Vite's 500 kB warning in M1-S7 (554 kB, 164 kB gzip)
-  when dnd-kit landed. Fine for a local app; revisit with route-level
-  `import()` splitting if it keeps growing.
+- `preline/non-auto` chunk: **resolved in M1-S4** (D25). The dialogs use a native
+  `<dialog>` (D26), so no Preline JS is loaded at all.
 - The Table's Links column shows the task's first link only — the list payload
   carries one link per task on purpose (D28).
-- Kanban supports moving between columns, not reordering within a column; the
-  card's `position` is unchanged by a status move.
-- Server-side `sort`/`group` parameters from TECHSTACK §5 are still unwritten;
-  they belong to M4-S16 with FR-13.
-- Recurrence has no UI for "weekly on chosen days" beyond the due date's
-  weekday; the API accepts any RRULE with `BYDAY`, and the drawer shows such a
-  rule as "Custom (…)" rather than dropping it.
+- Kanban moves cards between columns, not within one; a status drag leaves
+  `position` unchanged.
 - Editing a recurring task's due date does not reschedule occurrences that were
   already created — each occurrence is its own row (D40).
 - Restoring a backup made by an **older schema** fails cleanly ("Restore failed:
   table … has N columns but M values were supplied") and rolls back; there is no
-  migration-on-restore. Only relevant once a migration ships after M1.
+  migration-on-restore.
 - Backups are never pruned automatically; the Settings list grows until files are
   removed from `data/backups` by hand.
 - `npm audit` reports 4 moderate advisories from drizzle-kit's bundled
-  `@esbuild-kit/esm-loader` (old esbuild). Dev-only CLI, not shipped, no dev
-  server involved; **do not** run `npm audit fix --force` (it would downgrade
-  drizzle-kit to 0.18.1).
-- `db:seed:perf` (5,000 tasks / 50 projects for NFR-4) not written yet.
-- PRD open questions for Keith: Q1 (company AI policy), Q5 (final app name).
-  Neither blocks M1.
+  `@esbuild-kit/esm-loader` (old esbuild). Dev-only CLI, not shipped; **do not**
+  run `npm audit fix --force` (it would downgrade drizzle-kit to 0.18.1).
 
-## Next step — M4-S16
+---
 
-The polish step TECHSTACK §11 leaves for last: undo for the last destructive
-action (FR-29), JSON/Markdown export (FR-28), Table sorting and grouping (FR-13),
-plus the state audit — every empty, error and loading state checked against
-DESIGN §6, and the leftover placeholders removed. `db:seed:perf` (5,000 tasks /
-50 projects) should land here too, so NFR-4 can be measured before opening the
-desktop-wrapper question (PRD Q4).
+## Remaining work (post-M4)
+
+- **PRD Q1** (AI policy) still decides whether AI is on by default; **Q5** (app
+  name) is still `[App name]`; **Q4** (desktop wrapper for an OS-level capture
+  shortcut) is unstarted.
+- **No live-provider test.** Every AI path was verified against the local stub
+  (D51). A smoke test with a real DeepSeek/OpenRouter key is the next step before
+  relying on any of it.
+- **ESLint + Prettier** were never installed (decided in §11 as a tooling item).
+  The code is typechecked and tested, but there is no lint gate.
+- **Undo** covers deletes only (not bulk moves — the app has none yet) and does
+  not survive a restart.
+- **Recurrence** has no "weekly on chosen days" picker beyond the due weekday.
+- **Table and List** render a capped/page of rows for speed; pagination instead
+  of a cap would be the next refinement.
+- Bundle is 560 kB (166 kB gzip) after react-markdown; route-level code
+  splitting would bring the initial payload down.

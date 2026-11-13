@@ -8,6 +8,7 @@ import { and, asc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
 import { milestones, projects, tasks } from '../db/schema';
 import type { Db } from '../db/types';
 import { ServiceError } from '../lib/errors';
+import { undoableProjectDelete } from './undo';
 
 const projectSelection = {
   id: projects.id,
@@ -185,6 +186,7 @@ export function updateProject(db: Db, id: string, body: UpdateProjectBody): Proj
  * milestones are removed with it (PROGRESS D7). Both are foreign keys.
  */
 export function deleteProject(db: Db, id: string): void {
+  undoableProjectDelete(db, id);
   const result = db.delete(projects).where(eq(projects.id, id)).run();
   if (result.changes === 0) throw new ServiceError('Project not found', 404);
 }

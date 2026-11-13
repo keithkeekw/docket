@@ -437,6 +437,10 @@ export const backupResponseSchema = z.object({
   backup: backupEntrySchema,
 });
 
+export const undoResponseSchema = z.object({
+  label: z.string().nullable(),
+});
+
 export const restoreBodySchema = z.strictObject({
   file: z.string().min(1).max(255),
 });

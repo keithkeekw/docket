@@ -3,6 +3,7 @@ import { asc, eq, sql } from 'drizzle-orm';
 import { milestones, projects, tasks } from '../db/schema';
 import type { Db } from '../db/types';
 import { ServiceError } from '../lib/errors';
+import { undoableMilestoneDelete } from './undo';
 
 const milestoneSelection = {
   id: milestones.id,
@@ -132,6 +133,7 @@ export function updateMilestone(db: Db, id: string, body: UpdateMilestoneBody): 
 
 /** Tasks stay in the project and drop to project level (PROGRESS D7). */
 export function deleteMilestone(db: Db, id: string): void {
+  undoableMilestoneDelete(db, id);
   const result = db.delete(milestones).where(eq(milestones.id, id)).run();
   if (result.changes === 0) throw new ServiceError('Milestone not found', 404);
 }

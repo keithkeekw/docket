@@ -162,6 +162,7 @@ function CreateProjectForm({ onClose }: { onClose: () => void }) {
 
 function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: () => void }) {
   const navigate = useNavigate();
+  const showUndo = useUiStore((store) => store.showUndo);
   const project = useProject(projectId);
   const updateProject = useUpdateProject();
   const deleteProject = useDeleteProject();
@@ -221,6 +222,7 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
 
     try {
       await deleteProject.mutateAsync({ id: project.data.id });
+      showUndo(`Project “${project.data.name}” deleted`);
       onClose();
       void navigate('/inbox');
     } catch (cause) {

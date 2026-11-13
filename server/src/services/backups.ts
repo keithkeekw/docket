@@ -4,6 +4,7 @@ import type { BackupEntry } from '@app/shared';
 import type { Db } from '../db/types';
 import { env } from '../env';
 import { ServiceError } from '../lib/errors';
+import { clearUndo } from './undo';
 
 /** `data/backups` next to the database file, unless a caller overrides it. */
 export function defaultBackupsDir(): string {
@@ -131,6 +132,9 @@ export async function restoreBackup(
   } finally {
     raw.exec('DETACH DATABASE restored');
   }
+
+  // The undo closure refers to rows that no longer exist.
+  clearUndo();
 
   return { restored: path.basename(target), safetyBackup };
 }

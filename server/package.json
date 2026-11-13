@@ -10,7 +10,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:seed": "tsx src/db/seed.ts",
     "db:studio": "drizzle-kit studio",
-    "typecheck": "tsc --noEmit -p tsconfig.json"
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "db:seed:perf": "tsx src/db/seed-perf.ts"
   },
   "dependencies": {
     "@app/shared": "0.1.0",

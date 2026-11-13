@@ -36,6 +36,10 @@ export function ProjectRoute() {
 
   const view = useViewStore((state) => state.view);
   const setView = useViewStore((state) => state.setView);
+  const tableSort = useViewStore((state) => state.tableSort);
+  const tableGroup = useViewStore((state) => state.tableGroup);
+  const toggleTableSort = useViewStore((state) => state.toggleTableSort);
+  const setTableGroup = useViewStore((state) => state.setTableGroup);
 
   const [milestoneFilter, setMilestoneFilter] = useState<string | null>(null);
   const [addingMilestone, setAddingMilestone] = useState(false);
@@ -229,6 +233,10 @@ export function ProjectRoute() {
         tableFooter={`${visibleTasks.length} ${
           visibleTasks.length === 1 ? 'task' : 'tasks'
         } · sorted by due date`}
+        sort={tableSort}
+        group={tableGroup}
+        onSort={toggleTableSort}
+        onGroupChange={setTableGroup}
       />
     </>
   );
