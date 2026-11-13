@@ -1,11 +1,13 @@
 import { format, parse } from 'date-fns';
 import { Link } from 'react-router';
 import { useDashboard } from '../api/dashboard';
+import { useGenerateReview } from '../api/reviews';
 import { useCompleteTask } from '../api/tasks';
 import { CaptureBar } from '../components/CaptureBar';
 import { GroupHeader } from '../components/GroupHeader';
 import { InlineError } from '../components/InlineError';
 import { ProjectCard } from '../components/ProjectCard';
+import { ReviewCard } from '../components/ReviewCard';
 import { TaskRow } from '../components/TaskRow';
 import { modKeyLabel } from '../lib/platform';
 import { toTaskRow } from '../lib/taskRow';
@@ -19,6 +21,7 @@ import { useUiStore } from '../store/ui';
 export function DashboardRoute() {
   const dashboard = useDashboard();
   const completeTask = useCompleteTask();
+  const generateReview = useGenerateReview();
   const openTask = useUiStore((state) => state.openTask);
   const openProjectDialog = useUiStore((state) => state.openProjectDialog);
 
@@ -61,6 +64,22 @@ export function DashboardRoute() {
             void dashboard.refetch();
           }}
         />
+      )}
+
+      {data?.latestReview && (
+        <div className="mt-6">
+          <ReviewCard
+            review={data.latestReview}
+            regenerating={generateReview.isPending}
+            onRegenerate={() => {
+              generateReview.mutate({ kind: data.latestReview?.kind ?? 'daily' });
+            }}
+          />
+        </div>
+      )}
+
+      {generateReview.error && (
+        <p className="mt-2 text-xs text-zinc-700">{generateReview.error.message}</p>
       )}
 
       {data && (

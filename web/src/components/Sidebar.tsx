@@ -8,9 +8,9 @@ import { NavItem } from './NavItem';
  * DESIGN §3 app shell sidebar. 232 px on desktop with Settings pinned to the
  * bottom; below 900 px it stacks above the content (no hamburger for v1).
  *
- * Reviews is hidden until M3 (PROGRESS D10). Counts and the project list come
- * from `GET /api/nav`; when that request fails the sidebar still renders, just
- * without counts, so navigation never depends on the API being up.
+ * Counts and the project list come from `GET /api/nav`; when that request fails
+ * the sidebar still renders, just without counts, so navigation never depends on
+ * the API being up. Reviews appears from M3 (D10).
  */
 export function Sidebar() {
   const nav = useNavSummary();
@@ -41,6 +41,9 @@ export function Sidebar() {
           </li>
           <li>
             <NavItem to="/tasks" label="All tasks" count={counts?.all} />
+          </li>
+          <li>
+            <NavItem to="/reviews" label="Reviews" />
           </li>
         </ul>
       </nav>

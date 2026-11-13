@@ -374,6 +374,25 @@ export const reviewSchema = z.object({
 
 export type Review = z.infer<typeof reviewSchema>;
 
+/** List rows omit the Markdown body, which can be long. */
+export const reviewSummarySchema = reviewSchema.omit({ contentMd: true });
+
+export const reviewListSchema = z.object({
+  reviews: z.array(reviewSummarySchema),
+});
+
+export const reviewResponseSchema = z.object({
+  review: reviewSchema,
+});
+
+export const generateReviewBodySchema = z.strictObject({
+  kind: z.enum(['daily', 'weekly', 'manual']),
+});
+
+export type ReviewSummary = z.infer<typeof reviewSummarySchema>;
+export type ReviewList = z.infer<typeof reviewListSchema>;
+export type ReviewKind = z.infer<typeof reviewSchema.shape.kind>;
+
 export const dashboardCountsSchema = z.object({
   overdue: z.number().int().nonnegative(),
   today: z.number().int().nonnegative(),

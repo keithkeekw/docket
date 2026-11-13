@@ -4,7 +4,7 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 `docs/DESIGN.md` at the start of every session.
 
 - **Last updated:** 13 Nov 2026
-- **Current step:** M3-S14 (next) — review generation, scheduler, Reviews screen
+- **Current step:** M3-S15 (next) — chat drawer with read-only tools
 - **Spec sources:** `docs/PRD.md` (behaviour), `docs/TECHSTACK.md` (implementation), `docs/DESIGN.md` (visuals)
 
 ---
@@ -26,7 +26,8 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 | M2-S11 | Settings: providers, per-feature models, AI exclusion | ✅ Done |
 | M2-S12 | AI client, proposal schema, proposals wiring, preview modal | ✅ Done |
 | M2-S13 | Project breakdown from a proposal | ✅ Done |
-| M3-S14–15 | Reviews + scheduler, chat drawer | ⬜ Next |
+| M3-S14 | Review generation, scheduler, Reviews screen | ✅ Done |
+| M3-S15 | Chat drawer with read-only tools | ⬜ Next |
 | M4-S16 | Undo, export, sort/group, state audit | ⬜ |
 
 ---
@@ -960,6 +961,71 @@ UI, headless Chrome at 1280 × 900:
 
 ---
 
+## M3-S14 — Reviews ✅
+
+### Built
+
+- **Review generation** (`services/reviews.ts`, FR-21): aggregates the period
+  (completed work with local-date matching in SQLite, overdue, due within seven
+  days, open/inbox counts, active-project progress), sends it to the review model
+  with `ai/prompts/review.md`, strips a fence if the model adds one, and stores
+  `contentMd` + `model` + period in `reviews`. `409`-style states are not
+  needed — reviews are read-only and never go through proposals.
+- **Watermarks** (D59): a scheduled review stamps `last_daily_review_at` /
+  `last_weekly_review_at`; a manual one does not.
+- **Scheduler** (`scheduler.ts`, FR-19/FR-20): `node-cron` jobs built from
+  `app_settings`, plus a catch-up sweep on start. `services/schedule.ts` holds
+  the pure decision (`dueReviews`, `lastWeeklySlot`) so it is tested without
+  timers. A missing configuration or a provider error is logged and skipped.
+- **API**: `GET /api/reviews` (list, no body), `GET /api/reviews/:id` (marks
+  `openedAt` on first read — the PRD's "days started from a review" metric),
+  `POST /api/reviews/generate { kind }`.
+- **Reviews screen** (DESIGN §5.5): past reviews on the left (date + type), the
+  selected review rendered from Markdown on the right, "Generate now" as the
+  single primary.
+- **Dashboard ReviewCard** (DESIGN §4): title from the kind, "Generated … ·
+  model", Regenerate + Open review, and up to four bullet insights pulled from
+  the Markdown.
+- **Nav**: Reviews returns to the sidebar and the router (D10 lifted).
+
+### Verification performed
+
+```bash
+npm run typecheck   # clean
+npm test            # 181 passed across 20 files (22 new)
+npm run build       # clean
+```
+
+Against a throwaway database with the local stub provider:
+
+- Seeded a project, three open tasks (one overdue, one due today) and one
+  completed today; configured `review_daily`; restarted the server. The log
+  showed `Review: daily generated (catch-up)` and `GET /api/reviews` listed one
+  daily review for 2026-11-13 — FR-20 proven on a real boot.
+- The weekly catch-up was correctly skipped because `review_weekly` has no
+  model; `last_weekly_review_at` stayed empty.
+- `last_daily_review_at` was set; the manual review generated from the UI did
+  not move it.
+
+UI, headless Chrome at 1280 × 950:
+
+- Sidebar shows Reviews; the screen listed the daily review, and the article
+  rendered the Markdown (heading, three bullets, a "Focus" section with two more).
+- "Generate now" created a `manual` review, selected it and moved it to the top.
+- Opening reviews set `openedAt` on both rows (verified through the API).
+- The dashboard card showed "Review · Generated 13 Nov, 20:20 · deepseek-chat"
+  with four bullets and Regenerate / Open review.
+
+### PRD IDs advanced
+
+- **FR-19 — done.** Daily and weekly reviews at the configured times.
+- **FR-20 — done.** Missed reviews are generated on the next start.
+- **FR-21 — done.** On-demand generation and a browsable history.
+- **FR-17**'s review slot is now real (the card only renders when a review
+  exists, per D10).
+
+---
+
 ## Decisions
 
 | # | Decision |
@@ -1021,6 +1087,10 @@ UI, headless Chrome at 1280 × 900:
 | D55 | A breakdown task can point at a milestone **proposed in the same batch**. The milestone item carries `ref` (its name) and the task carries `fields.milestoneRef`; apply creates milestones first and rewrites the reference to the new id. If the user unticks the milestone, the task falls back to project level rather than vanishing. |
 | D56 | Breakdown reuses existing milestones: a proposed name that matches one already in the project is dropped from the proposal, so running it twice does not create "Phase 1" twice. |
 | D57 | The proposal modal is a flex column with a fixed footer, so with many items the "Add N" button stays on screen; two defects found during verification (the feature key rendered as "breakdown model", and the footer falling off a 900 px viewport with five items) were fixed in the same pass. |
+| D58 | A review's input is **names, dates and counts only** — no notes — and AI-excluded projects are dropped, matching the capture rule (FR-25). The period is today for `daily`/`manual` and the last seven days for `weekly`. |
+| D59 | Only `daily` and `weekly` reviews advance `last_*_review_at`. A manual review would otherwise make the app think the scheduled one had already run. |
+| D60 | Catch-up follows TECHSTACK §7 literally: a slot is missed when it has passed and nothing has been generated since; `last_*_review_at = null` means "never", so the first start after the scheduled time generates one review. Reviews still only run while the server runs, and a failed generation never stops the server (NFR-9). |
+| D61 | The slider between scheduled and on-demand is the `kind` column: "Generate now" writes `manual`, so the dashboard card says "Review" rather than pretending a hand-triggered one was the daily. The card's title follows the kind. |
 
 ## Follow-ups / known gaps
 
@@ -1058,12 +1128,12 @@ UI, headless Chrome at 1280 × 900:
 - PRD open questions for Keith: Q1 (company AI policy), Q5 (final app name).
   Neither blocks M1.
 
-## Next step — M3-S14
+## Next step — M3-S15
 
-Reviews: `POST /api/reviews/generate { kind }` that aggregates the period's
-completed, overdue and upcoming work plus project progress, asks the review model
-for Markdown, and stores a `reviews` row (FR-19–FR-21). Then the scheduler —
-`node-cron` for the daily time and weekly day/time in `app_settings`, with a
-catch-up on start for missed periods (FR-20) — and the Reviews screen (list on
-the left, content on the right, "Generate now"). The dashboard's ReviewCard
-becomes real at that point, reading `latestReview` that S9 already returns.
+The chat drawer (FR-22, DESIGN §5.5): a 420 px right drawer with a message list
+(assistant on white, user on `zinc-100`), an input at the bottom, and read-only
+tools — `list_tasks`, `get_task`, `list_projects`, `get_project_summary`,
+`get_review` — that reuse the existing service filters and skip AI-excluded
+projects. Any proposed write comes back as a proposal and opens the same preview
+modal. Falls back to a compact data summary in the prompt when the chosen model
+has no tool calling (TECHSTACK §6.4).

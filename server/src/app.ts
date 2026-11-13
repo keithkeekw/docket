@@ -14,6 +14,7 @@ import { registerLinkRoutes } from './routes/links';
 import { registerMilestoneRoutes } from './routes/milestones';
 import { registerProjectRoutes } from './routes/projects';
 import { registerProposalRoutes } from './routes/proposals';
+import { registerReviewRoutes } from './routes/reviews';
 import { registerStatusRoutes } from './routes/statuses';
 import { registerTagRoutes } from './routes/tags';
 import { registerTaskRoutes } from './routes/tasks';
@@ -71,6 +72,7 @@ export function createApp(db: Db, options: { backupsDir?: string } = {}): Hono {
   registerAiSettingsRoutes(app, db);
   registerAiRoutes(app, db);
   registerProposalRoutes(app, db);
+  registerReviewRoutes(app, db);
   registerBackupRoutes(app, db, options.backupsDir);
 
   // Services throw ServiceError with the intended status; anything else is a bug
