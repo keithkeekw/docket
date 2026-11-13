@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from 'react';
-import { useParams } from 'react-router';
+import { Link, useParams } from 'react-router';
 import { useCreateMilestone, useMilestones, useProject } from '../api/projects';
+import { ApiError } from '../api/client';
+import { useBreakdown } from '../api/proposals';
 import { useStatuses } from '../api/statuses';
 import { useCompleteTask, useTasks, useUpdateTask } from '../api/tasks';
 import { Button } from '../components/Button';
@@ -30,6 +32,7 @@ export function ProjectRoute() {
   const openTask = useUiStore((state) => state.openTask);
   const openCapture = useUiStore((state) => state.openCapture);
   const openProjectDialog = useUiStore((state) => state.openProjectDialog);
+  const openProposal = useUiStore((state) => state.openProposal);
 
   const view = useViewStore((state) => state.view);
   const setView = useViewStore((state) => state.setView);
@@ -37,8 +40,12 @@ export function ProjectRoute() {
   const [milestoneFilter, setMilestoneFilter] = useState<string | null>(null);
   const [addingMilestone, setAddingMilestone] = useState(false);
   const [milestoneName, setMilestoneName] = useState('');
+  const [breakdownError, setBreakdownError] = useState<{ message: string; needsSettings: boolean } | null>(
+    null,
+  );
 
   const createMilestone = useCreateMilestone(id ?? '');
+  const breakdown = useBreakdown();
 
   if (project.error) {
     return (
@@ -72,6 +79,20 @@ export function ProjectRoute() {
 
   const activeMilestone = pills.find((milestone) => milestone.id === milestoneFilter);
 
+  /** FR-18: the model proposes milestones and tasks; nothing is written until confirm. */
+  async function runBreakdown() {
+    try {
+      const proposal = await breakdown.mutateAsync({ projectId: data.id });
+      openProposal(proposal);
+      setBreakdownError(null);
+    } catch (cause) {
+      setBreakdownError({
+        message: cause instanceof Error ? cause.message : 'Could not break down the project',
+        needsSettings: cause instanceof ApiError && cause.status === 503,
+      });
+    }
+  }
+
   async function addMilestone(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const name = milestoneName.trim();
@@ -99,6 +120,14 @@ export function ProjectRoute() {
               >
                 Edit project
               </Button>
+              <Button
+                onClick={() => {
+                  void runBreakdown();
+                }}
+                disabled={breakdown.isPending}
+              >
+                {breakdown.isPending ? 'Thinking…' : 'Break down with AI'}
+              </Button>
               <Button variant="primary" onClick={() => openCapture({ projectId: data.id })}>
                 New task
               </Button>
@@ -106,6 +135,17 @@ export function ProjectRoute() {
           }
         />
       </div>
+
+      {breakdownError && (
+        <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-zinc-50 px-3 py-2.5 text-xs text-zinc-700">
+          <span>{breakdownError.message}</span>
+          {breakdownError.needsSettings && (
+            <Link to="/settings" className="text-blue-600 hover:underline">
+              Open Settings
+            </Link>
+          )}
+        </div>
+      )}
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         {pills.map((milestone) => (

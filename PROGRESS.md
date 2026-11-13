@@ -4,7 +4,7 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 `docs/DESIGN.md` at the start of every session.
 
 - **Last updated:** 13 Nov 2026
-- **Current step:** M2-S13 (next) — project breakdown from an AI proposal
+- **Current step:** M3-S14 (next) — review generation, scheduler, Reviews screen
 - **Spec sources:** `docs/PRD.md` (behaviour), `docs/TECHSTACK.md` (implementation), `docs/DESIGN.md` (visuals)
 
 ---
@@ -25,8 +25,8 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 | M1-S10 | Backup / restore | ✅ Done |
 | M2-S11 | Settings: providers, per-feature models, AI exclusion | ✅ Done |
 | M2-S12 | AI client, proposal schema, proposals wiring, preview modal | ✅ Done |
-| M2-S13 | Project breakdown from a proposal | ⬜ Next |
-| M3-S14–15 | Reviews + scheduler, chat drawer | ⬜ |
+| M2-S13 | Project breakdown from a proposal | ✅ Done |
+| M3-S14–15 | Reviews + scheduler, chat drawer | ⬜ Next |
 | M4-S16 | Undo, export, sort/group, state audit | ⬜ |
 
 ---
@@ -897,6 +897,69 @@ UI, headless Chrome at 1280 × 950:
 
 ---
 
+## M2-S13 — Project breakdown ✅
+
+### Built
+
+- **`POST /api/ai/breakdown { projectId }`** (FR-18) with
+  `server/src/ai/prompts/breakdown.md`: the project's name, description and
+  target date, its existing milestones and the status list go in; milestones and
+  tasks come back as one **pending** proposal (milestones first).
+- **Cross-item references** (D55): a task that names a milestone proposed in the
+  same batch stores `milestoneRef`; apply creates milestones first and rewrites
+  the reference to the real id. Unticking a milestone leaves its tasks at project
+  level instead of dropping them.
+- **Deduplication** (D56): milestones that already exist in the project are not
+  proposed again.
+- **Project screen**: "Break down with AI" beside Edit project / New task
+  (DESIGN §5.2). It stays visible when unconfigured and shows the reason with an
+  "Open Settings" link (FR-26).
+- **Modal polish**: "Proposed plan" plus "Add N items" when milestones are in
+  the batch, a pinned footer (D57), and a "Breakdown model" label.
+- **Capture polish**: Esc while thinking drops the result, and the 503 case shows
+  the configure message with a Settings link.
+- 6 new breakdown tests (items, linking, unticked milestones, dedupe, excluded
+  and archived projects, unconfigured 503).
+
+### Verification performed
+
+```bash
+npm run typecheck   # clean
+npm test            # 159 passed across 18 files (6 new)
+npm run build       # clean
+```
+
+Against a throwaway database and the local stub provider (D51):
+
+- Unconfigured breakdown → 503 with the configure sentence.
+- Configured → a pending proposal with 5 items: 2 `create_milestone` then 3
+  `create_task`, each carrying the right `milestoneRef` and display name, and the
+  project's existing "Phase 1" untouched.
+- Second run skipped the two milestones that now existed (3 task items only).
+
+UI, headless Chrome at 1280 × 900:
+
+- With breakdown unconfigured, the button produced the inline message and an
+  "Open Settings" link to `/settings`.
+- Configured, the modal showed "Proposed plan", "5 of 5 items", two
+  "New milestone" chips and three "New task" chips, each task showing its target
+  milestone.
+- Applying created the two milestones and three tasks: the project's pills then
+  read "Phase 1 — foundations · 0 of 2" and "Phase 2 — rollout · 0 of 1", which
+  proves the tasks were linked to the new milestones.
+- A five-item proposal fits the viewport with the footer visible; the capture
+  503 path shows its message and link inside the dialog.
+
+### PRD IDs advanced
+
+- **FR-18 — done.** AI project breakdown proposes milestones and tasks from a
+  project description, through the same preview-and-confirm panel.
+- **FR-23** now covers breakdown as well as capture.
+- **FR-25** still enforced (an excluded project is refused with a 400).
+- **NFR-9** holds: an unusable reply changes nothing.
+
+---
+
 ## Decisions
 
 | # | Decision |
@@ -955,6 +1018,9 @@ UI, headless Chrome at 1280 × 950:
 | D52 | A proposal item stores **resolved IDs plus display names** (`display: {projectName, milestoneName, statusName}`). The model answers with names; the server maps them (case-insensitively) and keeps the names so the preview needs no extra queries. Link labels are derived server-side when the model omits them, so the preview shows `OPS-112`, not a URL. |
 | D53 | Capture asks, validates with Zod, and retries **once** with the validation error appended (TECHSTACK §6.2 step 3). A second failure is a 502 and nothing is written (NFR-9). Unconfigured features are a 503 with a sentence that says what to do (FR-26). |
 | D54 | M2-S12 also ships the **AI mode of quick capture** (`Ctrl/⌘ Enter`) even though TECHSTACK §11 lists capture under S13. Without a trigger the preview modal would be unverifiable; the capture endpoint is the smallest feature that exercises the whole chain. S13 therefore focuses on project breakdown and capture polish. |
+| D55 | A breakdown task can point at a milestone **proposed in the same batch**. The milestone item carries `ref` (its name) and the task carries `fields.milestoneRef`; apply creates milestones first and rewrites the reference to the new id. If the user unticks the milestone, the task falls back to project level rather than vanishing. |
+| D56 | Breakdown reuses existing milestones: a proposed name that matches one already in the project is dropped from the proposal, so running it twice does not create "Phase 1" twice. |
+| D57 | The proposal modal is a flex column with a fixed footer, so with many items the "Add N" button stays on screen; two defects found during verification (the feature key rendered as "breakdown model", and the footer falling off a 900 px viewport with five items) were fixed in the same pass. |
 
 ## Follow-ups / known gaps
 
@@ -992,11 +1058,12 @@ UI, headless Chrome at 1280 × 950:
 - PRD open questions for Keith: Q1 (company AI policy), Q5 (final app name).
   Neither blocks M1.
 
-## Next step — M2-S13
+## Next step — M3-S14
 
-Project breakdown (FR-18): a `POST /api/ai/breakdown { projectId }` that asks for
-milestones and tasks from the project's description, resolves them with the same
-proposal machinery, and opens the same modal from the project screen's "Break
-down with AI" button (DESIGN §5.2). The breakdown prompt lives beside the capture
-one; milestone items apply before task items. Capture polish: a proper
-"Thinking…" state with cancel, and an AI note when the provider is unconfigured.
+Reviews: `POST /api/reviews/generate { kind }` that aggregates the period's
+completed, overdue and upcoming work plus project progress, asks the review model
+for Markdown, and stores a `reviews` row (FR-19–FR-21). Then the scheduler —
+`node-cron` for the daily time and weekly day/time in `app_settings`, with a
+catch-up on start for missed periods (FR-20) — and the Reviews screen (list on
+the left, content on the right, "Generate now"). The dashboard's ReviewCard
+becomes real at that point, reading `latestReview` that S9 already returns.

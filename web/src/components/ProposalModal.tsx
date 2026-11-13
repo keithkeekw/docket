@@ -9,6 +9,8 @@ import { Button } from './Button';
 import { Checkbox } from './Checkbox';
 import { InlineError } from './InlineError';
 
+const FEATURE_LABELS = { capture: 'Capture', breakdown: 'Breakdown', chat: 'Chat' } as const;
+
 const OP_LABEL: Record<ProposalItem['op'], string> = {
   create_task: 'New task',
   update_task: 'Update',
@@ -63,7 +65,7 @@ export function ProposalModal() {
       <dialog
         ref={dialogRef}
         aria-labelledby="proposal-title"
-        className="m-auto w-[min(760px,calc(100vw-2rem))] rounded-2xl border border-zinc-200 bg-white p-0 shadow-2xl backdrop:bg-zinc-900/50"
+        className="m-auto max-h-[calc(100vh-2rem)] w-[min(760px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-zinc-200 bg-white p-0 shadow-2xl backdrop:bg-zinc-900/50"
         onClose={() => {
           if (isOpen) close();
         }}
@@ -73,6 +75,8 @@ export function ProposalModal() {
 
   const included = drafts.filter((draft) => draft.included);
   const count = included.length;
+  const hasMilestones = included.some((draft) => draft.item.op === 'create_milestone');
+  const noun = hasMilestones ? 'item' : 'task';
 
   async function handleApply() {
     if (!proposal) return;
@@ -110,7 +114,7 @@ export function ProposalModal() {
     <dialog
       ref={dialogRef}
       aria-labelledby="proposal-title"
-      className="m-auto w-[min(760px,calc(100vw-2rem))] rounded-2xl border border-zinc-200 bg-white p-0 shadow-2xl backdrop:bg-zinc-900/50"
+      className="m-auto max-h-[calc(100vh-2rem)] w-[min(760px,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-zinc-200 bg-white p-0 shadow-2xl backdrop:bg-zinc-900/50"
       onClick={handleBackdrop}
       onCancel={(event) => {
         event.preventDefault();
@@ -120,24 +124,24 @@ export function ProposalModal() {
         if (isOpen) close();
       }}
     >
-      <div className="max-h-[calc(100vh-4rem)] overflow-y-auto p-5">
-        <header className="flex flex-wrap items-baseline justify-between gap-2">
+      <div className="flex max-h-[calc(100vh-2rem)] flex-col">
+        <header className="flex flex-wrap items-baseline justify-between gap-2 px-5 pt-5 pb-2">
           <h2 id="proposal-title" className="text-[15px] font-semibold text-zinc-900">
-            Proposed tasks
+            {proposal.feature === 'breakdown' ? 'Proposed plan' : 'Proposed tasks'}
           </h2>
           <p className="text-xs text-zinc-500">
-            Parsed by: {proposal.feature === 'capture' ? 'Capture' : proposal.feature} model ·{' '}
+            Parsed by: {FEATURE_LABELS[proposal.feature]} model ·{' '}
             <Link to="/settings" className="text-blue-600 hover:underline">
               Change in Settings
             </Link>
           </p>
         </header>
 
-        <p className="mt-1 text-xs text-zinc-500">
-          {count} of {drafts.length} {drafts.length === 1 ? 'task' : 'tasks'} will be added.
+        <p className="px-5 text-xs text-zinc-500">
+          {count} of {drafts.length} {drafts.length === 1 ? noun : `${noun}s`} will be added.
         </p>
 
-        <ul className="mt-3 flex flex-col gap-2">
+        <ul className="min-h-0 flex-1 overflow-y-auto px-5 py-3 flex flex-col gap-2">
           {drafts.map((draft, index) => (
             <li
               key={draft.item.id}
@@ -223,9 +227,13 @@ export function ProposalModal() {
           ))}
         </ul>
 
-        {error && <InlineError message={error} />}
+        {error && (
+          <div className="px-5 pb-2">
+            <InlineError message={error} />
+          </div>
+        )}
 
-        <footer className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-4">
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 px-5 py-3">
           <p className="text-xs text-zinc-500">
             Enter to add · Esc to cancel · nothing is saved until you confirm
           </p>
@@ -241,7 +249,7 @@ export function ProposalModal() {
             >
               {apply.isPending
                 ? 'Adding…'
-                : `Add ${count} ${count === 1 ? 'task' : 'tasks'}`}
+                : `Add ${count} ${count === 1 ? noun : `${noun}s`}`}
             </Button>
           </div>
         </footer>

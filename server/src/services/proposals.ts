@@ -49,6 +49,13 @@ const modelCaptureSchema = z.object({
 
 type ModelTask = z.infer<typeof modelTaskSchema>;
 
+const modelBreakdownSchema = z.object({
+  milestones: z.array(z.object({ name: z.string().trim().min(1).max(200) })).max(12).default([]),
+  tasks: z.array(modelTaskSchema).max(40).default([]),
+});
+
+type ModelBreakdown = z.infer<typeof modelBreakdownSchema>;
+
 const storedPayloadSchema = z.object({
   items: z.array(proposalItemSchema),
 });
@@ -110,7 +117,19 @@ function captureContext(now: Date, lookups: Lookups): CaptureContext {
 
 const normalise = (value: string): string => value.trim().toLowerCase();
 
-function resolveTask(task: ModelTask, context: CaptureContext, lookups: Lookups): ProposalItem {
+type ResolveOptions = {
+  /** Breakdown fixes the project; capture resolves it from the model's name. */
+  project?: { id: string; name: string };
+  /** Milestones proposed in this same proposal, keyed by normalised name. */
+  proposedMilestones?: Map<string, string>;
+};
+
+function resolveTask(
+  task: ModelTask,
+  context: CaptureContext,
+  lookups: Lookups,
+  options: ResolveOptions = {},
+): ProposalItem {
   const { projects: projectRows, milestones: milestoneRows } = lookups;
   const notes: string[] = [];
 
@@ -118,8 +137,12 @@ function resolveTask(task: ModelTask, context: CaptureContext, lookups: Lookups)
   let projectName: string | null = null;
   let milestoneId: string | null = null;
   let milestoneName: string | null = null;
+  let milestoneRef: string | null = null;
 
-  if (task.project) {
+  if (options.project) {
+    projectId = options.project.id;
+    projectName = options.project.name;
+  } else if (task.project) {
     const match = projectRows.find(
       (project) =>
         !project.archived && normalise(project.name) === normalise(task.project ?? ''),
@@ -136,20 +159,27 @@ function resolveTask(task: ModelTask, context: CaptureContext, lookups: Lookups)
   }
 
   if (task.milestone) {
-    const match =
-      projectId === null
-        ? undefined
-        : milestoneRows.find(
-            (milestone) =>
-              milestone.projectId === projectId &&
-              normalise(milestone.name) === normalise(task.milestone ?? ''),
-          );
+    const proposedName = options.proposedMilestones?.get(normalise(task.milestone));
 
-    if (match) {
-      milestoneId = match.id;
-      milestoneName = match.name;
+    if (proposedName) {
+      milestoneRef = proposedName;
+      milestoneName = proposedName;
     } else {
-      notes.push(`No milestone called "${task.milestone}" in that project.`);
+      const match =
+        projectId === null
+          ? undefined
+          : milestoneRows.find(
+              (milestone) =>
+                milestone.projectId === projectId &&
+                normalise(milestone.name) === normalise(task.milestone ?? ''),
+            );
+
+      if (match) {
+        milestoneId = match.id;
+        milestoneName = match.name;
+      } else {
+        notes.push(`No milestone called "${task.milestone}" in that project.`);
+      }
     }
   }
 
@@ -188,6 +218,7 @@ function resolveTask(task: ModelTask, context: CaptureContext, lookups: Lookups)
       ...(task.notes ? { notes: task.notes } : {}),
       projectId,
       milestoneId,
+      ...(milestoneRef ? { milestoneRef } : {}),
       ...(statusId ? { statusId } : {}),
       ...(task.priority ? { priority: task.priority } : {}),
       ...(task.dueDate ? { dueDate: task.dueDate } : {}),
@@ -211,23 +242,28 @@ function resolveTask(task: ModelTask, context: CaptureContext, lookups: Lookups)
 
 export type CaptureOptions = { complete?: Completion; now?: Date };
 
-type AskResult = { ok: true; tasks: ModelTask[] } | { ok: false; reason: string };
+type AskResult<T> = { ok: true; data: T } | { ok: false; reason: string };
 
-async function ask(
+/**
+ * One round-trip: ask, strip fences, parse, validate. The caller decides
+ * whether a failure is worth a retry (D53).
+ */
+async function askFor<T>(
   complete: Completion,
-  input: { system: string; user: string },
-): Promise<AskResult> {
-  const { text } = await complete({ feature: 'capture', ...input });
+  request: { feature: 'capture' | 'breakdown' | 'chat'; system: string; user: string },
+  schema: z.ZodType<T>,
+): Promise<AskResult<T>> {
+  const { text } = await complete(request);
   const json = extractJson(text);
 
   if (json === null) return { ok: false, reason: 'the reply was not JSON' };
 
-  const parsed = modelCaptureSchema.safeParse(json);
+  const parsed = schema.safeParse(json);
   if (!parsed.success) {
     return { ok: false, reason: parsed.error.issues.map((issue) => issue.message).join('; ') };
   }
 
-  return { ok: true, tasks: parsed.data.tasks };
+  return { ok: true, data: parsed.data };
 }
 
 /**
@@ -249,20 +285,144 @@ export async function captureProposal(
   const system = loadPrompt('capture');
   const user = `Data:\n${JSON.stringify(context, null, 2)}\n\nInput: ${trimmed}`;
 
-  const first = await ask(complete, { system, user });
+  const first = await askFor(complete, { feature: 'capture', system, user }, modelCaptureSchema);
   const second = first.ok
     ? first
-    : await ask(complete, {
-        system,
-        user: `${user}\n\nYour previous reply was rejected (${first.reason}). Reply with the JSON object only.`,
-      });
+    : await askFor(
+        complete,
+        {
+          feature: 'capture',
+          system,
+          user: `${user}\n\nYour previous reply was rejected (${first.reason}). Reply with the JSON object only.`,
+        },
+        modelCaptureSchema,
+      );
 
   if (!second.ok) {
     throw new ServiceError('The model returned something unusable. Nothing was saved.', 502);
   }
 
-  const items = second.tasks.map((task) => resolveTask(task, context, lookups));
+  const items = second.data.tasks.map((task) => resolveTask(task, context, lookups));
   return storeProposal(db, 'capture', trimmed, items);
+}
+
+// ---------------------------------------------------------------------------
+// Breakdown (FR-18)
+// ---------------------------------------------------------------------------
+
+export type BreakdownOptions = { complete?: Completion; now?: Date };
+
+function buildBreakdownItems(
+  project: { id: string; name: string },
+  existing: MilestoneRow[],
+  data: ModelBreakdown,
+  context: CaptureContext,
+  lookups: Lookups,
+): ProposalItem[] {
+  const items: ProposalItem[] = [];
+  const existingNames = new Set(existing.map((milestone) => normalise(milestone.name)));
+  const proposed = new Map<string, string>();
+
+  for (const milestone of data.milestones) {
+    const name = milestone.name.trim();
+    const key = normalise(name);
+
+    // Reuse an existing milestone instead of proposing a duplicate.
+    if (!key || existingNames.has(key) || proposed.has(key)) continue;
+
+    proposed.set(key, name);
+    items.push({
+      id: randomUUID(),
+      op: 'create_milestone',
+      ref: name,
+      fields: { title: name, projectId: project.id },
+      display: { projectName: project.name, milestoneName: name, statusName: null },
+      aiNote: null,
+    });
+  }
+
+  for (const task of data.tasks) {
+    items.push(
+      resolveTask(task, context, lookups, {
+        project: { id: project.id, name: project.name },
+        proposedMilestones: proposed,
+      }),
+    );
+  }
+
+  return items;
+}
+
+/**
+ * `POST /api/ai/breakdown` (FR-18): milestones first, then tasks, as one pending
+ * proposal. A task may point at a milestone proposed in the same batch by name;
+ * the apply step connects them (D55).
+ */
+export async function breakdownProposal(
+  db: Db,
+  projectId: string,
+  options: BreakdownOptions = {},
+): Promise<Proposal> {
+  const project = db
+    .select({
+      id: projects.id,
+      name: projects.name,
+      description: projects.description,
+      targetDate: projects.targetDate,
+      archived: projects.archived,
+      aiExcluded: projects.aiExcluded,
+    })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .get();
+
+  if (!project) throw new ServiceError('Project not found', 404);
+  if (project.archived) throw new ServiceError('Archived projects cannot be broken down.', 400);
+  if (project.aiExcluded) throw new ServiceError('That project is excluded from AI.', 400);
+
+  const complete = options.complete ?? makeCompletion(db);
+  const lookups = loadLookups(db);
+  const existing = lookups.milestones.filter((milestone) => milestone.projectId === project.id);
+  const context = captureContext(options.now ?? new Date(), lookups);
+
+  const data = {
+    today: context.today,
+    project: {
+      name: project.name,
+      description: project.description,
+      targetDate: project.targetDate,
+    },
+    existingMilestones: existing.map((milestone) => milestone.name),
+    statuses: context.statuses,
+  };
+
+  const system = loadPrompt('breakdown');
+  const user = `Data:\n${JSON.stringify(data, null, 2)}\n\nBreak this project down.`;
+
+  const first = await askFor(complete, { feature: 'breakdown', system, user }, modelBreakdownSchema);
+  const second = first.ok
+    ? first
+    : await askFor(
+        complete,
+        {
+          feature: 'breakdown',
+          system,
+          user: `${user}\n\nYour previous reply was rejected (${first.reason}). Reply with the JSON object only.`,
+        },
+        modelBreakdownSchema,
+      );
+
+  if (!second.ok) {
+    throw new ServiceError('The model returned something unusable. Nothing was saved.', 502);
+  }
+
+  const items = buildBreakdownItems(project, existing, second.data, context, lookups);
+  if (items.length === 0) {
+    throw new ServiceError('The model did not propose any milestones or tasks.', 502);
+  }
+
+  const inputText = (project.description || project.name).slice(0, 4_000);
+  return storeProposal(db, 'breakdown', inputText, items);
 }
 
 // ---------------------------------------------------------------------------
@@ -305,18 +465,28 @@ export function getProposal(db: Db, id: string): Proposal {
   };
 }
 
-function applyItem(db: Db, item: ProposalItem): void {
+function applyItem(
+  db: Db,
+  item: ProposalItem,
+  createdMilestones: Map<string, string>,
+): void {
   const fields = item.fields;
 
   switch (item.op) {
     case 'create_task': {
       if (!fields.title) throw new ServiceError('A proposed task needs a title.', 400);
 
+      // A milestone proposed in the same batch only exists now; if the user
+      // unticked it, the task simply lands at project level (D55).
+      const milestoneId =
+        fields.milestoneId ??
+        (fields.milestoneRef ? createdMilestones.get(normalise(fields.milestoneRef)) : undefined);
+
       const task = createTask(db, {
         title: fields.title,
         notes: fields.notes ?? undefined,
         projectId: fields.projectId ?? undefined,
-        milestoneId: fields.milestoneId ?? undefined,
+        milestoneId,
         statusId: fields.statusId ?? undefined,
         priority: fields.priority ?? undefined,
         dueDate: fields.dueDate ?? undefined,
@@ -368,7 +538,8 @@ function applyItem(db: Db, item: ProposalItem): void {
       if (!fields.projectId) throw new ServiceError('A milestone needs a project.', 400);
       if (!fields.title) throw new ServiceError('A milestone needs a name.', 400);
 
-      createMilestone(db, fields.projectId, { name: fields.title });
+      const milestone = createMilestone(db, fields.projectId, { name: fields.title });
+      if (item.ref) createdMilestones.set(normalise(item.ref), milestone.id);
       return;
     }
   }
@@ -387,11 +558,19 @@ export function applyProposal(db: Db, id: string, items: ProposalItem[]): Propos
   const stored = new Map(proposal.items.map((item) => [item.id, item]));
   let editedCount = 0;
 
+  // Milestones must exist before the tasks that point at them (FR-18). The sort
+  // is stable, so everything else keeps the order the user saw.
+  const ordered = [...items].sort(
+    (a, b) =>
+      Number(b.op === 'create_milestone') - Number(a.op === 'create_milestone'),
+  );
+  const createdMilestones = new Map<string, string>();
+
   db.transaction(() => {
-    for (const item of items) {
+    for (const item of ordered) {
       const original = stored.get(item.id);
       if (original && original.fields.title !== item.fields.title) editedCount += 1;
-      applyItem(db, item);
+      applyItem(db, item, createdMilestones);
     }
 
     db.update(proposalsTable)

@@ -17,6 +17,17 @@ export function useCaptureWithAi() {
   });
 }
 
+/**
+ * AI project breakdown (FR-18): milestones first, then tasks, as one pending
+ * proposal. Shares the preview/apply path with capture.
+ */
+export function useBreakdown() {
+  return useMutation<Proposal, Error, { projectId: string }>({
+    mutationFn: async ({ projectId }) =>
+      (await apiMutate('/api/ai/breakdown', 'POST', { projectId }, proposalResponseSchema)).proposal,
+  });
+}
+
 function useInvalidateAfterApply() {
   const queryClient = useQueryClient();
 

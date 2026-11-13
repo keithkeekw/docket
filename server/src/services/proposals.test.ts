@@ -8,6 +8,7 @@ import type { Db } from '../db/types';
 import { createTestDb } from '../test/helpers';
 import {
   applyProposal,
+  breakdownProposal,
   captureProposal,
   discardProposal,
   getProposal,
@@ -265,5 +266,139 @@ describe('POST /api/ai/capture', () => {
 
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({ error: expect.stringContaining('not set up') });
+  });
+});
+
+
+describe('breakdownProposal', () => {
+  const breakdownReply = {
+    milestones: [{ name: 'Phase 1 — foundations' }, { name: 'Phase 2 — rollout' }],
+    tasks: [
+      {
+        title: 'Draft the welcome doc',
+        milestone: 'phase 1 — foundations',
+        priority: 2,
+        estimateMinutes: 45,
+      },
+      { title: 'Book the venue', milestone: 'Phase 1 — foundations' },
+      { title: 'Announce to the company', milestone: 'Phase 2 — rollout' },
+    ],
+  };
+
+  function stubBreakdown(reply: unknown) {
+    return async () => ({ text: JSON.stringify(reply), model: 'stub-model' });
+  }
+
+  async function project(name = 'Onboarding', aiExcluded = false) {
+    return db.insert(projects).values({ name, aiExcluded }).returning().get();
+  }
+
+  it('proposes milestones first, then tasks that point at them', async () => {
+    const row = await project();
+
+    const proposal = await breakdownProposal(db, row.id, {
+      complete: stubBreakdown(breakdownReply),
+      now: NOW,
+    });
+
+    expect(proposal.feature).toBe('breakdown');
+    expect(proposal.items.map((item) => item.op)).toEqual([
+      'create_milestone',
+      'create_milestone',
+      'create_task',
+      'create_task',
+      'create_task',
+    ]);
+
+    const task = proposal.items[2];
+    expect(task?.fields).toMatchObject({
+      title: 'Draft the welcome doc',
+      projectId: row.id,
+      priority: 2,
+      estimateMinutes: 45,
+      milestoneRef: 'Phase 1 — foundations',
+    });
+    expect(task?.display.milestoneName).toBe('Phase 1 — foundations');
+  });
+
+  it('creates the milestones and links the tasks to them on apply', async () => {
+    const row = await project();
+    const proposal = await breakdownProposal(db, row.id, {
+      complete: stubBreakdown(breakdownReply),
+      now: NOW,
+    });
+
+    applyProposal(db, proposal.id, proposal.items);
+
+    const milestoneRows = db
+      .select()
+      .from(milestones)
+      .where(eq(milestones.projectId, row.id))
+      .all();
+    expect(milestoneRows.map((milestone) => milestone.name).sort()).toEqual([
+      'Phase 1 — foundations',
+      'Phase 2 — rollout',
+    ]);
+
+    const taskRows = db.select().from(tasks).all();
+    expect(taskRows).toHaveLength(3);
+
+    const byName = (title: string) => taskRows.find((task) => task.title === title);
+    const phaseOne = milestoneRows.find((m) => m.name === 'Phase 1 — foundations');
+    const phaseTwo = milestoneRows.find((m) => m.name === 'Phase 2 — rollout');
+
+    expect(byName('Draft the welcome doc')?.milestoneId).toBe(phaseOne?.id);
+    expect(byName('Announce to the company')?.milestoneId).toBe(phaseTwo?.id);
+  });
+
+  it('leaves a task at project level when its milestone is unticked', async () => {
+    const row = await project();
+    const proposal = await breakdownProposal(db, row.id, {
+      complete: stubBreakdown(breakdownReply),
+      now: NOW,
+    });
+
+    const withoutMilestones = proposal.items.filter((item) => item.op !== 'create_milestone');
+    applyProposal(db, proposal.id, withoutMilestones);
+
+    expect(db.select().from(milestones).all()).toHaveLength(0);
+    for (const task of db.select().from(tasks).all()) {
+      expect(task.milestoneId).toBeNull();
+      expect(task.projectId).toBe(row.id);
+    }
+  });
+
+  it('reuses an existing milestone instead of proposing a duplicate', async () => {
+    const row = await project();
+    db.insert(milestones).values({ projectId: row.id, name: 'Phase 1 — foundations' }).run();
+
+    const proposal = await breakdownProposal(db, row.id, {
+      complete: stubBreakdown(breakdownReply),
+      now: NOW,
+    });
+
+    const created = proposal.items.filter((item) => item.op === 'create_milestone');
+    expect(created.map((item) => item.fields.title)).toEqual(['Phase 2 — rollout']);
+  });
+
+  it('refuses an excluded or archived project', async () => {
+    const excluded = await project('Client secrets', true);
+    await expect(
+      breakdownProposal(db, excluded.id, { complete: stubBreakdown(breakdownReply), now: NOW }),
+    ).rejects.toMatchObject({ status: 400 });
+
+    const archived = db
+      .insert(projects)
+      .values({ name: 'Old', archived: true })
+      .returning()
+      .get();
+    await expect(
+      breakdownProposal(db, archived.id, { complete: stubBreakdown(breakdownReply), now: NOW }),
+    ).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('fails with 503 when breakdown is not configured', async () => {
+    const row = await project();
+    await expect(breakdownProposal(db, row.id)).rejects.toMatchObject({ status: 503 });
   });
 });

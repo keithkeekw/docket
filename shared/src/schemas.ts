@@ -508,6 +508,8 @@ export const proposalItemFieldsSchema = z.object({
   dueDate: localDateSchema.nullable().optional(),
   dueTime: localTimeSchema.nullable().optional(),
   estimateMinutes: z.number().int().positive().nullable().optional(),
+  /** A milestone proposed in the same proposal, referenced by name until it exists. */
+  milestoneRef: z.string().min(1).max(200).nullable().optional(),
   tags: z.array(z.string().min(1).max(40)).max(20).optional(),
   link: z
     .object({ url: z.string().min(1), label: z.string().min(1).max(40).optional() })
@@ -526,6 +528,8 @@ export const proposalItemSchema = z.object({
   id: z.string().min(1),
   op: proposalOpSchema,
   targetId: z.string().nullable().optional(),
+  /** Only for `create_milestone`: the name tasks in this proposal point at. */
+  ref: z.string().min(1).max(200).nullable().optional(),
   fields: proposalItemFieldsSchema,
   display: proposalItemDisplaySchema,
   /** Why the server guessed something — shown in a quiet note (DESIGN §4). */
@@ -554,6 +558,10 @@ export const applyProposalBodySchema = z.strictObject({
 
 export const aiCaptureBodySchema = z.strictObject({
   text: z.string().trim().min(1).max(4_000),
+});
+
+export const aiBreakdownBodySchema = z.strictObject({
+  projectId: z.string().min(1),
 });
 
 export type ProposalFeature = z.infer<typeof proposalFeatureSchema>;
