@@ -11,11 +11,19 @@ const VARIANTS: Record<ButtonVariant, string> = {
   secondary: 'bg-white border border-zinc-200 text-zinc-900',
 };
 
+/**
+ * Shared button styling. Exported so a router `<Link>` can look like a button
+ * without nesting an anchor inside a `<button>` (DESIGN §7).
+ */
+export function buttonClassName(variant: ButtonVariant = 'secondary', className?: string): string {
+  return cx(BASE, VARIANTS[variant], className);
+}
+
 export type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement> & {
   variant?: ButtonVariant;
 };
 
 /** DESIGN §4: one dark primary button per panel; everything else secondary. */
 export function Button({ variant = 'secondary', className, type = 'button', ...props }: ButtonProps) {
-  return <button type={type} className={cx(BASE, VARIANTS[variant], className)} {...props} />;
+  return <button type={type} className={buttonClassName(variant, className)} {...props} />;
 }

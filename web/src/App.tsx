@@ -1,11 +1,22 @@
-import { ComponentGallery } from './components/ComponentGallery';
-import { PrelineInit } from './components/PrelineInit';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { RouterProvider } from 'react-router/dom';
+import { router } from './routes/router';
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Local API: one retry covers a dev-server restart, then surface the state.
+      retry: 1,
+      staleTime: 15_000,
+      refetchOnWindowFocus: true,
+    },
+  },
+});
 
 export default function App() {
   return (
-    <div className="min-h-full bg-zinc-50">
-      <PrelineInit />
-      <ComponentGallery />
-    </div>
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
   );
 }
