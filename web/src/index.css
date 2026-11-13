@@ -1,0 +1,33 @@
+@import 'tailwindcss';
+@import 'preline/variants.css';
+
+/* Preline's plain-DOM plugins emit utility classes at runtime. */
+@source '../../node_modules/preline/dist/*.js';
+
+@plugin '@tailwindcss/forms';
+
+@theme {
+  --font-sans: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+}
+
+@layer base {
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-zinc-50 font-sans text-zinc-900 antialiased;
+  }
+
+  /* DESIGN §6: visible focus on every interactive element (NFR-7). */
+  :focus-visible {
+    @apply outline-none ring-2 ring-blue-600 ring-offset-2;
+  }
+
+  button:not(:disabled),
+  [role='button']:not(:disabled) {
+    cursor: pointer;
+  }
+}

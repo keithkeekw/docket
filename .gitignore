@@ -1,0 +1,17 @@
+node_modules/
+dist/
+coverage/
+.vite/
+
+# Local configuration and secrets
+.env
+.env.local
+
+# Local database and backups
+data/*.db
+data/*.db-*
+data/backups/*
+!data/backups/.gitkeep
+
+*.log
+.DS_Store
