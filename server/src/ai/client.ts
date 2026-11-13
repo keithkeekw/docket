@@ -109,3 +109,56 @@ export function extractJson(text: string): unknown {
     return null;
   }
 }
+
+
+export type ToolChatMessage = Record<string, unknown>;
+
+export type ToolChatResult = {
+  text: string;
+  toolCalls: Array<{ id: string; name: string; arguments: string }>;
+  model: string;
+};
+
+export type ToolChat = (input: {
+  feature: AiFeature;
+  messages: ToolChatMessage[];
+  tools: unknown;
+}) => Promise<ToolChatResult>;
+
+/**
+ * Chat with function calling (TECHSTACK §6.4). Providers differ in support, so
+ * the caller falls back to a summary prompt when this throws.
+ */
+export function makeToolChat(db: Db): ToolChat {
+  return async ({ feature, messages, tools }) => {
+    const config = requireFeatureConfig(db, feature);
+    const client = new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL });
+
+    try {
+      const response = await client.chat.completions.create({
+        model: config.model,
+        temperature: 0.2,
+        messages: messages as never,
+        tools: tools as never,
+        tool_choice: 'auto',
+      });
+
+      const message = response.choices[0]?.message;
+
+      return {
+        text: message?.content ?? '',
+        toolCalls: (message?.tool_calls ?? [])
+          .filter((call) => call.type === 'function')
+          .map((call) => ({
+            id: call.id,
+            name: call.function.name,
+            arguments: call.function.arguments,
+          })),
+        model: config.model,
+      };
+    } catch (cause) {
+      const detail = cause instanceof Error ? cause.message.slice(0, 200) : 'unknown error';
+      throw new ServiceError(`The AI provider could not complete the request: ${detail}`, 502);
+    }
+  };
+}

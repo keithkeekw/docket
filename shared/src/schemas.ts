@@ -583,6 +583,25 @@ export const aiBreakdownBodySchema = z.strictObject({
   projectId: z.string().min(1),
 });
 
+/** Chat keeps its history client-side (there is no chat table in the schema). */
+export const chatMessageSchema = z.object({
+  role: z.enum(['user', 'assistant']),
+  content: z.string().min(1).max(8_000),
+});
+
+export const aiChatBodySchema = z.strictObject({
+  messages: z.array(chatMessageSchema).min(1).max(40),
+});
+
+export const aiChatResponseSchema = z.object({
+  reply: z.string(),
+  /** Present when the assistant prepared writes; shown in the preview modal. */
+  proposal: proposalSchema.nullable(),
+});
+
+export type ChatMessage = z.infer<typeof chatMessageSchema>;
+export type AiChatResponse = z.infer<typeof aiChatResponseSchema>;
+
 export type ProposalFeature = z.infer<typeof proposalFeatureSchema>;
 export type ProposalOp = z.infer<typeof proposalOpSchema>;
 export type ProposalItemFields = z.infer<typeof proposalItemFieldsSchema>;

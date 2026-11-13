@@ -4,7 +4,7 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 `docs/DESIGN.md` at the start of every session.
 
 - **Last updated:** 13 Nov 2026
-- **Current step:** M3-S15 (next) — chat drawer with read-only tools
+- **Current step:** M4-S16 (next) — undo, export, table sort/group, state audit
 - **Spec sources:** `docs/PRD.md` (behaviour), `docs/TECHSTACK.md` (implementation), `docs/DESIGN.md` (visuals)
 
 ---
@@ -27,8 +27,8 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 | M2-S12 | AI client, proposal schema, proposals wiring, preview modal | ✅ Done |
 | M2-S13 | Project breakdown from a proposal | ✅ Done |
 | M3-S14 | Review generation, scheduler, Reviews screen | ✅ Done |
-| M3-S15 | Chat drawer with read-only tools | ⬜ Next |
-| M4-S16 | Undo, export, sort/group, state audit | ⬜ |
+| M3-S15 | Chat drawer with read-only tools | ✅ Done |
+| M4-S16 | Undo, export, sort/group, state audit | ⬜ Next |
 
 ---
 
@@ -1026,6 +1026,65 @@ UI, headless Chrome at 1280 × 950:
 
 ---
 
+## M3-S15 — Chat assistant ✅
+
+### Built
+
+- **`POST /api/ai/chat { messages }`** (FR-22): a tool loop over
+  `list_tasks`, `get_task`, `list_projects`, `get_project_summary`,
+  `get_review`, plus `propose_tasks`, capped at four rounds.
+- **Fallback** for models without tool calling (D63): one completion with a
+  compact data summary, marked as read-only in the prompt.
+- **Chat tools** (`ai/chat-tools.ts`) reuse the same services as the UI, and
+  every one withholds AI-excluded projects (D65). `propose_tasks` goes through
+  the capture resolver and stores a pending proposal (D64) — nothing is written.
+- **Drawer** (DESIGN §5.5): 420 px right panel, user messages on `zinc-100`
+  right-aligned, assistant on white, composer with Enter-to-send and a Shift
+  Enter hint, "Thinking…", and a 503 message with a Settings link.
+- **"Ask assistant"** sits beside the dashboard capture bar again (DESIGN §5.1,
+  D10 lifted).
+- 10 new tests over the tools, the loop, proposals, the fallback and 503.
+
+### Verification performed
+
+```bash
+npm run typecheck   # clean
+npm test            # 191 passed across 21 files (10 new)
+npm run build       # clean
+```
+
+Against a throwaway database and the stub provider (which answers with a tool
+call first, then text):
+
+- `POST /api/ai/chat "what is overdue?"` → the stub called `list_tasks`, the
+  server executed it, and the reply was "You have two open tasks in Onboarding;
+  one is overdue." — no proposal.
+- `"add a task to follow up with the vendor"` → `propose_tasks` returned a
+  pending proposal with the resolved task; the task list stayed at two.
+
+UI, headless Chrome at 1280 × 950:
+
+- "Ask assistant" opened the drawer; asking the question produced the user and
+  assistant blocks.
+- Asking to add work opened the preview modal above the drawer ("Parsed by: Chat
+  model · Change in Settings") with the prepared title, project, priority and
+  due date.
+- Applying created exactly one task and left the chat drawer open with its
+  thread intact; the proposal row recorded `applied`, accepted 1.
+
+### PRD IDs advanced
+
+- **FR-22 — done.** The assistant answers from current task and project data
+  through read-only tools.
+- **FR-23** now covers chat as well as capture and breakdown.
+- **FR-25** still enforced across every tool (D65).
+
+### M3 status
+
+M3 is complete: reviews (FR-19–21) and chat (FR-22) are built and verified.
+
+---
+
 ## Decisions
 
 | # | Decision |
@@ -1091,6 +1150,10 @@ UI, headless Chrome at 1280 × 950:
 | D59 | Only `daily` and `weekly` reviews advance `last_*_review_at`. A manual review would otherwise make the app think the scheduled one had already run. |
 | D60 | Catch-up follows TECHSTACK §7 literally: a slot is missed when it has passed and nothing has been generated since; `last_*_review_at = null` means "never", so the first start after the scheduled time generates one review. Reviews still only run while the server runs, and a failed generation never stops the server (NFR-9). |
 | D61 | The slider between scheduled and on-demand is the `kind` column: "Generate now" writes `manual`, so the dashboard card says "Review" rather than pretending a hand-triggered one was the daily. The card's title follows the kind. |
+| D62 | Chat history lives in the drawer's component state, not the database — the schema has no chat table (TECHSTACK §4) and FR-22 asks only for answers, not a transcript. Closing and reopening the drawer within a session keeps the thread; a reload starts fresh. |
+| D63 | Chat runs a real tool loop (max 4 rounds) with `list_tasks`, `get_task`, `list_projects`, `get_project_summary`, `get_review`. If the provider rejects tool calling, one attempt runs with a compact data summary in the system prompt (TECHSTACK §6.4) — that mode cannot propose tasks, and the reply says so. A 503 (unconfigured) is never swallowed into the fallback. |
+| D64 | Writes are impossible from chat: `propose_tasks` validates the same model-task shape as capture, resolves names through the same code and stores a **pending** proposal. The drawer hands it to the shared preview modal, so FR-23 holds for chat too. |
+| D65 | Every tool withholds AI-excluded projects: task lists filter them out, `get_task` and `get_project_summary` refuse with a sentence rather than leaking a title, and the fallback summary is filtered the same way (FR-25). |
 
 ## Follow-ups / known gaps
 
@@ -1128,12 +1191,11 @@ UI, headless Chrome at 1280 × 950:
 - PRD open questions for Keith: Q1 (company AI policy), Q5 (final app name).
   Neither blocks M1.
 
-## Next step — M3-S15
+## Next step — M4-S16
 
-The chat drawer (FR-22, DESIGN §5.5): a 420 px right drawer with a message list
-(assistant on white, user on `zinc-100`), an input at the bottom, and read-only
-tools — `list_tasks`, `get_task`, `list_projects`, `get_project_summary`,
-`get_review` — that reuse the existing service filters and skip AI-excluded
-projects. Any proposed write comes back as a proposal and opens the same preview
-modal. Falls back to a compact data summary in the prompt when the chosen model
-has no tool calling (TECHSTACK §6.4).
+The polish step TECHSTACK §11 leaves for last: undo for the last destructive
+action (FR-29), JSON/Markdown export (FR-28), Table sorting and grouping (FR-13),
+plus the state audit — every empty, error and loading state checked against
+DESIGN §6, and the leftover placeholders removed. `db:seed:perf` (5,000 tasks /
+50 projects) should land here too, so NFR-4 can be measured before opening the
+desktop-wrapper question (PRD Q4).

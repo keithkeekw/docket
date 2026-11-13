@@ -1,7 +1,8 @@
-import { aiBreakdownBodySchema, aiCaptureBodySchema } from '@app/shared';
+import { aiBreakdownBodySchema, aiCaptureBodySchema, aiChatBodySchema } from '@app/shared';
 import type { Hono } from 'hono';
 import type { Db } from '../db/types';
 import { invalidBody, readJson } from '../lib/http';
+import { chat } from '../services/chat';
 import { breakdownProposal, captureProposal } from '../services/proposals';
 
 export function registerAiRoutes(app: Hono, db: Db): void {
@@ -19,5 +20,13 @@ export function registerAiRoutes(app: Hono, db: Db): void {
     if (!parsed.success) return invalidBody(c, parsed.error);
 
     return c.json({ proposal: await breakdownProposal(db, parsed.data.projectId) }, 201);
+  });
+
+  // FR-22. Read-only tools; any writes come back as a pending proposal (FR-23).
+  app.post('/api/ai/chat', async (c) => {
+    const parsed = aiChatBodySchema.safeParse(await readJson(c));
+    if (!parsed.success) return invalidBody(c, parsed.error);
+
+    return c.json(await chat(db, parsed.data.messages));
   });
 }

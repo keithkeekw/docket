@@ -306,6 +306,26 @@ export async function captureProposal(
   return storeProposal(db, 'capture', trimmed, items);
 }
 
+/**
+ * Builds a pending proposal from raw model output (used by the chat tool, which
+ * receives the same task shape as capture). Validates, resolves names, stores.
+ */
+export function proposalFromRawTasks(
+  db: Db,
+  feature: ProposalFeature,
+  inputText: string,
+  raw: unknown,
+): { proposal: Proposal; count: number } {
+  const parsed = modelCaptureSchema.safeParse(raw);
+  if (!parsed.success) throw new ServiceError('Those tasks were not valid.', 400);
+
+  const lookups = loadLookups(db);
+  const context = captureContext(new Date(), lookups);
+  const items = parsed.data.tasks.map((task) => resolveTask(task, context, lookups));
+
+  return { proposal: storeProposal(db, feature, inputText, items), count: items.length };
+}
+
 // ---------------------------------------------------------------------------
 // Breakdown (FR-18)
 // ---------------------------------------------------------------------------

@@ -19,6 +19,11 @@ type UiStore = {
   openTask: (task: Task) => void;
   closeTask: () => void;
 
+  /** Chat drawer (FR-22), mounted once in the shell. */
+  chatOpen: boolean;
+  openChat: () => void;
+  closeChat: () => void;
+
   /** Pending AI proposal shown in the preview modal (FR-23). */
   proposal: Proposal | null;
   openProposal: (proposal: Proposal) => void;
@@ -55,6 +60,14 @@ export const useUiStore = create<UiStore>((set) => ({
   },
   closeTask: () => {
     set({ drawerTask: null });
+  },
+
+  chatOpen: false,
+  openChat: () => {
+    set({ chatOpen: true });
+  },
+  closeChat: () => {
+    set({ chatOpen: false });
   },
 
   proposal: null,

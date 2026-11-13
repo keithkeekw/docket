@@ -3,6 +3,7 @@ import { Link } from 'react-router';
 import { useDashboard } from '../api/dashboard';
 import { useGenerateReview } from '../api/reviews';
 import { useCompleteTask } from '../api/tasks';
+import { Button } from '../components/Button';
 import { CaptureBar } from '../components/CaptureBar';
 import { GroupHeader } from '../components/GroupHeader';
 import { InlineError } from '../components/InlineError';
@@ -24,6 +25,7 @@ export function DashboardRoute() {
   const generateReview = useGenerateReview();
   const openTask = useUiStore((state) => state.openTask);
   const openProjectDialog = useUiStore((state) => state.openProjectDialog);
+  const openChat = useUiStore((state) => state.openChat);
 
   const data = dashboard.data;
   const day = data ? parse(data.date, 'yyyy-MM-dd', new Date()) : new Date();
@@ -46,7 +48,12 @@ export function DashboardRoute() {
 
   return (
     <div className="mx-auto max-w-[1120px]">
-      <CaptureBar />
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="min-w-[16rem] flex-1">
+          <CaptureBar />
+        </div>
+        <Button onClick={openChat}>Ask assistant</Button>
+      </div>
 
       <header className="mt-6 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
         <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
