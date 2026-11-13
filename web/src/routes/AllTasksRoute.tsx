@@ -23,7 +23,7 @@ const PRIORITY_OPTIONS: FilterOption[] = [
 const DUE_OPTIONS: FilterOption[] = [
   { value: 'overdue', label: 'Overdue' },
   { value: 'today', label: 'Today' },
-  { value: 'week', label: 'Next 7 days' },
+  { value: 'week', label: 'Next 7 Days' },
 ];
 
 /** DESIGN §5.3 All tasks: title, view switcher, search + chips, then the body. */
@@ -92,14 +92,14 @@ export function AllTasksRoute() {
 
   return (
     <>
-      <PageHeader title="All tasks" actions={<ViewSwitcher value={view} onChange={setView} />} />
+      <PageHeader title="All Tasks" actions={<ViewSwitcher value={view} onChange={setView} />} />
 
       <div className="mt-4 flex flex-wrap items-center gap-2">
         <input
           type="search"
           value={search}
-          aria-label="Search tasks"
-          placeholder="Search tasks"
+          aria-label="Search Tasks"
+          placeholder="Search Tasks"
           className="min-h-10 w-[240px] rounded-[10px] border border-zinc-200 bg-white px-3 text-[13px] text-zinc-900 placeholder:text-zinc-500"
           onChange={(event) => {
             setSearch(event.target.value);
@@ -161,7 +161,7 @@ export function AllTasksRoute() {
               setSearch('');
             }}
           >
-            Clear filters
+            Clear Filters
           </Button>
         )}
       </div>
@@ -189,7 +189,7 @@ export function AllTasksRoute() {
           });
         }}
         emptyMessage={emptyMessage}
-        listLabel="All tasks"
+        listLabel="All Tasks"
         tableFooter={countLabel}
         sort={tableSort}
         group={tableGroup}

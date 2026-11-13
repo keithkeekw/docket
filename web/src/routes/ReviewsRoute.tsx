@@ -46,7 +46,7 @@ export function ReviewsRoute() {
         description="What moved, what stalled, and what is next."
         actions={
           <Button variant="primary" onClick={generateNow} disabled={generate.isPending}>
-            {generate.isPending ? 'Generating…' : 'Generate now'}
+            {generate.isPending ? 'Generating…' : 'Generate Now'}
           </Button>
         }
       />
@@ -54,7 +54,7 @@ export function ReviewsRoute() {
       {error && <InlineError message={error} />}
 
       <div className="mt-6 grid gap-6 min-[900px]:grid-cols-[240px_1fr]">
-        <aside aria-label="Past reviews">
+        <aside aria-label="Past Reviews">
           {list.isLoading && <p className="text-sm text-zinc-500">Loading…</p>}
 
           {!list.isLoading && reviews.length === 0 && (
@@ -111,7 +111,7 @@ export function ReviewsRoute() {
             <article className="rounded-xl border border-zinc-200 bg-white px-5 py-4">
               <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-zinc-100 pb-3">
                 <h2 className="text-[15px] font-semibold text-zinc-900">
-                  {KIND_LABEL[active.data.kind]} review
+                  {KIND_LABEL[active.data.kind]} Review
                 </h2>
                 <p className="text-xs text-zinc-500">
                   {active.data.periodStart === active.data.periodEnd

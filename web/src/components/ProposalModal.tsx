@@ -12,11 +12,11 @@ import { InlineError } from './InlineError';
 const FEATURE_LABELS = { capture: 'Capture', breakdown: 'Breakdown', chat: 'Chat' } as const;
 
 const OP_LABEL: Record<ProposalItem['op'], string> = {
-  create_task: 'New task',
+  create_task: 'New Task',
   update_task: 'Update',
   move_task: 'Move',
   delete_task: 'Delete',
-  create_milestone: 'New milestone',
+  create_milestone: 'New Milestone',
 };
 
 type Draft = { item: ProposalItem; included: boolean; title: string };
@@ -127,7 +127,7 @@ export function ProposalModal() {
       <div className="flex max-h-[calc(100vh-2rem)] flex-col">
         <header className="flex flex-wrap items-baseline justify-between gap-2 px-5 pt-5 pb-2">
           <h2 id="proposal-title" className="text-[15px] font-semibold text-zinc-900">
-            {proposal.feature === 'breakdown' ? 'Proposed plan' : 'Proposed tasks'}
+            {proposal.feature === 'breakdown' ? 'Proposed Plan' : 'Proposed Tasks'}
           </h2>
           <p className="text-xs text-zinc-500">
             Parsed by: {FEATURE_LABELS[proposal.feature]} model ·{' '}

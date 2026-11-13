@@ -111,7 +111,7 @@ function CreateProjectForm({ onClose }: { onClose: () => void }) {
   return (
     <form className="p-5" onSubmit={handleSubmit}>
       <h2 id="project-dialog-title" className="text-[15px] font-semibold text-zinc-900">
-        New project
+        New Project
       </h2>
       <p className="mt-1 text-xs text-zinc-500">A project groups related tasks and milestones.</p>
 
@@ -137,7 +137,7 @@ function CreateProjectForm({ onClose }: { onClose: () => void }) {
           />
         </Field>
 
-        <Field label="Target date" hint="Optional.">
+        <Field label="Target Date" hint="Optional.">
           <Input
             type="date"
             value={form.targetDate}
@@ -153,7 +153,7 @@ function CreateProjectForm({ onClose }: { onClose: () => void }) {
       <div className="mt-4 flex justify-end gap-2">
         <Button onClick={onClose}>Cancel</Button>
         <Button type="submit" variant="primary" disabled={createProject.isPending}>
-          {createProject.isPending ? 'Creating…' : 'Create project'}
+          {createProject.isPending ? 'Creating…' : 'Create Project'}
         </Button>
       </div>
     </form>
@@ -263,7 +263,7 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
   return (
     <div className="max-h-[calc(100vh-4rem)] overflow-y-auto p-5">
       <h2 id="project-dialog-title" className="text-[15px] font-semibold text-zinc-900">
-        Edit project
+        Edit Project
       </h2>
       <p className="mt-1 text-xs text-zinc-500">
         {project.data.archived ? 'This project is archived.' : 'Changes save to this project.'}
@@ -291,7 +291,7 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
           />
         </Field>
 
-        <Field label="Target date" hint="Optional.">
+        <Field label="Target Date" hint="Optional.">
           <Input
             type="date"
             value={form.targetDate}
@@ -310,7 +310,7 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
               setForm({ ...form, aiExcluded: event.target.checked });
             }}
           />
-          Exclude this project from AI
+          Exclude This Project from AI
         </label>
       </form>
 
@@ -321,13 +321,13 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-4">
         <div className="flex flex-wrap items-center gap-2">
           <Button onClick={toggleArchive} disabled={updateProject.isPending}>
-            {project.data.archived ? 'Restore project' : 'Archive project'}
+            {project.data.archived ? 'Restore Project' : 'Archive Project'}
           </Button>
 
           {confirmingDelete ? (
             <>
               <Button onClick={handleDelete} disabled={deleteProject.isPending}>
-                {deleteProject.isPending ? 'Deleting…' : 'Confirm delete'}
+                {deleteProject.isPending ? 'Deleting…' : 'Confirm Delete'}
               </Button>
               <Button
                 onClick={() => {
@@ -343,7 +343,7 @@ function EditProjectForm({ projectId, onClose }: { projectId?: string; onClose: 
                 setConfirmingDelete(true);
               }}
             >
-              Delete project
+              Delete Project
             </Button>
           )}
         </div>
@@ -477,7 +477,7 @@ function MilestoneManager({ projectId }: { projectId: string }) {
 
       <form className="mt-3 flex items-end gap-2" onSubmit={addMilestone}>
         <div className="flex-1">
-          <Field label="Add milestone">
+          <Field label="Add Milestone">
             <Input
               value={name}
               onChange={(event) => {

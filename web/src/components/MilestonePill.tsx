@@ -21,7 +21,7 @@ export function MilestonePill({
     ? 'Done'
     : milestone.total > 0
       ? `${milestone.done} of ${milestone.total}`
-      : 'Not started';
+      : 'Not Started';
 
   const className = cx(
     'inline-flex min-h-10 items-center gap-2 rounded-full border px-3.5 text-[13px]',
@@ -56,7 +56,7 @@ export function AddMilestonePill({ onClick }: { onClick: () => void }) {
       className="inline-flex min-h-10 items-center rounded-full border border-dashed border-zinc-300 px-3.5 text-[13px] text-zinc-600"
       onClick={onClick}
     >
-      Add milestone
+      Add Milestone
     </button>
   );
 }

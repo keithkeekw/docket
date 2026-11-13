@@ -1,11 +1,28 @@
-import type { ChecklistItem, Priority, TaskDetail, TaskLink, UpdateTaskBody } from '@app/shared';
-import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react';
+import {
+  MAX_ATTACHMENT_BYTES,
+  type ChecklistItem,
+  type Priority,
+  type TaskAttachment,
+  type TaskDetail,
+  type TaskLink,
+  type UpdateTaskBody,
+} from '@app/shared';
+import {
+  useEffect,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type MouseEvent,
+} from 'react';
 import { useNavSummary } from '../api/nav';
 import { useMilestones } from '../api/projects';
 import { useStatuses } from '../api/statuses';
 import {
+  useAddAttachment,
   useAddChecklistItem,
   useAddLink,
+  useDeleteAttachment,
   useDeleteChecklistItem,
   useDeleteLink,
   useGenerateChecklist,
@@ -271,7 +288,7 @@ export function TaskDrawer() {
                       ))}
                       {form.projectId !== '' && !projects.some((p) => p.id === form.projectId) && (
                         <option value={form.projectId}>
-                          {task.projectName ?? 'Current project'}
+                          {task.projectName ?? 'Current Project'}
                         </option>
                       )}
                     </Select>
@@ -322,7 +339,7 @@ export function TaskDrawer() {
                     </Select>
                   </Field>
 
-                  <Field label="Due date">
+                  <Field label="Due Date">
                     <Input
                       type="date"
                       value={form.dueDate}
@@ -332,7 +349,7 @@ export function TaskDrawer() {
                     />
                   </Field>
 
-                  <Field label="Due time">
+                  <Field label="Due Time">
                     <Input
                       type="time"
                       value={form.dueTime}
@@ -343,7 +360,7 @@ export function TaskDrawer() {
                     />
                   </Field>
 
-                  <Field label="Estimate (minutes)" hint="Blank means no estimate.">
+                  <Field label="Estimate (Minutes)" hint="Blank means no estimate.">
                     <Input
                       type="number"
                       min={1}
@@ -376,6 +393,7 @@ export function TaskDrawer() {
               <ChecklistSection taskId={taskId} items={task.checklistItems} />
               <LinksSection taskId={taskId} links={task.links} />
               <TagsSection taskId={taskId} tags={task.tags} />
+              <AttachmentsSection taskId={taskId} attachments={task.attachments} />
 
               {error && <InlineError message={error} />}
 
@@ -391,7 +409,7 @@ export function TaskDrawer() {
             {confirmingDelete ? (
               <>
                 <Button onClick={handleDelete} disabled={deleteTask.isPending}>
-                  {deleteTask.isPending ? 'Deleting…' : 'Confirm delete'}
+                  {deleteTask.isPending ? 'Deleting…' : 'Confirm Delete'}
                 </Button>
                 <Button
                   onClick={() => {
@@ -480,7 +498,7 @@ function ChecklistSection({ taskId, items }: { taskId: string; items: ChecklistI
           className="inline-flex items-center gap-1 rounded-full border border-zinc-200 bg-zinc-50 px-2 py-0.5 text-xs text-zinc-500 transition-colors hover:border-zinc-300 hover:bg-zinc-100 hover:text-zinc-700 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <span aria-hidden="true">✦</span>
-          {generate.isPending ? 'Generating…' : 'Auto-generate'}
+          {generate.isPending ? 'Generating…' : 'Auto-Generate'}
         </button>
       </div>
       {generateError && (
@@ -525,7 +543,7 @@ function ChecklistSection({ taskId, items }: { taskId: string; items: ChecklistI
 
       <form className="mt-2 flex items-end gap-2" onSubmit={handleAdd}>
         <div className="flex-1">
-          <Field label="Add checklist item">
+          <Field label="Add Checklist Item">
             <Input
               value={title}
               onChange={(event) => {
@@ -601,7 +619,7 @@ function LinksSection({ taskId, links }: { taskId: string; links: TaskLink[] }) 
         </Field>
         <div className="flex items-end gap-2">
           <div className="flex-1">
-            <Field label="Badge label" hint="Blank derives it from the URL.">
+            <Field label="Badge Label" hint="Blank derives it from the URL.">
               <Input
                 value={label}
                 onChange={(event) => {
@@ -611,7 +629,7 @@ function LinksSection({ taskId, links }: { taskId: string; links: TaskLink[] }) 
             </Field>
           </div>
           <Button type="submit" disabled={!url.trim() || addLink.isPending}>
-            Add link
+            Add Link
           </Button>
         </div>
       </form>
@@ -667,7 +685,7 @@ function TagsSection({ taskId, tags }: { taskId: string; tags: string[] }) {
 
       <form className="mt-2 flex items-end gap-2" onSubmit={addTag}>
         <div className="flex-1">
-          <Field label="Add tag" hint="Tags are created on the fly.">
+          <Field label="Add Tag" hint="Tags are created on the fly.">
             <Input
               list="task-drawer-tags"
               value={name}
@@ -686,6 +704,99 @@ function TagsSection({ taskId, tags }: { taskId: string; tags: string[] }) {
           Add
         </Button>
       </form>
+    </section>
+  );
+}
+
+function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function AttachmentsSection({
+  taskId,
+  attachments,
+}: {
+  taskId: string;
+  attachments: TaskAttachment[];
+}) {
+  const addAttachment = useAddAttachment(taskId);
+  const deleteAttachment = useDeleteAttachment(taskId);
+  const [error, setError] = useState<string | null>(null);
+
+  const limitMb = Math.round(MAX_ATTACHMENT_BYTES / (1024 * 1024));
+
+  async function uploadFiles(event: ChangeEvent<HTMLInputElement>) {
+    const files = Array.from(event.target.files ?? []);
+    if (files.length === 0) return;
+
+    setError(null);
+    try {
+      for (const file of files) {
+        await addAttachment.mutateAsync(file);
+      }
+      event.target.value = '';
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not upload the file');
+    }
+  }
+
+  function removeAttachment(id: string) {
+    setError(null);
+    deleteAttachment.mutateAsync({ id }).catch((cause: unknown) => {
+      setError(cause instanceof Error ? cause.message : 'Could not remove the file');
+    });
+  }
+
+  return (
+    <section className="mt-5 border-t border-zinc-100 pt-4">
+      <SectionHeading
+        title="Attachments"
+        meta={attachments.length > 0 ? String(attachments.length) : undefined}
+      />
+
+      {attachments.length > 0 && (
+        <ul className="mt-2 flex flex-col gap-2">
+          {attachments.map((attachment) => (
+            <li key={attachment.id} className="flex min-h-8 items-center gap-2">
+              <a
+                href={`/api/attachments/${attachment.id}/download`}
+                download={attachment.filename}
+                className="min-w-0 flex-1 truncate text-xs text-blue-700 underline underline-offset-2"
+              >
+                {attachment.filename}
+              </a>
+              <span className="shrink-0 text-xs text-zinc-500">
+                {formatFileSize(attachment.sizeBytes)}
+              </span>
+              <button
+                type="button"
+                aria-label={`Remove ${attachment.filename}`}
+                className="shrink-0 text-xs text-zinc-500 underline underline-offset-2"
+                onClick={() => { removeAttachment(attachment.id); }}
+              >
+                Remove
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-2">
+        <Field label="File Upload" hint={`Up to ${limitMb} MB per file.`}>
+          <input
+            type="file"
+            multiple
+            disabled={addAttachment.isPending}
+            onChange={(event) => { void uploadFiles(event); }}
+            className="block w-full text-xs text-zinc-600 file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-zinc-100 file:px-3 file:py-1.5 file:text-xs file:font-medium file:text-zinc-700 hover:file:bg-zinc-200 disabled:opacity-50"
+          />
+        </Field>
+      </div>
+
+      {addAttachment.isPending && <p className="mt-1 text-xs text-zinc-500">Uploading…</p>}
+      {error && <p className="mt-1 text-xs text-red-600">{error}</p>}
     </section>
   );
 }

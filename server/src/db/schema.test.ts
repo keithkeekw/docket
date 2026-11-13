@@ -12,6 +12,7 @@ import {
   projects,
   statuses,
   tags,
+  taskAttachments,
   taskLinks,
   taskTags,
   tasks,
@@ -59,6 +60,7 @@ describe('migrations and seed', () => {
         'reviews',
         'statuses',
         'tags',
+        'task_attachments',
         'task_links',
         'task_tags',
         'tasks',
@@ -154,12 +156,22 @@ describe('schema constraints', () => {
     db.insert(taskLinks)
       .values({ taskId: task.id, url: 'https://example.test/ZD-1', label: 'ZD-1' })
       .run();
+    db.insert(taskAttachments)
+      .values({
+        taskId: task.id,
+        filename: 'notes.txt',
+        storageName: 'stored-notes.txt',
+        mimeType: 'text/plain',
+        sizeBytes: 5,
+      })
+      .run();
     db.insert(taskTags).values({ taskId: task.id, tagId: tag.id }).run();
 
     db.delete(tasks).where(eq(tasks.id, task.id)).run();
 
     expect(db.select().from(checklistItems).all()).toHaveLength(0);
     expect(db.select().from(taskLinks).all()).toHaveLength(0);
+    expect(db.select().from(taskAttachments).all()).toHaveLength(0);
     expect(db.select().from(taskTags).all()).toHaveLength(0);
     expect(db.select().from(tags).all()).toHaveLength(1);
   });

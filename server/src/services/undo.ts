@@ -1,5 +1,13 @@
 import { eq } from 'drizzle-orm';
-import { checklistItems, milestones, projects, taskLinks, taskTags, tasks } from '../db/schema';
+import {
+  checklistItems,
+  milestones,
+  projects,
+  taskAttachments,
+  taskLinks,
+  taskTags,
+  tasks,
+} from '../db/schema';
 import type { Db } from '../db/types';
 
 export type UndoEntry = { label: string; undo: () => void };
@@ -43,6 +51,11 @@ export function undoableTaskDelete(db: Db, taskId: string): void {
   const children = {
     checklist: db.select().from(checklistItems).where(eq(checklistItems.taskId, taskId)).all(),
     links: db.select().from(taskLinks).where(eq(taskLinks.taskId, taskId)).all(),
+    attachments: db
+      .select()
+      .from(taskAttachments)
+      .where(eq(taskAttachments.taskId, taskId))
+      .all(),
     tags: db.select().from(taskTags).where(eq(taskTags.taskId, taskId)).all(),
   };
 
@@ -54,6 +67,11 @@ export function undoableTaskDelete(db: Db, taskId: string): void {
         db.insert(checklistItems).values(children.checklist).run();
       }
       if (children.links.length > 0) db.insert(taskLinks).values(children.links).run();
+      // Attachment rows are restored here; their files deliberately stay on
+      // disk until the next startup prune (so undo brings the uploads back).
+      if (children.attachments.length > 0) {
+        db.insert(taskAttachments).values(children.attachments).run();
+      }
       if (children.tags.length > 0) db.insert(taskTags).values(children.tags).run();
     },
   });

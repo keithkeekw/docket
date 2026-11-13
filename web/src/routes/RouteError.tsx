@@ -10,12 +10,12 @@ import { PageHeader } from '../components/PageHeader';
 export function RouteError() {
   return (
     <main className="mx-auto max-w-[720px] px-8 pt-6 pb-12">
-      <PageHeader title="Something went wrong" />
+      <PageHeader title="Something Went Wrong" />
       <EmptyState
         message="This screen failed to render. Go back to the dashboard and try again."
         action={
           <Link to="/" className={buttonClassName('secondary')}>
-            Go to dashboard
+            Go to Dashboard
           </Link>
         }
       />

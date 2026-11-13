@@ -5,8 +5,8 @@ import { buttonClassName } from '../lib/button';
 import { Button } from './Button';
 
 const KIND_LABEL: Record<Review['kind'], string> = {
-  daily: 'Daily review',
-  weekly: 'Weekly review',
+  daily: 'Daily Review',
+  weekly: 'Weekly Review',
   manual: 'Review',
 };
 
@@ -50,7 +50,7 @@ export function ReviewCard({
             {regenerating ? 'Generating…' : 'Regenerate'}
           </Button>
           <Link to="/reviews" className={buttonClassName('primary')}>
-            Open review
+            Open Review
           </Link>
         </div>
       </div>

@@ -43,7 +43,7 @@ export function DashboardRoute() {
   const groups = [
     { label: 'Overdue', tone: 'overdue' as const, tasks: data?.groups.overdue ?? [] },
     { label: 'Today', tone: 'default' as const, tasks: data?.groups.today ?? [] },
-    { label: 'Inbox · unsorted', tone: 'default' as const, tasks: data?.groups.inbox ?? [] },
+    { label: 'Inbox · Unsorted', tone: 'default' as const, tasks: data?.groups.inbox ?? [] },
   ].filter((group) => group.tasks.length > 0);
 
   return (
@@ -52,7 +52,7 @@ export function DashboardRoute() {
         <div className="min-w-0 flex-1">
           <CaptureBar />
         </div>
-        <Button onClick={openChat}>Ask assistant</Button>
+        <Button onClick={openChat}>Ask Assistant</Button>
       </div>
 
       <header className="mt-6 flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -97,7 +97,7 @@ export function DashboardRoute() {
                 Tasks
               </h2>
               <Link to="/tasks" className="text-[13px] text-blue-600 hover:underline">
-                Open in table
+                Open in Table
               </Link>
             </div>
 
@@ -133,7 +133,7 @@ export function DashboardRoute() {
           <section aria-labelledby="dashboard-projects" className="min-w-0 overflow-hidden">
             <div className="flex items-baseline justify-between gap-2">
               <h2 id="dashboard-projects" className="text-[15px] font-semibold text-zinc-900">
-                Active projects
+                Active Projects
               </h2>
               <button
                 type="button"
@@ -142,7 +142,7 @@ export function DashboardRoute() {
                   openProjectDialog({ mode: 'create' });
                 }}
               >
-                New project
+                New Project
               </button>
             </div>
 

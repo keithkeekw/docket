@@ -173,7 +173,7 @@ export function ProjectRoute() {
                   openProjectDialog({ mode: 'edit', projectId: data.id });
                 }}
               >
-                Edit project
+                Edit Project
               </Button>
               <Button
                 onClick={() => { void handleSummarize(); }}
@@ -188,7 +188,7 @@ export function ProjectRoute() {
                     onClick={handleArchiveConfirm}
                     disabled={archiveProject.isPending}
                   >
-                    {archiveProject.isPending ? 'Archiving…' : 'Confirm archive'}
+                    {archiveProject.isPending ? 'Archiving…' : 'Confirm Archive'}
                   </Button>
                   <Button onClick={() => { setConfirmArchive(false); }}>Cancel</Button>
                 </>
@@ -201,10 +201,10 @@ export function ProjectRoute() {
                 }}
                 disabled={breakdown.isPending}
               >
-                {breakdown.isPending ? 'Thinking…' : 'Break down with AI'}
+                {breakdown.isPending ? 'Thinking…' : 'Break Down with AI'}
               </Button>
               <Button variant="primary" onClick={() => openCapture({ projectId: data.id })}>
-                New task
+                New Task
               </Button>
             </>
           }
@@ -238,7 +238,7 @@ export function ProjectRoute() {
         {addingMilestone ? (
           <form className="flex items-end gap-2" onSubmit={addMilestone}>
             <div className="w-[200px]">
-              <Field label="New milestone">
+              <Field label="New Milestone">
                 <Input
                   autoFocus
                   value={milestoneName}
@@ -334,7 +334,7 @@ export function ProjectRoute() {
             onClick={(e) => { e.stopPropagation(); }}
           >
             <div className="mb-4 flex items-start justify-between gap-3">
-              <h2 className="text-[15px] font-semibold text-zinc-900">Project summary</h2>
+              <h2 className="text-[15px] font-semibold text-zinc-900">Project Summary</h2>
               <button
                 type="button"
                 className="shrink-0 text-zinc-400 hover:text-zinc-600"

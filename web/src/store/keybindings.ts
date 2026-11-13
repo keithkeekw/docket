@@ -7,6 +7,8 @@ export type KeyBinding = {
   binding: string;
   defaultBinding: string;
   configurable: boolean;
+  /** Allows a bare letter (e.g. "x") for shortcuts that ignore form fields. */
+  allowBareKey?: boolean;
 };
 
 const STORAGE_KEY = 'docket:keybindings';
@@ -14,6 +16,10 @@ const STORAGE_KEY = 'docket:keybindings';
 const DEFAULT_BINDINGS: Record<string, string> = {
   quickCapture: 'mod+k',
   aiCapture: 'mod+enter',
+  toggleSidebar: 'x',
+  askAssistant: 'ctrl+alt+shift+meta+a',
+  shortcutHelp: 'shift+space',
+  commandPalette: 'mod+p',
 };
 
 function loadBindings(): Record<string, string> {
@@ -63,7 +69,7 @@ export const useKeybindingsStore = create<KeybindingsStore>((set, get) => ({
 export const ALL_SHORTCUTS: KeyBinding[] = [
   {
     id: 'quickCapture',
-    label: 'Quick capture',
+    label: 'Quick Capture',
     description: 'Open the capture dialog from anywhere',
     binding: 'mod+k',
     defaultBinding: 'mod+k',
@@ -71,15 +77,48 @@ export const ALL_SHORTCUTS: KeyBinding[] = [
   },
   {
     id: 'aiCapture',
-    label: 'AI capture',
+    label: 'AI Capture',
     description: 'Parse the capture text with AI',
     binding: 'mod+enter',
     defaultBinding: 'mod+enter',
     configurable: true,
   },
   {
+    id: 'toggleSidebar',
+    label: 'Collapse / Expand Sidebar',
+    description: 'Toggle the sidebar between full width and the icon rail',
+    binding: 'x',
+    defaultBinding: 'x',
+    configurable: true,
+    allowBareKey: true,
+  },
+  {
+    id: 'askAssistant',
+    label: 'Ask Assistant',
+    description: 'Open the assistant drawer from anywhere',
+    binding: 'ctrl+alt+shift+meta+a',
+    defaultBinding: 'ctrl+alt+shift+meta+a',
+    configurable: true,
+  },
+  {
+    id: 'commandPalette',
+    label: 'Command Palette',
+    description: 'Search and jump to pages, projects and actions',
+    binding: 'mod+p',
+    defaultBinding: 'mod+p',
+    configurable: true,
+  },
+  {
+    id: 'shortcutHelp',
+    label: 'Keyboard Shortcuts',
+    description: 'Show the full list of shortcuts in an overlay',
+    binding: 'shift+space',
+    defaultBinding: 'shift+space',
+    configurable: true,
+  },
+  {
     id: 'saveCapture',
-    label: 'Save capture',
+    label: 'Save Capture',
     description: 'Save the task directly from the capture dialog',
     binding: 'enter',
     defaultBinding: 'enter',
@@ -87,7 +126,7 @@ export const ALL_SHORTCUTS: KeyBinding[] = [
   },
   {
     id: 'closeDialog',
-    label: 'Close dialog',
+    label: 'Close Dialog',
     description: 'Dismiss the active dialog or modal',
     binding: 'escape',
     defaultBinding: 'escape',
@@ -95,7 +134,7 @@ export const ALL_SHORTCUTS: KeyBinding[] = [
   },
   {
     id: 'kanbanDrag',
-    label: 'Kanban drag',
+    label: 'Kanban Drag',
     description: 'Start or drop a card when using keyboard in Kanban view',
     binding: 'space',
     defaultBinding: 'space',

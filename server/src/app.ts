@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { APP_NAME } from '@app/shared';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { sql } from 'drizzle-orm';
@@ -5,8 +6,10 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { statuses } from './db/schema';
 import type { Db } from './db/types';
+import { REPO_ROOT } from './env';
 import { ServiceError } from './lib/errors';
 import { registerAiRoutes } from './routes/ai';
+import { registerAttachmentRoutes } from './routes/attachments';
 import { registerAiSettingsRoutes } from './routes/ai-settings';
 import { registerBackupRoutes } from './routes/backups';
 import { registerChecklistRoutes } from './routes/checklist';
@@ -29,7 +32,7 @@ import { getNavSummary } from './services/nav';
  */
 export function createApp(
   db: Db,
-  options: { backupsDir?: string; staticDir?: string } = {},
+  options: { backupsDir?: string; staticDir?: string; uploadsDir?: string } = {},
 ): Hono {
   const app = new Hono();
 
@@ -72,6 +75,11 @@ export function createApp(
   app.get('/api/nav', (c) => c.json(getNavSummary(db)));
 
   registerTaskRoutes(app, db);
+  registerAttachmentRoutes(
+    app,
+    db,
+    options.uploadsDir ?? path.join(REPO_ROOT, 'data/uploads'),
+  );
   registerDashboardRoutes(app, db);
   registerStatusRoutes(app, db);
   registerProjectRoutes(app, db);

@@ -7,11 +7,12 @@ coverage/
 .env
 .env.local
 
-# Local database and backups
+# Local database, backups and uploaded task files
 data/*.db
 data/*.db-*
 data/backups/*
 !data/backups/.gitkeep
+data/uploads/*
 
 *.log
 .DS_Store

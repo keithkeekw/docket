@@ -87,7 +87,7 @@ export function Sidebar() {
           <button
             type="button"
             onClick={toggleSidebar}
-            title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            title={collapsed ? 'Expand Sidebar' : 'Collapse Sidebar'}
             className="flex size-7 items-center justify-center rounded-lg text-zinc-300 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
           >
             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-3.5" aria-hidden="true">
@@ -106,7 +106,7 @@ export function Sidebar() {
             <li><NavItem to="/" end label="Dashboard" collapsed={collapsed} icon={icons.dashboard} /></li>
             <li><NavItem to="/inbox" label="Inbox" count={counts?.inbox} collapsed={collapsed} icon={icons.inbox} /></li>
             <li><NavItem to="/today" label="Today" count={counts?.today} collapsed={collapsed} icon={icons.today} /></li>
-            <li><NavItem to="/tasks" label="All tasks" count={counts?.all} collapsed={collapsed} icon={icons.tasks} /></li>
+            <li><NavItem to="/tasks" label="All Tasks" count={counts?.all} collapsed={collapsed} icon={icons.tasks} /></li>
             <li><NavItem to="/reviews" label="Reviews" collapsed={collapsed} icon={icons.reviews} /></li>
           </ul>
         </nav>
@@ -132,20 +132,20 @@ export function Sidebar() {
               onClick={() => { openProjectDialog({ mode: 'create' }); }}
             >
               <span aria-hidden="true" className="text-base leading-none">+</span>
-              New project
+              New Project
             </button>
             <Link
               to="/projects/archived"
               className="mt-1 flex w-full items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-600"
             >
-              Archived projects
+              Archived Projects
             </Link>
           </div>
         ) : (
           <div className="mt-3">
             <button
               type="button"
-              title="New project"
+              title="New Project"
               className="flex w-full items-center justify-center rounded-xl border border-dashed border-zinc-300 py-2 text-zinc-400 transition-colors hover:border-zinc-400 hover:text-zinc-600"
               onClick={() => { openProjectDialog({ mode: 'create' }); }}
             >

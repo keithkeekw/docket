@@ -20,6 +20,7 @@ import {
 } from '../db/schema';
 import type { Db } from '../db/types';
 import { ServiceError } from '../lib/errors';
+import { listAttachments } from './attachments';
 import { createNextOccurrence } from './recurrence';
 import { undoableTaskDelete } from './undo';
 import { defaultOpenStatusId, firstDoneStatusId, statusCategoryOf, statusExists } from './statuses';
@@ -295,6 +296,7 @@ export function getTaskDetail(db: Db, id: string): TaskDetail {
     ...task,
     links,
     checklistItems: checklist.map((item): ChecklistItem => ({ ...item, done: Boolean(item.done) })),
+    attachments: listAttachments(db, id),
   };
 }
 

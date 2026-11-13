@@ -91,6 +91,16 @@ export const taskLinkSchema = z.object({
   label: z.string().min(1),
 });
 
+/** One uploaded file stored against a task (FR-31). Bytes live on disk. */
+export const taskAttachmentSchema = z.object({
+  id: z.string().min(1),
+  taskId: z.string().min(1),
+  filename: z.string().min(1),
+  mimeType: z.string(),
+  sizeBytes: z.number().int().nonnegative(),
+  createdAt: z.string(),
+});
+
 export const checklistItemSchema = z.object({
   id: z.string().min(1),
   taskId: z.string().min(1),
@@ -135,6 +145,7 @@ export const taskSchema = z.object({
 export const taskDetailSchema = taskSchema.extend({
   links: z.array(taskLinkSchema),
   checklistItems: z.array(checklistItemSchema),
+  attachments: z.array(taskAttachmentSchema),
 });
 
 export const taskListSchema = z.object({
@@ -161,6 +172,10 @@ export const taskLinkResponseSchema = z.object({
   link: taskLinkSchema,
 });
 
+export const taskAttachmentResponseSchema = z.object({
+  attachment: taskAttachmentSchema,
+});
+
 export const taskTagsResponseSchema = z.object({
   tags: z.array(z.string()),
 });
@@ -169,6 +184,7 @@ export type Task = z.infer<typeof taskSchema>;
 export type TaskDetail = z.infer<typeof taskDetailSchema>;
 export type TaskList = z.infer<typeof taskListSchema>;
 export type TaskLink = z.infer<typeof taskLinkSchema>;
+export type TaskAttachment = z.infer<typeof taskAttachmentSchema>;
 export type ChecklistItem = z.infer<typeof checklistItemSchema>;
 export type Priority = z.infer<typeof prioritySchema>;
 

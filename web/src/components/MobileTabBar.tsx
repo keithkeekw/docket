@@ -37,7 +37,7 @@ const tabs = [
   {
     to: '/tasks',
     end: false,
-    label: 'All tasks',
+    label: 'All Tasks',
     icon: (
       <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5" aria-hidden="true">
         <path fillRule="evenodd" d="M6 4.75A.75.75 0 0 1 6.75 4h10.5a.75.75 0 0 1 0 1.5H6.75A.75.75 0 0 1 6 4.75ZM6 10a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H6.75A.75.75 0 0 1 6 10Zm0 5.25a.75.75 0 0 1 .75-.75h10.5a.75.75 0 0 1 0 1.5H6.75a.75.75 0 0 1-.75-.75ZM1.99 4.75a1 1 0 0 1 1-1H3a1 1 0 0 1 0 2h-.01a1 1 0 0 1-1-1ZM1.99 10a1 1 0 0 1 1-1H3a1 1 0 0 1 0 2h-.01a1 1 0 0 1-1-1ZM1.99 15.25a1 1 0 0 1 1-1H3a1 1 0 0 1 0 2h-.01a1 1 0 0 1-1-1Z" clipRule="evenodd" />
@@ -70,7 +70,7 @@ export function MobileTabBar() {
 
   return (
     <nav
-      aria-label="Mobile navigation"
+      aria-label="Mobile Navigation"
       className="fixed inset-x-0 bottom-0 z-40 flex border-t border-zinc-200 bg-white/95 backdrop-blur sm:hidden"
     >
       {tabs.map((tab) => {
@@ -88,7 +88,7 @@ export function MobileTabBar() {
             }
           >
             {tab.icon}
-            <span>{tab.label === 'All tasks' ? 'Tasks' : tab.label}</span>
+            <span>{tab.label === 'All Tasks' ? 'Tasks' : tab.label}</span>
             {count !== undefined && count > 0 && (
               <span className="absolute top-1.5 right-[calc(50%-14px)] flex size-4 items-center justify-center rounded-full bg-zinc-800 text-[9px] text-white">
                 {count > 99 ? '99+' : count}

@@ -1,14 +1,37 @@
+import { useHotkeys } from 'react-hotkeys-hook';
 import { Outlet } from 'react-router';
+import { useKeybindingsStore } from '../store/keybindings';
+import { useUiStore } from '../store/ui';
 import { CaptureDialog } from './CaptureDialog';
 import { ChatDrawer } from './ChatDrawer';
+import { CommandPalette } from './CommandPalette';
 import { MobileTabBar } from './MobileTabBar';
 import { ProjectDialog } from './ProjectDialog';
 import { ProposalModal } from './ProposalModal';
+import { ShortcutHelpDialog } from './ShortcutHelpDialog';
 import { Sidebar } from './Sidebar';
 import { TaskDrawer } from './TaskDrawer';
 import { UndoBar } from './UndoBar';
 
 export function AppShell() {
+  const toggleSidebar = useUiStore((state) => state.toggleSidebar);
+  const openChat = useUiStore((state) => state.openChat);
+  const toggleSidebarKey = useKeybindingsStore((s) => s.bindings.toggleSidebar ?? 'x');
+  const askAssistantKey = useKeybindingsStore(
+    (s) => s.bindings.askAssistant ?? 'ctrl+alt+shift+meta+a',
+  );
+
+  // Bare keys stay inert inside form fields, so typing "x" never collapses the
+  // sidebar mid-sentence.
+  useHotkeys(toggleSidebarKey, () => { toggleSidebar(); }, { preventDefault: true });
+
+  // The assistant opens from anywhere, including while another field has focus.
+  useHotkeys(
+    askAssistantKey,
+    () => { openChat(); },
+    { preventDefault: true, enableOnFormTags: true },
+  );
+
   return (
     <div className="flex min-h-screen flex-col sm:flex-row">
       {/* Sidebar: hidden on mobile, visible from sm up */}
@@ -30,6 +53,8 @@ export function AppShell() {
       <TaskDrawer />
       <ProjectDialog />
       <ProposalModal />
+      <ShortcutHelpDialog />
+      <CommandPalette />
     </div>
   );
 }

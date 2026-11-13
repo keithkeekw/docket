@@ -173,7 +173,7 @@ function StatusesSection() {
       <form className="mt-3 flex flex-col gap-2" onSubmit={handleAdd}>
         <div className="flex gap-2">
           <div className="min-w-0 flex-1">
-            <Field label="Add status">
+            <Field label="Add Status">
               <Input
                 value={name}
                 onChange={(event) => {
@@ -277,7 +277,7 @@ function StatusRow({
       <div className="flex items-center justify-between gap-2">
         <span className="text-xs text-zinc-500">
           {status.taskCount === 0
-            ? 'unused'
+            ? 'Unused'
             : `${status.taskCount} ${status.taskCount === 1 ? 'task' : 'tasks'}`}
         </span>
         <div className="flex gap-1.5">
@@ -357,7 +357,7 @@ function DataSection() {
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
         <Button onClick={handleBackup} disabled={createBackup.isPending}>
-          {createBackup.isPending ? 'Backing up…' : 'Backup now'}
+          {createBackup.isPending ? 'Backing up…' : 'Backup Now'}
         </Button>
         <span className="text-xs text-zinc-500">
           {rows.length === 0
@@ -403,7 +403,7 @@ function DataSection() {
                     }}
                     disabled={restore.isPending}
                   >
-                    {restore.isPending ? 'Restoring…' : 'Confirm restore'}
+                    {restore.isPending ? 'Restoring…' : 'Confirm Restore'}
                   </Button>
                   <Button
                     onClick={() => {
@@ -457,8 +457,8 @@ function DataSection() {
 const FEATURE_LABELS: ReadonlyArray<{ feature: AiFeature; label: string }> = [
   { feature: 'capture', label: 'Capture' },
   { feature: 'breakdown', label: 'Breakdown' },
-  { feature: 'review_daily', label: 'Daily review' },
-  { feature: 'review_weekly', label: 'Weekly review' },
+  { feature: 'review_daily', label: 'Daily Review' },
+  { feature: 'review_weekly', label: 'Weekly Review' },
   { feature: 'chat', label: 'Chat' },
 ];
 
@@ -557,7 +557,7 @@ function AiSection() {
     for (const { feature, label } of FEATURE_LABELS) {
       const entry = draft[feature];
       if (entry.provider !== '' && entry.model.trim() === '') {
-        setError(`Enter a model for ${label}, or set it to Not configured.`);
+        setError(`Enter a model for ${label}, or set it to Not Configured.`);
         return;
       }
     }
@@ -619,7 +619,7 @@ function AiSection() {
                   {PROVIDER_LABELS[provider.provider]}
                 </span>
                 <span className={provider.configured ? 'text-zinc-600' : 'text-zinc-500'}>
-                  {provider.configured ? 'Configured' : 'Not configured'}
+                  {provider.configured ? 'Configured' : 'Not Configured'}
                 </span>
               </li>
             ))}
@@ -654,7 +654,7 @@ function AiSection() {
                         setMessage(null);
                       }}
                     >
-                      <option value="">Not configured</option>
+                      <option value="">Not Configured</option>
                       <option value="deepseek">DeepSeek</option>
                       <option value="openrouter">OpenRouter</option>
                     </Select>
@@ -675,7 +675,7 @@ function AiSection() {
 
               <div className="mt-3 flex items-center gap-3">
                 <Button onClick={handleSave} disabled={save.isPending}>
-                  {save.isPending ? 'Saving…' : 'Save AI settings'}
+                  {save.isPending ? 'Saving…' : 'Save AI Settings'}
                 </Button>
                 {message && <span className="text-xs text-zinc-600">{message}</span>}
               </div>
@@ -693,42 +693,77 @@ function KeyBindingsSection() {
   const { bindings, setBinding, resetBinding, resetAll } = useKeybindingsStore();
   const [recording, setRecording] = useState<string | null>(null);
   const [recordingError, setRecordingError] = useState<string | null>(null);
+  const recordButtonRef = useRef<HTMLButtonElement | null>(null);
 
   function startRecording(id: string) {
     setRecording(id);
     setRecordingError(null);
   }
 
-  function handleKeyDown(e: React.KeyboardEvent, id: string) {
-    e.preventDefault();
-    e.stopPropagation();
+  /**
+   * Safari does not give buttons keyboard focus when clicked, so a button
+   * `onKeyDown` never fires there. Listen on the window instead. The capture
+   * phase also stops an in-progress chord from triggering global hotkeys.
+   */
+  useEffect(() => {
+    if (!recording) return;
+    const id = recording;
 
-    const bare = ['Control', 'Meta', 'Alt', 'Shift'];
-    if (bare.includes(e.key)) return;
+    function handleKeyDown(e: KeyboardEvent) {
+      e.preventDefault();
+      e.stopPropagation();
 
-    const parts: string[] = [];
-    if (e.metaKey || e.ctrlKey) parts.push('mod');
-    if (e.altKey) parts.push('alt');
-    if (e.shiftKey) parts.push('shift');
+      const bare = ['Control', 'Meta', 'Alt', 'Shift'];
+      if (bare.includes(e.key)) return;
 
-    const key = e.key.toLowerCase();
-    if (key === 'escape') {
+      const key = e.key.toLowerCase();
+      if (key === 'escape') {
+        setRecording(null);
+        setRecordingError(null);
+        return;
+      }
+
+      // Record every modifier the user pressed, so chords such as ⌃⌥⇧⌘A stay
+      // exactly as entered. Order follows the Apple glyph order ⌃⌥⇧⌘.
+      const parts: string[] = [];
+      if (e.ctrlKey) parts.push('ctrl');
+      if (e.altKey) parts.push('alt');
+      if (e.shiftKey) parts.push('shift');
+      if (e.metaKey) parts.push('meta');
+      parts.push(key === ' ' ? 'space' : key);
+
+      const newBinding = parts.join('+');
+      const target = ALL_SHORTCUTS.find((shortcut) => shortcut.id === id);
+      if (!target?.allowBareKey && parts.length === 1 && newBinding.length === 1) {
+        setRecordingError('Include a modifier key (⌘ / Ctrl) to avoid conflicts.');
+        return;
+      }
+
+      const conflict = ALL_SHORTCUTS.find(
+        (other) =>
+          other.id !== id &&
+          (bindings[other.id] ?? other.defaultBinding) === newBinding,
+      );
+      if (conflict) {
+        setRecordingError(`Already used by “${conflict.label}”.`);
+        return;
+      }
+
+      setBinding(id, newBinding);
       setRecording(null);
       setRecordingError(null);
-      return;
-    }
-    parts.push(key === ' ' ? 'space' : key);
-
-    const newBinding = parts.join('+');
-    if (parts.length === 1 && newBinding.length === 1) {
-      setRecordingError('Include a modifier key (⌘ / Ctrl) to avoid conflicts.');
-      return;
     }
 
-    setBinding(id, newBinding);
-    setRecording(null);
-    setRecordingError(null);
-  }
+    window.addEventListener('keydown', handleKeyDown, true);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown, true);
+    };
+  }, [recording, bindings, setBinding]);
+
+  // Focus the recorder so the focus ring is visible and clicking away cancels.
+  useEffect(() => {
+    if (recording) recordButtonRef.current?.focus();
+  }, [recording]);
 
   const hasCustom = ALL_SHORTCUTS.some(
     (s) => s.configurable && bindings[s.id] && bindings[s.id] !== s.defaultBinding,
@@ -738,7 +773,7 @@ function KeyBindingsSection() {
     <section className="mt-8 border-t border-zinc-200 pt-5">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-[15px] font-semibold text-zinc-900">Key bindings</h2>
+          <h2 className="text-[15px] font-semibold text-zinc-900">Key Bindings</h2>
           <p className="mt-1 max-w-[480px] text-xs text-zinc-500">
             Keyboard shortcuts available in the app. Click a configurable shortcut to change it.
           </p>
@@ -749,7 +784,7 @@ function KeyBindingsSection() {
             className="shrink-0 text-xs text-zinc-400 hover:text-zinc-700"
             onClick={resetAll}
           >
-            Reset all
+            Reset All
           </button>
         )}
       </div>
@@ -776,9 +811,9 @@ function KeyBindingsSection() {
                 {shortcut.configurable ? (
                   isRecording ? (
                     <button
+                      ref={recordButtonRef}
                       type="button"
                       className="flex min-w-[160px] items-center justify-center rounded-lg border-2 border-blue-400 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 outline-none ring-2 ring-blue-300 ring-offset-1"
-                      onKeyDown={(e) => { handleKeyDown(e, shortcut.id); }}
                       autoFocus
                       onBlur={() => { setRecording(null); setRecordingError(null); }}
                     >
@@ -789,7 +824,7 @@ function KeyBindingsSection() {
                       type="button"
                       className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-white"
                       onClick={() => { startRecording(shortcut.id); }}
-                      title="Click to change"
+                      title="Click to Change"
                     >
                       <Kbd>{bindingLabel(current)}</Kbd>
                       {isCustom && (
@@ -806,7 +841,7 @@ function KeyBindingsSection() {
                     type="button"
                     className="text-xs text-zinc-400 hover:text-zinc-600"
                     onClick={() => { resetBinding(shortcut.id); }}
-                    title="Reset to default"
+                    title="Reset to Default"
                   >
                     Reset
                   </button>

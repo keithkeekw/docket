@@ -129,7 +129,7 @@ export function CaptureDialog() {
     >
       <form className="p-4" onSubmit={handleSubmit}>
         <h2 id="capture-title" className="text-[15px] font-semibold text-zinc-900">
-          Quick capture
+          Quick Capture
         </h2>
         <p className="mt-1 text-xs text-zinc-500">
           {captureProjectId ? 'Saves to this project.' : 'Saves to the Inbox.'}
@@ -139,7 +139,7 @@ export function CaptureDialog() {
           ref={inputRef}
           className="mt-3 min-h-11 w-full rounded-[10px] border border-zinc-200 bg-white px-3 text-sm text-zinc-900 placeholder:text-zinc-500"
           placeholder="What needs doing?"
-          aria-label="Task title"
+          aria-label="Task Title"
           value={title}
           disabled={aiPending}
           onChange={(event) => {
@@ -181,7 +181,7 @@ export function CaptureDialog() {
               : createTask.isPending
                 ? 'Saving…'
                 : captureProjectId
-                  ? 'Add task'
+                  ? 'Add Task'
                   : 'Add to Inbox'}
           </Button>
         </div>

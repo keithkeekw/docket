@@ -5,7 +5,7 @@ describe('describeRecurrence', () => {
   it('names the presets', () => {
     expect(describeRecurrence('FREQ=DAILY')).toBe('Daily');
     expect(describeRecurrence('FREQ=WEEKLY')).toBe('Weekly');
-    expect(describeRecurrence('FREQ=WEEKLY;INTERVAL=2')).toBe('Every 2 weeks');
+    expect(describeRecurrence('FREQ=WEEKLY;INTERVAL=2')).toBe('Every 2 Weeks');
     expect(describeRecurrence('FREQ=MONTHLY')).toBe('Monthly');
   });
 
@@ -15,8 +15,8 @@ describe('describeRecurrence', () => {
   });
 
   it('reads intervals and other part orders', () => {
-    expect(describeRecurrence('INTERVAL=3;FREQ=WEEKLY')).toBe('Every 3 weeks');
-    expect(describeRecurrence('FREQ=DAILY;INTERVAL=2')).toBe('Every 2 days');
+    expect(describeRecurrence('INTERVAL=3;FREQ=WEEKLY')).toBe('Every 3 Weeks');
+    expect(describeRecurrence('FREQ=DAILY;INTERVAL=2')).toBe('Every 2 Days');
     expect(describeRecurrence('FREQ=YEARLY')).toBe('Yearly');
   });
 
@@ -32,7 +32,7 @@ describe('describeRecurrence', () => {
 describe('recurrenceOptions', () => {
   it('offers the presets for a task with no rule', () => {
     expect(recurrenceOptions(null)).toHaveLength(RECURRENCE_PRESETS.length);
-    expect(recurrenceOptions(null)[0]).toEqual({ value: '', label: 'Does not repeat' });
+    expect(recurrenceOptions(null)[0]).toEqual({ value: '', label: 'Does Not Repeat' });
   });
 
   it('keeps a stored rule that is not a preset selectable', () => {

@@ -5,6 +5,7 @@ import { createApp } from './app';
 import { db } from './db/client';
 import { env, REPO_ROOT } from './env';
 import { startScheduler } from './scheduler';
+import { pruneOrphanAttachmentFiles } from './services/attachments';
 
 // In production the built frontend lives at <repo>/web/dist.
 const staticDir =
@@ -12,7 +13,12 @@ const staticDir =
     ? path.join(REPO_ROOT, 'web/dist')
     : undefined;
 
-const app = createApp(db, { staticDir });
+const uploadsDir = path.join(REPO_ROOT, 'data/uploads');
+// A deleted task cascades its rows away but the bytes stay for undo; clear any
+// files that no longer have a row before serving requests.
+pruneOrphanAttachmentFiles(db, uploadsDir);
+
+const app = createApp(db, { staticDir, uploadsDir });
 // FR-19/FR-20: scheduled reviews plus a catch-up sweep for missed slots.
 startScheduler(db);
 

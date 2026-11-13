@@ -170,6 +170,29 @@ export const taskLinks = sqliteTable(
   (t) => [index('task_links_task_idx').on(t.taskId)],
 );
 
+/**
+ * Task attachments (FR-31). Files live on disk under `data/uploads`; the row
+ * keeps the original name plus the generated storage name used on disk.
+ */
+export const taskAttachments = sqliteTable(
+  'task_attachments',
+  {
+    id: id(),
+    taskId: text('task_id')
+      .notNull()
+      .references(() => tasks.id, { onDelete: 'cascade' }),
+    filename: text('filename').notNull(),
+    storageName: text('storage_name').notNull(),
+    mimeType: text('mime_type').notNull().default('application/octet-stream'),
+    sizeBytes: integer('size_bytes').notNull(),
+    createdAt: createdAt(),
+  },
+  (t) => [
+    index('task_attachments_task_idx').on(t.taskId),
+    uniqueIndex('task_attachments_storage_unique').on(t.storageName),
+  ],
+);
+
 export const tags = sqliteTable(
   'tags',
   {
@@ -284,6 +307,7 @@ export const tasksRelations = relations(tasks, ({ one, many }) => ({
   status: one(statuses, { fields: [tasks.statusId], references: [statuses.id] }),
   checklistItems: many(checklistItems),
   links: many(taskLinks),
+  attachments: many(taskAttachments),
   taskTags: many(taskTags),
   parent: one(tasks, {
     fields: [tasks.recurrenceParentId],
@@ -299,6 +323,10 @@ export const checklistItemsRelations = relations(checklistItems, ({ one }) => ({
 
 export const taskLinksRelations = relations(taskLinks, ({ one }) => ({
   task: one(tasks, { fields: [taskLinks.taskId], references: [tasks.id] }),
+}));
+
+export const taskAttachmentsRelations = relations(taskAttachments, ({ one }) => ({
+  task: one(tasks, { fields: [taskAttachments.taskId], references: [tasks.id] }),
 }));
 
 export const tagsRelations = relations(tags, ({ many }) => ({

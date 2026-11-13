@@ -24,7 +24,7 @@ export function ArchivedProjectsRoute() {
 
   return (
     <>
-      <PageHeader title="Archived projects" />
+      <PageHeader title="Archived Projects" />
 
       {projects.isLoading && <p className="mt-6 text-sm text-zinc-500">Loading…</p>}
       {projects.error && <InlineError message={projects.error.message} />}

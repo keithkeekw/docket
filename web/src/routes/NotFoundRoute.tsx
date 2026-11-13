@@ -6,12 +6,12 @@ import { PageHeader } from '../components/PageHeader';
 export function NotFoundRoute() {
   return (
     <>
-      <PageHeader title="Not found" />
+      <PageHeader title="Not Found" />
       <EmptyState
         message="That page does not exist."
         action={
           <Link to="/" className={buttonClassName('secondary')}>
-            Go to dashboard
+            Go to Dashboard
           </Link>
         }
       />

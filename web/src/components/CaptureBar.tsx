@@ -43,7 +43,7 @@ export function CaptureBar() {
         <input
           ref={inputRef}
           className="min-w-0 flex-1 border-0 bg-transparent p-0 text-sm text-zinc-900 placeholder:text-zinc-500 focus-visible:ring-0 focus-visible:outline-none"
-          aria-label="Quick capture"
+          aria-label="Quick Capture"
           placeholder="What needs doing?"
           value={title}
           onChange={(event) => {

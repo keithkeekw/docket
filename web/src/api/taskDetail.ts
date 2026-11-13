@@ -2,6 +2,7 @@ import {
   aiChecklistResponseSchema,
   checklistItemResponseSchema,
   tagListSchema,
+  taskAttachmentResponseSchema,
   taskDetailResponseSchema,
   taskLinkResponseSchema,
   taskTagsResponseSchema,
@@ -10,12 +11,13 @@ import {
   type CreateChecklistItemBody,
   type CreateTaskLinkBody,
   type TagList,
+  type TaskAttachment,
   type TaskDetail,
   type TaskLink,
   type UpdateChecklistItemBody,
 } from '@app/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { apiDelete, apiGet, apiMutate } from './client';
+import { apiDelete, apiGet, apiMutate, apiUpload } from './client';
 import { navQueryKey } from './nav';
 
 /**
@@ -97,6 +99,19 @@ export function useAddLink(taskId: string) {
 export function useDeleteLink(taskId: string) {
   return useTaskPartMutation<void, { id: string }>(taskId, async ({ id }) =>
     apiDelete(`/api/links/${id}`),
+  );
+}
+
+export function useAddAttachment(taskId: string) {
+  return useTaskPartMutation<TaskAttachment, File>(taskId, async (file) =>
+    (await apiUpload(`/api/tasks/${taskId}/attachments`, file, taskAttachmentResponseSchema))
+      .attachment,
+  );
+}
+
+export function useDeleteAttachment(taskId: string) {
+  return useTaskPartMutation<void, { id: string }>(taskId, async ({ id }) =>
+    apiDelete(`/api/attachments/${id}`),
   );
 }
 

@@ -187,7 +187,7 @@ function KanbanColumn({
             onAddTask(status.id);
           }}
         >
-          + Add task
+          + Add Task
         </button>
       </div>
     </section>

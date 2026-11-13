@@ -6,10 +6,10 @@
 export type RecurrencePreset = { value: string; label: string };
 
 export const RECURRENCE_PRESETS: readonly RecurrencePreset[] = [
-  { value: '', label: 'Does not repeat' },
+  { value: '', label: 'Does Not Repeat' },
   { value: 'FREQ=DAILY', label: 'Daily' },
   { value: 'FREQ=WEEKLY', label: 'Weekly' },
-  { value: 'FREQ=WEEKLY;INTERVAL=2', label: 'Every 2 weeks' },
+  { value: 'FREQ=WEEKLY;INTERVAL=2', label: 'Every 2 Weeks' },
   { value: 'FREQ=MONTHLY', label: 'Monthly' },
 ];
 
@@ -39,13 +39,13 @@ export function describeRecurrence(rule: string | null | undefined): string | nu
 
   switch (parts.FREQ) {
     case 'DAILY':
-      return interval > 1 ? `Every ${interval} days` : 'Daily';
+      return interval > 1 ? `Every ${interval} Days` : 'Daily';
     case 'WEEKLY':
-      return interval > 1 ? `Every ${interval} weeks` : 'Weekly';
+      return interval > 1 ? `Every ${interval} Weeks` : 'Weekly';
     case 'MONTHLY':
-      return interval > 1 ? `Every ${interval} months` : 'Monthly';
+      return interval > 1 ? `Every ${interval} Months` : 'Monthly';
     case 'YEARLY':
-      return interval > 1 ? `Every ${interval} years` : 'Yearly';
+      return interval > 1 ? `Every ${interval} Years` : 'Yearly';
     default:
       return 'Custom';
   }

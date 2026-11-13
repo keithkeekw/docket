@@ -92,6 +92,19 @@ export async function apiMutate<T>(
   return parseJson(response, schema, path);
 }
 
+/** Multipart upload: the browser sets the boundary, so never set Content-Type. */
+export async function apiUpload<T>(
+  path: string,
+  file: File,
+  schema: ZodType<T>,
+): Promise<T> {
+  const form = new FormData();
+  form.set('file', file);
+
+  const response = await request(path, { method: 'POST', body: form });
+  return parseJson(response, schema, path);
+}
+
 export async function apiDelete(path: string): Promise<void> {
   await request(path, { method: 'DELETE' });
 }
