@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent, type MouseEvent } from 'react';
 import { useHotkeys } from 'react-hotkeys-hook';
+import { useCaptureWithAi } from '../api/proposals';
 import { useCreateTask } from '../api/tasks';
 import { modKeyLabel } from '../lib/platform';
 import { useUiStore } from '../store/ui';
@@ -20,12 +21,15 @@ export function CaptureDialog() {
   const captureStatusId = useUiStore((state) => state.captureStatusId);
   const openCapture = useUiStore((state) => state.openCapture);
   const closeCapture = useUiStore((state) => state.closeCapture);
+  const openProposal = useUiStore((state) => state.openProposal);
 
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const [title, setTitle] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [aiPending, setAiPending] = useState(false);
   const createTask = useCreateTask();
+  const captureWithAi = useCaptureWithAi();
 
   // Works from any screen, including while typing in another field.
   useHotkeys('mod+k', () => {
@@ -66,6 +70,28 @@ export function CaptureDialog() {
     }
   }
 
+  /**
+   * DESIGN §5.4: Ctrl/⌘ Enter asks the model for a proposal. Nothing is saved
+   * here — the result opens the preview modal (FR-23).
+   */
+  async function runAi() {
+    const trimmed = title.trim();
+    if (!trimmed || aiPending) return;
+
+    setAiPending(true);
+    setError(null);
+
+    try {
+      const proposal = await captureWithAi.mutateAsync({ text: trimmed });
+      openProposal(proposal);
+      closeCapture();
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : 'Could not reach the AI provider');
+    } finally {
+      setAiPending(false);
+    }
+  }
+
   function handleBackdropClick(event: MouseEvent<HTMLDialogElement>) {
     if (event.target === dialogRef.current) closeCapture();
   }
@@ -98,20 +124,38 @@ export function CaptureDialog() {
           placeholder="What needs doing?"
           aria-label="Task title"
           value={title}
+          disabled={aiPending}
           onChange={(event) => {
             setTitle(event.target.value);
             setError(null);
+          }}
+          onKeyDown={(event) => {
+            if ((event.metaKey || event.ctrlKey) && event.key === 'Enter') {
+              event.preventDefault();
+              void runAi();
+            }
           }}
         />
 
         {error && <InlineError message={error} />}
 
         <div className="mt-3 flex flex-wrap items-center justify-between gap-3">
-          <span className="flex items-center gap-1.5 text-xs text-zinc-500">
-            <Kbd>Enter</Kbd> to add · <Kbd>Esc</Kbd> to close
+          <span className="flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
+            <Kbd>Enter</Kbd> to add · <Kbd>{modKeyLabel()} Enter</Kbd> for AI · <Kbd>Esc</Kbd> to
+            close
           </span>
-          <Button type="submit" variant="primary" disabled={!title.trim() || createTask.isPending}>
-            {createTask.isPending ? 'Saving…' : captureProjectId ? 'Add task' : 'Add to Inbox'}
+          <Button
+            type="submit"
+            variant="primary"
+            disabled={!title.trim() || createTask.isPending || aiPending}
+          >
+            {aiPending
+              ? 'Thinking…'
+              : createTask.isPending
+                ? 'Saving…'
+                : captureProjectId
+                  ? 'Add task'
+                  : 'Add to Inbox'}
           </Button>
         </div>
       </form>

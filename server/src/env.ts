@@ -15,6 +15,9 @@ loadDotenv({ path: path.join(REPO_ROOT, '.env'), quiet: true });
 const EnvSchema = z.object({
   PORT: z.coerce.number().int().min(1).max(65535).default(8787),
   DATABASE_PATH: z.string().min(1).default('./data/app.db'),
+  // Optional provider overrides (PROGRESS D51): a proxy, or a stub in tests.
+  DEEPSEEK_BASE_URL: z.string().url().optional(),
+  OPENROUTER_BASE_URL: z.string().url().optional(),
 });
 
 const parsed = EnvSchema.safeParse(process.env);
@@ -32,4 +35,6 @@ export const env = {
   databasePath: path.resolve(REPO_ROOT, parsed.data.DATABASE_PATH),
   deepseekApiKey: process.env.DEEPSEEK_API_KEY?.trim() ?? '',
   openrouterApiKey: process.env.OPENROUTER_API_KEY?.trim() ?? '',
+  deepseekBaseUrl: parsed.data.DEEPSEEK_BASE_URL ?? 'https://api.deepseek.com',
+  openrouterBaseUrl: parsed.data.OPENROUTER_BASE_URL ?? 'https://openrouter.ai/api/v1',
 };

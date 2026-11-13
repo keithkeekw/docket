@@ -483,3 +483,83 @@ export type AiFeatureSetting = z.infer<typeof aiFeatureSettingSchema>;
 export type AiSettings = z.infer<typeof aiSettingsSchema>;
 export type UpdateAiSettingsBody = z.infer<typeof updateAiSettingsBodySchema>;
 
+// ---------------------------------------------------------------------------
+// Proposals (FR-23): every AI write goes through preview → edit → apply
+// ---------------------------------------------------------------------------
+
+export const proposalFeatureSchema = z.enum(['capture', 'breakdown', 'chat']);
+
+export const proposalOpSchema = z.enum([
+  'create_task',
+  'update_task',
+  'move_task',
+  'delete_task',
+  'create_milestone',
+]);
+
+/** Resolved fields — IDs, not names; the model's names were mapped server-side. */
+export const proposalItemFieldsSchema = z.object({
+  title: z.string().min(1).max(500).optional(),
+  notes: z.string().max(20_000).nullable().optional(),
+  projectId: z.string().nullable().optional(),
+  milestoneId: z.string().nullable().optional(),
+  statusId: z.string().optional(),
+  priority: prioritySchema.optional(),
+  dueDate: localDateSchema.nullable().optional(),
+  dueTime: localTimeSchema.nullable().optional(),
+  estimateMinutes: z.number().int().positive().nullable().optional(),
+  tags: z.array(z.string().min(1).max(40)).max(20).optional(),
+  link: z
+    .object({ url: z.string().min(1), label: z.string().min(1).max(40).optional() })
+    .nullable()
+    .optional(),
+});
+
+/** What the preview panel shows beside each field. */
+export const proposalItemDisplaySchema = z.object({
+  projectName: z.string().nullable(),
+  milestoneName: z.string().nullable(),
+  statusName: z.string().nullable(),
+});
+
+export const proposalItemSchema = z.object({
+  id: z.string().min(1),
+  op: proposalOpSchema,
+  targetId: z.string().nullable().optional(),
+  fields: proposalItemFieldsSchema,
+  display: proposalItemDisplaySchema,
+  /** Why the server guessed something — shown in a quiet note (DESIGN §4). */
+  aiNote: z.string().nullable().optional(),
+});
+
+export const proposalStatusSchema = z.enum(['pending', 'applied', 'discarded']);
+
+export const proposalSchema = z.object({
+  id: z.string().min(1),
+  feature: proposalFeatureSchema,
+  inputText: z.string(),
+  items: z.array(proposalItemSchema),
+  status: proposalStatusSchema,
+  createdAt: z.string(),
+});
+
+export const proposalResponseSchema = z.object({
+  proposal: proposalSchema,
+});
+
+/** The user unticked items by removing them from the array (DESIGN §4). */
+export const applyProposalBodySchema = z.strictObject({
+  items: z.array(proposalItemSchema).max(50),
+});
+
+export const aiCaptureBodySchema = z.strictObject({
+  text: z.string().trim().min(1).max(4_000),
+});
+
+export type ProposalFeature = z.infer<typeof proposalFeatureSchema>;
+export type ProposalOp = z.infer<typeof proposalOpSchema>;
+export type ProposalItemFields = z.infer<typeof proposalItemFieldsSchema>;
+export type ProposalItemDisplay = z.infer<typeof proposalItemDisplaySchema>;
+export type ProposalItem = z.infer<typeof proposalItemSchema>;
+export type Proposal = z.infer<typeof proposalSchema>;
+

@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router';
 import { CaptureDialog } from './CaptureDialog';
 import { ProjectDialog } from './ProjectDialog';
+import { ProposalModal } from './ProposalModal';
 import { Sidebar } from './Sidebar';
 import { TaskDrawer } from './TaskDrawer';
 
@@ -22,6 +23,7 @@ export function AppShell() {
       <CaptureDialog />
       <TaskDrawer />
       <ProjectDialog />
+      <ProposalModal />
     </div>
   );
 }

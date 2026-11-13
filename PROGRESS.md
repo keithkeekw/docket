@@ -4,7 +4,7 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 `docs/DESIGN.md` at the start of every session.
 
 - **Last updated:** 13 Nov 2026
-- **Current step:** M2-S12 (next) — AI client, proposal schema, proposals wiring
+- **Current step:** M2-S13 (next) — project breakdown from an AI proposal
 - **Spec sources:** `docs/PRD.md` (behaviour), `docs/TECHSTACK.md` (implementation), `docs/DESIGN.md` (visuals)
 
 ---
@@ -24,7 +24,8 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 | M1-S9 | Dashboard endpoint + screen | ✅ Done |
 | M1-S10 | Backup / restore | ✅ Done |
 | M2-S11 | Settings: providers, per-feature models, AI exclusion | ✅ Done |
-| M2-S12–13 | AI client/proposals, AI capture + breakdown | ⬜ Next |
+| M2-S12 | AI client, proposal schema, proposals wiring, preview modal | ✅ Done |
+| M2-S13 | Project breakdown from a proposal | ⬜ Next |
 | M3-S14–15 | Reviews + scheduler, chat drawer | ⬜ |
 | M4-S16 | Undo, export, sort/group, state audit | ⬜ |
 
@@ -825,6 +826,77 @@ UI, headless Chrome at 1280 × 980:
 
 ---
 
+## M2-S12 — AI client, proposals, preview modal ✅
+
+### Built
+
+- **AI client** (`server/src/ai/client.ts`): per-feature config from
+  `ai_settings` + `.env` keys, an OpenAI-compatible call at the provider's base
+  URL, a 503 that says how to configure it, a 502 for provider failures, and
+  `extractJson` for fenced or chatty replies.
+- **Capture** (`POST /api/ai/capture`, FR-3): prompt from
+  `server/src/ai/prompts/capture.md` (Markdown, TECHSTACK §6.5), today's date,
+  statuses and usable projects/milestones as context, one retry on invalid
+  output, then a **pending** proposal. Context excludes `ai_excluded` projects
+  (FR-25), and a task the model puts there falls back to the Inbox with a note.
+- **Proposals** (`services/proposals.ts`): stored as `payloadJson` with resolved
+  IDs and display names (D52); `GET /api/proposals/:id`,
+  `POST /api/proposals/:id/apply`, `POST /api/proposals/:id/discard`. Apply runs
+  every item in one transaction and records `acceptedCount`/`editedCount` for
+  the PRD's "accepted without edits" metric (NFR-6).
+- **ProposalModal + ProposalItem** (DESIGN §4): backdrop, 760 px panel, header
+  with "Parsed by: Capture model · Change in Settings", one card per item with a
+  ticked checkbox, editable title, op chip, the 4-column field grid and the AI
+  note in a quiet block; footer hint, Discard and "Add N tasks".
+- **Capture dialog**: `Ctrl/⌘ Enter` asks for a proposal ("Thinking…"), plain
+  Enter still saves to the Inbox.
+- 14 new tests over capture, resolution, exclusion, retry, apply, rollback,
+  double-apply and discard.
+
+### Verification performed
+
+```bash
+npm run typecheck   # clean
+npm test            # 153 passed across 18 files (14 new)
+npm run build       # clean
+```
+
+API against a throwaway database with a local **stub provider** (D51,
+`DEEPSEEK_BASE_URL=http://127.0.0.1:9999`, no real key, no outbound traffic):
+
+- Capture feature configured → `POST /api/ai/capture` returned a pending
+  proposal with 2 items: the first resolved to project *Onboarding*, milestone
+  *Phase 1*, status *Waiting*, P1, due 2026-11-20, 45 m, tag `docs`, link
+  `OPS-112`; the second had no project and defaulted to the Inbox. Task count
+  stayed at 0 — nothing written before confirmation.
+- Unconfigured capture → 503 "AI is not set up for this yet…"; empty text → 400.
+
+UI, headless Chrome at 1280 × 950:
+
+- `⌘K`, type, `Ctrl+Enter` opened the preview with both items, the field grid
+  populated from the server's display names, and focus in the first title.
+  Editing the title and unticking the second updated the header to "1 of 2" and
+  the button to "Add 1 task"; applying closed the modal and created exactly one
+  task with the edited title, project, milestone, status, due, tag and link.
+- The database recorded `applied, accepted_count=1, edited_count=1`.
+- Fixed during the pass: the dialog focused the "Change in Settings" link
+  instead of the first title, and a model-supplied link without a label showed a
+  raw URL until labels were derived server-side.
+
+### PRD IDs advanced
+
+- **FR-3 — done.** AI capture parses free text into one or more proposed tasks
+  with fields filled in.
+- **FR-23 — done for capture.** One preview-and-confirm panel with per-item edit
+  and untick; apply is transactional. (Breakdown and chat reuse the same modal
+  in S13/M3.)
+- **FR-25 — enforced.** Excluded projects never reach the model and are refused
+  on resolution.
+- **NFR-6** (one transaction), **NFR-9** (invalid output changes nothing),
+  **NFR-5** partially (progress state while thinking; cancel is Esc).
+
+---
+
 ## Decisions
 
 | # | Decision |
@@ -878,7 +950,11 @@ UI, headless Chrome at 1280 × 980:
 | D47 | `Db` is `BetterSQLite3Database<Schema> & { $client: Database }`, so services can reach the raw better-sqlite3 handle. `drizzle()` returns that shape but its exported type omits `$client`; the alias restores it rather than casting at each call site. |
 | D48 | AI keys are **read from `.env` only** (`DEEPSEEK_API_KEY`, `OPENROUTER_API_KEY`) and are never entered through the UI. `GET /api/settings/ai` reports each provider as Configured / Not configured and nothing else, so no code path can return a key (NFR-2) and keys never enter the database or a backup. The Settings hint names the variables and the file. If Keith wants key entry in the app later, it needs a server-side secret store and an explicit decision — PRD Q1 (AI policy) is still open, which is another reason to keep keys out of the app for now. |
 | D49 | `ai_settings` starts **empty**: no model IDs are seeded, because TECHSTACK §6.1 says not to hard-code them ("confirm current model IDs in each provider's docs"). Every feature shows "Not configured" until Keith picks a provider and types the model, which also makes FR-26's not-configured state real rather than decorative. |
-| D50 | Per-project AI exclusion is edited in the project dialog ("Exclude this project from AI") and listed read-only in Settings → Privacy, matching DESIGN §5.5. The flag is stored and returned on every project; **enforcement** (leaving those projects and their tasks out of prompts and tools) starts in M2-S12/S13 with the AI client, per TECHSTACK §6.2. |
+| D50 | Per-project AI exclusion is edited in the project dialog ("Exclude this project from AI") and listed read-only in Settings → Privacy, matching DESIGN §5.5. The flag is stored and returned on every project; **enforcement** starts with the AI client in M2-S12: prompts only ever see usable projects, and a task the model assigns to an excluded project falls back to the Inbox with a note. |
+| D51 | Provider base URLs are overridable with `DEEPSEEK_BASE_URL` / `OPENROUTER_BASE_URL` (defaults per TECHSTACK §6.1). This is how M2-S12 was verified end to end without a real key or any outbound traffic: a local stub on `127.0.0.1:9999` returned a canned completion. It is also useful for a proxy. |
+| D52 | A proposal item stores **resolved IDs plus display names** (`display: {projectName, milestoneName, statusName}`). The model answers with names; the server maps them (case-insensitively) and keeps the names so the preview needs no extra queries. Link labels are derived server-side when the model omits them, so the preview shows `OPS-112`, not a URL. |
+| D53 | Capture asks, validates with Zod, and retries **once** with the validation error appended (TECHSTACK §6.2 step 3). A second failure is a 502 and nothing is written (NFR-9). Unconfigured features are a 503 with a sentence that says what to do (FR-26). |
+| D54 | M2-S12 also ships the **AI mode of quick capture** (`Ctrl/⌘ Enter`) even though TECHSTACK §11 lists capture under S13. Without a trigger the preview modal would be unverifiable; the capture endpoint is the smallest feature that exercises the whole chain. S13 therefore focuses on project breakdown and capture polish. |
 
 ## Follow-ups / known gaps
 
@@ -916,12 +992,11 @@ UI, headless Chrome at 1280 × 980:
 - PRD open questions for Keith: Q1 (company AI policy), Q5 (final app name).
   Neither blocks M1.
 
-## Next step — M2-S12
+## Next step — M2-S13
 
-The AI client and the proposal flow: one OpenAI-compatible client with the two
-base URLs, a per-feature provider/model lookup from `ai_settings`, the Proposal
-Zod schema, a `proposals` row saved as pending, and the ProposalModal that shows
-items for edit/untick before a single transactional `/apply` (FR-23, NFR-6,
-NFR-9). Prompts live under `server/src/ai/prompts/` as Markdown (TECHSTACK §6.5).
-Nothing calls a provider until a feature is configured **and** its provider has
-a key; every request must skip `ai_excluded` projects (FR-25).
+Project breakdown (FR-18): a `POST /api/ai/breakdown { projectId }` that asks for
+milestones and tasks from the project's description, resolves them with the same
+proposal machinery, and opens the same modal from the project screen's "Break
+down with AI" button (DESIGN §5.2). The breakdown prompt lives beside the capture
+one; milestone items apply before task items. Capture polish: a proper
+"Thinking…" state with cancel, and an AI note when the provider is unconfigured.

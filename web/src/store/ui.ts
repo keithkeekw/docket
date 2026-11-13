@@ -1,4 +1,4 @@
-import type { Task } from '@app/shared';
+import type { Proposal, Task } from '@app/shared';
 import { create } from 'zustand';
 
 /** `create` from the sidebar, `edit` from a project screen. */
@@ -18,6 +18,11 @@ type UiStore = {
   drawerTask: Task | null;
   openTask: (task: Task) => void;
   closeTask: () => void;
+
+  /** Pending AI proposal shown in the preview modal (FR-23). */
+  proposal: Proposal | null;
+  openProposal: (proposal: Proposal) => void;
+  closeProposal: () => void;
 
   /** Project editor, mounted once in the shell (PROGRESS D29). */
   projectDialog: ProjectDialogState;
@@ -50,6 +55,14 @@ export const useUiStore = create<UiStore>((set) => ({
   },
   closeTask: () => {
     set({ drawerTask: null });
+  },
+
+  proposal: null,
+  openProposal: (proposal) => {
+    set({ proposal });
+  },
+  closeProposal: () => {
+    set({ proposal: null });
   },
 
   projectDialog: null,
