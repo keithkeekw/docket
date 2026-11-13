@@ -4,7 +4,7 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 `docs/DESIGN.md` at the start of every session.
 
 - **Last updated:** 13 Nov 2026
-- **Current step:** M1-S3 (next) — shared components (DESIGN §4)
+- **Current step:** M1-S4 (next) — app shell, sidebar, routing
 - **Spec sources:** `docs/PRD.md` (behaviour), `docs/TECHSTACK.md` (implementation), `docs/DESIGN.md` (visuals)
 
 ---
@@ -15,8 +15,8 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 |---|---|---|
 | M1-S1 | Workspaces, Vite, Hono, `/api` proxy, Tailwind + Preline + Inter | ✅ Done |
 | M1-S2 | Drizzle schema, migrations, seed statuses | ✅ Done |
-| M1-S3 | Shared components (DESIGN §4) | ⬜ Next |
-| M1-S4 | App shell, sidebar, routing | ⬜ |
+| M1-S3 | Shared components (DESIGN §4) | ✅ Done |
+| M1-S4 | App shell, sidebar, routing | ⬜ Next |
 | M1-S5 | Tasks CRUD + plain capture (`Ctrl/⌘ K`) | ⬜ |
 | M1-S6 | Projects, milestones, checklist, links, tags, move-to-project | ⬜ |
 | M1-S7 | List / Table / Kanban + shared filters + dnd-kit | ⬜ |
@@ -128,6 +128,79 @@ settings UI still in M1-S8), storage for FR-6/7/8/15/30, NFR-4 (indexes), NFR-6
 
 ---
 
+## M1-S3 — Shared components (DESIGN §4) ✅
+
+### Built
+
+All DESIGN §4 primitives live in `web/src/components/` and are reused everywhere
+from here on:
+
+| Component | Notes |
+|---|---|
+| `Button` | `primary` (zinc-900, 40 px min height) and `secondary` (white + zinc-200 border). |
+| `Kbd` | 12 px chip on a zinc-200 border. |
+| `Badge` | `soft` / `outline` base; `LocationChip`, `StatusChip` and `TagChip` are thin wrappers so the treatment stays identical (D9). |
+| `LinkBadge` | Outline badge as an anchor, `target="_blank" rel="noreferrer"` (FR-16). |
+| `PriorityLabel` | Text only, 12 px / 500: P1 orange-700, P2 blue-600, P3 zinc-500. |
+| `DueLabel` | `list` / `table` variants; orange-700 when overdue; absolute time in `title`. |
+| `GroupHeader` | Label + count, `tone="overdue"` for the Overdue group. |
+| `ProgressBar` | 6 px zinc-100 track, blue-600 fill, `role="progressbar"` + aria values. |
+| `Checkbox` | 16 px native input, `accent-blue-600`, `aria-label` describing the action. |
+| `ViewSwitcher` | List / Table / Kanban segmented control, `aria-pressed`. |
+| `TaskRow` | Checkbox, title, then meta cluster: link, repeat, estimate, checklist progress, priority, due, location, tags. Wraps at narrow widths. |
+
+Supporting modules:
+
+- `web/src/lib/cx.ts` — class-name join helper (no dependency).
+- `web/src/lib/estimate.ts` — `30m` / `1h` / `1h 30m` formatting.
+- `web/src/lib/due.ts` — local `YYYY-MM-DD` + `HH:mm` handling (D17); date-only
+  tasks only become overdue after their day ends, timed tasks at their moment.
+- `date-fns@4.4.0` added to `web` (already approved in TECHSTACK §2).
+- `ComponentGallery.tsx` + `ApiStatus.tsx` are **temporary** scaffolding that
+  replaces the S1 placeholder screen; both are deleted in M1-S4 when the shell
+  and real screens land.
+
+### Deferred deliberately
+
+- **Form primitives** (Input, Textarea, Select, Field label, Drawer, Modal) —
+  DESIGN §4 has no form specifications. Inventing them now would create tokens
+  and states the design doc does not define, so they are built in M1-S5
+  alongside the task drawer that actually needs them.
+- **Hover colours** — no hover background/colour tokens exist in DESIGN §2, so
+  components ship without them. Only `LinkBadge` has `hover:underline`, which is
+  decoration, not colour. Add hover tokens in M4-S16 if the audit asks for them.
+
+### Verification performed
+
+```bash
+npm run typecheck   # clean
+npm test            # 20 passed (9 server + 11 web)
+npm run build       # clean
+npm run dev         # gallery at http://127.0.0.1:5173/
+```
+
+Playwright at 1280 px and 420 px, zero console errors:
+
+- rows 44 px, long-title row 61 px; no horizontal overflow at 420 px
+  (`scrollWidth === innerWidth`), meta cluster wraps under the title;
+- checkbox 16 px, primary button 40 px with zinc-900 background;
+- active tab white with `shadow-sm`; `aria-pressed` true only on List;
+- P1 and overdue both orange-700; progress fill blue-600;
+- focus ring white 2 px + blue-600 4 px;
+- `aria-label` present on all 8 checkboxes, correct wording for the done row;
+- progressbar aria values 0/34/58/100 match their labels;
+- LinkBadge `target="_blank" rel="noreferrer"`;
+- status line reads `API: ok · database ready · 5 statuses`.
+
+### PRD IDs advanced
+
+FR-10 (task rows expose title, priority, due, estimate, project, tags, link,
+checklist progress), FR-12 (status/priority/estimate/due display surfaces),
+FR-16 (link badges), NFR-7 (keyboard-reachable controls, aria labels, progress
+semantics), plus the visual half of NFR-1/NFR-8.
+
+---
+
 ## Decisions
 
 | # | Decision |
@@ -154,10 +227,12 @@ settings UI still in M1-S8), storage for FR-6/7/8/15/30, NFR-4 (indexes), NFR-6
 | D20 | `milestone_id must belong to project_id` is a **service-layer** rule (TECHSTACK §4), not a DB CHECK: the CHECK blocked SQLite's `ON DELETE SET NULL` ordering when deleting a project. |
 | D21 | `drizzle-orm` is declared in **both** root devDependencies and `server` dependencies. drizzle-kit is hoisted to the root and resolves `drizzle-orm/version` from there; without the root declaration npm nested drizzle-orm under `server/` and `db:generate` failed. |
 | D22 | `updated_at` is set explicitly by services; no trigger. |
+| D23 | DESIGN §4 defines no form primitives, so Input/Textarea/Select/Field/Drawer/Modal are **deferred to M1-S5**, where the task drawer provides a concrete use case. No form tokens are invented ahead of need. |
 
 ## Follow-ups / known gaps
 
-- **ESLint + Prettier** not installed yet — decide before M1-S3 or in M4-S16.
+- **ESLint + Prettier** not installed yet — decide in M4-S16 (the state audit
+  step) or ask Keith sooner if lint drift becomes a problem.
 - `preline/non-auto` is a ~400 kB (96 kB gzip) chunk; switch to per-plugin imports
   in M1-S4.
 - `npm audit` reports 4 moderate advisories from drizzle-kit's bundled
@@ -168,10 +243,12 @@ settings UI still in M1-S8), storage for FR-6/7/8/15/30, NFR-4 (indexes), NFR-6
 - PRD open questions for Keith: Q1 (company AI policy), Q5 (final app name).
   Neither blocks M1.
 
-## Next step — M1-S3
+## Next step — M1-S4
 
-Build DESIGN §4 shared components with only the listed tokens: Button
-(primary/secondary), Kbd, PriorityLabel, DueLabel, LocationChip, LinkBadge,
-StatusChip, GroupHeader, ProgressBar, ViewSwitcher, TaskRow, plus the form
-primitives the screens need. Reuse them everywhere; add no new colours, radii,
-shadows or icons. Deliverables feed FR-10, FR-12, FR-16 and NFR-7.
+Build the app shell: sidebar navigation (Today, Inbox, Upcoming, Projects,
+Review hidden in M1 per D10), header with page title + primary action + view
+switcher, client-side routing, and a responsive collapse. Replace
+`ComponentGallery`/`ApiStatus` with the real layout, switch Preline to
+per-plugin imports to cut the 400 kB chunk, and keep every surface on the
+DESIGN §4 primitives built in M1-S3. Deliverables feed PRD §5 screens (US-1
+entry point, US-8 view switching) and NFR-7.
