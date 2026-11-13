@@ -7,12 +7,12 @@ import { env } from '../env';
 import { ServiceError } from '../lib/errors';
 
 /** TECHSTACK §6.1 base URLs, overridable for a proxy or a test stub (D51). */
-const BASE_URLS: Record<AiProvider, string> = {
+export const BASE_URLS: Record<AiProvider, string> = {
   deepseek: env.deepseekBaseUrl,
   openrouter: env.openrouterBaseUrl,
 };
 
-const API_KEYS: Record<AiProvider, string> = {
+export const API_KEYS: Record<AiProvider, string> = {
   deepseek: env.deepseekApiKey,
   openrouter: env.openrouterApiKey,
 };

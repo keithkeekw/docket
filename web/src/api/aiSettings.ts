@@ -1,5 +1,6 @@
-import { aiSettingsSchema, type AiSettings, type UpdateAiSettingsBody } from '@app/shared';
+import { aiSettingsSchema, type AiProvider, type AiSettings, type UpdateAiSettingsBody } from '@app/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { z } from 'zod';
 import { apiGet, apiMutate } from './client';
 
 export const aiSettingsQueryKey = ['ai-settings'] as const;
@@ -10,6 +11,20 @@ export function useAiSettings() {
     queryKey: aiSettingsQueryKey,
     queryFn: ({ signal }) => apiGet('/api/settings/ai', aiSettingsSchema, signal),
     staleTime: 30_000,
+  });
+}
+
+const modelsSchema = z.object({ models: z.array(z.string()) });
+
+/** Fetches the available model IDs from a configured provider. */
+export function useProviderModels(provider: AiProvider | '') {
+  return useQuery({
+    queryKey: ['ai-models', provider],
+    queryFn: ({ signal }) =>
+      apiGet(`/api/ai/models?provider=${provider}`, modelsSchema, signal).then((d) => d.models),
+    enabled: provider !== '',
+    staleTime: 5 * 60_000,
+    retry: false,
   });
 }
 

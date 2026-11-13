@@ -2,7 +2,7 @@ import type { AiFeature, AiProvider, Status, StatusCategory } from '@app/shared'
 import { format, parseISO } from 'date-fns';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
-import { useAiSettings, useUpdateAiSettings } from '../api/aiSettings';
+import { useAiSettings, useProviderModels, useUpdateAiSettings } from '../api/aiSettings';
 import { useBackups, useCreateBackup, useRestoreBackup } from '../api/backups';
 import { useProjects } from '../api/projects';
 import { useCreateStatus, useDeleteStatus, useStatuses, useUpdateStatus } from '../api/statuses';
@@ -467,6 +467,46 @@ function emptyDraft(): Draft {
   };
 }
 
+function ModelInput({
+  provider,
+  label,
+  value,
+  disabled,
+  onChange,
+}: {
+  provider: AiProvider | '';
+  label: string;
+  value: string;
+  disabled: boolean;
+  onChange: (value: string) => void;
+}) {
+  const models = useProviderModels(provider);
+  const listId = `models-${label.toLowerCase().replace(/\s+/g, '-')}`;
+
+  return (
+    <>
+      <input
+        list={models.data?.length ? listId : undefined}
+        aria-label={`Model for ${label}`}
+        placeholder={models.isPending ? 'Loading models…' : 'e.g. deepseek-chat'}
+        disabled={disabled}
+        value={value}
+        onChange={(event) => {
+          onChange(event.target.value);
+        }}
+        className="w-full rounded-[10px] border border-zinc-200 bg-white px-3 text-[13px] text-zinc-900 placeholder:text-zinc-500 disabled:cursor-not-allowed disabled:opacity-50 min-h-10"
+      />
+      {models.data?.length ? (
+        <datalist id={listId}>
+          {models.data.map((id) => (
+            <option key={id} value={id} />
+          ))}
+        </datalist>
+      ) : null}
+    </>
+  );
+}
+
 /**
  * DESIGN §5.5 *AI providers* and *AI features* (FR-24, FR-26). Keys live in
  * `.env` and are only ever reported as present/absent (NFR-2, D48); the model
@@ -604,16 +644,13 @@ function AiSection() {
                       <option value="openrouter">OpenRouter</option>
                     </Select>
 
-                    <Input
-                      aria-label={`Model for ${label}`}
-                      placeholder="e.g. deepseek-chat"
+                    <ModelInput
+                      provider={draft[feature].provider}
+                      label={label}
                       disabled={draft[feature].provider === ''}
                       value={draft[feature].model}
-                      onChange={(event) => {
-                        setDraft({
-                          ...draft,
-                          [feature]: { ...draft[feature], model: event.target.value },
-                        });
+                      onChange={(model) => {
+                        setDraft({ ...draft, [feature]: { ...draft[feature], model } });
                         setMessage(null);
                       }}
                     />
