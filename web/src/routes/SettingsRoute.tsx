@@ -166,38 +166,40 @@ function StatusesSection() {
         </ul>
       )}
 
-      <form className="mt-3 flex flex-wrap items-end gap-2" onSubmit={handleAdd}>
-        <div className="min-w-[12rem] flex-1">
-          <Field label="Add status">
-            <Input
-              value={name}
-              onChange={(event) => {
-                setName(event.target.value);
-              }}
-            />
-          </Field>
+      <form className="mt-3 flex flex-col gap-2" onSubmit={handleAdd}>
+        <div className="flex gap-2">
+          <div className="min-w-0 flex-1">
+            <Field label="Add status">
+              <Input
+                value={name}
+                onChange={(event) => {
+                  setName(event.target.value);
+                }}
+              />
+            </Field>
+          </div>
+          <div className="w-[7.5rem] shrink-0">
+            <Field label="Category">
+              <Select
+                value={category}
+                onChange={(event) => {
+                  setCategory(event.target.value as StatusCategory);
+                }}
+              >
+                {CATEGORIES.map((entry) => (
+                  <option key={entry.value} value={entry.value}>
+                    {entry.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          </div>
         </div>
-
-        <div className="w-[8rem]">
-          <Field label="Category">
-            <Select
-              value={category}
-              onChange={(event) => {
-                setCategory(event.target.value as StatusCategory);
-              }}
-            >
-              {CATEGORIES.map((entry) => (
-                <option key={entry.value} value={entry.value}>
-                  {entry.label}
-                </option>
-              ))}
-            </Select>
-          </Field>
+        <div>
+          <Button type="submit" disabled={!name.trim() || createStatus.isPending}>
+            Add
+          </Button>
         </div>
-
-        <Button type="submit" disabled={!name.trim() || createStatus.isPending}>
-          Add
-        </Button>
       </form>
 
       {error && <InlineError message={error} />}
@@ -233,58 +235,64 @@ function StatusRow({
   }, [status.name]);
 
   return (
-    <li className="flex flex-wrap items-center gap-2">
-      <div className="min-w-[10rem] flex-1">
-        <Input
-          aria-label={`Status name: ${status.name}`}
-          value={name}
-          onChange={(event) => {
-            setName(event.target.value);
-          }}
-          onBlur={() => {
-            const trimmed = name.trim();
-            if (trimmed && trimmed !== status.name) onRename(trimmed);
-            else setName(status.name);
-          }}
-        />
+    <li className="flex flex-col gap-1.5">
+      {/* Row 1: name + category */}
+      <div className="flex gap-2">
+        <div className="min-w-0 flex-1">
+          <Input
+            aria-label={`Status name: ${status.name}`}
+            value={name}
+            onChange={(event) => {
+              setName(event.target.value);
+            }}
+            onBlur={() => {
+              const trimmed = name.trim();
+              if (trimmed && trimmed !== status.name) onRename(trimmed);
+              else setName(status.name);
+            }}
+          />
+        </div>
+        <div className="w-[7.5rem] shrink-0">
+          <Select
+            aria-label={`Category for ${status.name}`}
+            value={status.category}
+            onChange={(event) => {
+              onRecategorise(event.target.value as StatusCategory);
+            }}
+          >
+            {CATEGORIES.map((entry) => (
+              <option key={entry.value} value={entry.value}>
+                {entry.label}
+              </option>
+            ))}
+          </Select>
+        </div>
       </div>
 
-      <div className="w-[7.5rem]">
-        <Select
-          aria-label={`Category for ${status.name}`}
-          value={status.category}
-          onChange={(event) => {
-            onRecategorise(event.target.value as StatusCategory);
-          }}
-        >
-          {CATEGORIES.map((entry) => (
-            <option key={entry.value} value={entry.value}>
-              {entry.label}
-            </option>
-          ))}
-        </Select>
+      {/* Row 2: task count + action buttons */}
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-xs text-zinc-500">
+          {status.taskCount === 0
+            ? 'unused'
+            : `${status.taskCount} ${status.taskCount === 1 ? 'task' : 'tasks'}`}
+        </span>
+        <div className="flex gap-1.5">
+          <Button onClick={onMoveUp} disabled={first} aria-label={`Move ${status.name} up`}>
+            Up
+          </Button>
+          <Button onClick={onMoveDown} disabled={last} aria-label={`Move ${status.name} down`}>
+            Down
+          </Button>
+          <Button
+            onClick={onDelete}
+            disabled={!canDelete}
+            aria-label={`Delete status ${status.name}`}
+            title={canDelete ? undefined : 'Move its tasks to another status first'}
+          >
+            Delete
+          </Button>
+        </div>
       </div>
-
-      <span className="w-[4.5rem] text-right text-xs text-zinc-500">
-        {status.taskCount === 0
-          ? 'unused'
-          : `${status.taskCount} ${status.taskCount === 1 ? 'task' : 'tasks'}`}
-      </span>
-
-      <Button onClick={onMoveUp} disabled={first} aria-label={`Move ${status.name} up`}>
-        Up
-      </Button>
-      <Button onClick={onMoveDown} disabled={last} aria-label={`Move ${status.name} down`}>
-        Down
-      </Button>
-      <Button
-        onClick={onDelete}
-        disabled={!canDelete}
-        aria-label={`Delete status ${status.name}`}
-        title={canDelete ? undefined : 'Move its tasks to another status first'}
-      >
-        Delete
-      </Button>
     </li>
   );
 }
@@ -493,6 +501,9 @@ function ModelInput({
         value={value}
         onChange={(event) => {
           onChange(event.target.value);
+        }}
+        onFocus={(event) => {
+          event.target.select();
         }}
         className="w-full rounded-[10px] border border-zinc-200 bg-white px-3 text-[13px] text-zinc-900 placeholder:text-zinc-500 disabled:cursor-not-allowed disabled:opacity-50 min-h-10"
       />
