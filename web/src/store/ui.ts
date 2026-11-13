@@ -38,6 +38,10 @@ type UiStore = {
   projectDialog: ProjectDialogState;
   openProjectDialog: (state: Exclude<ProjectDialogState, null>) => void;
   closeProjectDialog: () => void;
+
+  /** Sidebar collapsed state — icon-only when true. */
+  sidebarCollapsed: boolean;
+  toggleSidebar: () => void;
 };
 
 /**
@@ -97,5 +101,10 @@ export const useUiStore = create<UiStore>((set) => ({
   },
   closeProjectDialog: () => {
     set({ projectDialog: null });
+  },
+
+  sidebarCollapsed: false,
+  toggleSidebar: () => {
+    set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed }));
   },
 }));

@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { NavLink } from 'react-router';
 import { cx } from '../lib/cx';
 
@@ -12,27 +13,43 @@ export function NavItem({
   count,
   end = false,
   dot = false,
+  collapsed = false,
+  icon,
 }: {
   to: string;
   label: string;
   count?: number;
   end?: boolean;
   dot?: boolean;
+  collapsed?: boolean;
+  icon?: ReactNode;
 }) {
   return (
     <NavLink
       to={to}
       end={end}
+      title={collapsed ? label : undefined}
       className={({ isActive }) =>
         cx(
-          'flex min-h-10 items-center gap-2 rounded-lg px-3 text-sm',
+          'flex min-h-10 items-center rounded-lg text-sm',
+          collapsed ? 'justify-center px-2' : 'gap-2 px-3',
           isActive ? 'bg-zinc-100 font-medium text-zinc-900' : 'text-zinc-600',
         )
       }
     >
-      {dot && <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-zinc-400" />}
-      <span className="min-w-0 flex-1 truncate">{label}</span>
-      {count !== undefined && count > 0 && <span className="text-xs text-zinc-500">{count}</span>}
+      {collapsed ? (
+        icon ?? (dot ? (
+          <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-zinc-400" />
+        ) : (
+          <span aria-hidden="true" className="text-base leading-none">{label[0]}</span>
+        ))
+      ) : (
+        <>
+          {dot && <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-zinc-400" />}
+          <span className="min-w-0 flex-1 truncate">{label}</span>
+          {count !== undefined && count > 0 && <span className="text-xs text-zinc-500">{count}</span>}
+        </>
+      )}
     </NavLink>
   );
 }

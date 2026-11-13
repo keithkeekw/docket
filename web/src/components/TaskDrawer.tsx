@@ -190,7 +190,7 @@ export function TaskDrawer() {
     <dialog
       ref={dialogRef}
       aria-labelledby="task-drawer-title"
-      className="fixed inset-y-0 right-0 left-auto m-0 h-full max-h-none w-[420px] max-w-[calc(100vw-2rem)] rounded-none border-0 border-l border-zinc-200 bg-white p-0 shadow-2xl backdrop:bg-zinc-900/50"
+      className="fixed inset-y-0 right-0 left-auto m-0 h-full max-h-none w-[520px] max-w-[calc(100vw-2rem)] rounded-none border-0 border-l border-zinc-200 bg-white p-0 shadow-2xl backdrop:bg-zinc-900/50"
       onClick={handleBackdropClick}
       onCancel={(event) => {
         event.preventDefault();
