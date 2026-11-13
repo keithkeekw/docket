@@ -17,9 +17,9 @@ import { UndoBar } from './UndoBar';
  */
 export function AppShell() {
   return (
-    <div className="flex min-h-full flex-col bg-zinc-50 min-[900px]:flex-row">
+    <div className="flex min-h-full flex-col min-[900px]:flex-row">
       <Sidebar />
-      <main className="min-w-0 flex-1 px-8 pt-6 pb-12">
+      <main className="min-w-0 flex-1 bg-white/60 px-8 pt-6 pb-12">
         <UndoBar />
         <Outlet />
       </main>
