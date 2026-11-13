@@ -67,6 +67,7 @@ function invalidateTaskData(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: ['projects'] });
   // Milestone pills show task counts, so moving or completing one changes them.
   void queryClient.invalidateQueries({ queryKey: ['milestones'] });
+  void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
   void queryClient.invalidateQueries({ queryKey: navQueryKey });
 }
 

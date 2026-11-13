@@ -356,3 +356,46 @@ export const tagListSchema = z.object({
 export type Tag = z.infer<typeof tagSchema>;
 export type TagList = z.infer<typeof tagListSchema>;
 
+// ---------------------------------------------------------------------------
+// Reviews (FR-19–FR-21) and the dashboard (FR-17)
+// ---------------------------------------------------------------------------
+
+/** Not generated until M3; the dashboard renders the card only when present. */
+export const reviewSchema = z.object({
+  id: z.string().min(1),
+  kind: z.enum(['daily', 'weekly', 'manual']),
+  periodStart: localDateSchema,
+  periodEnd: localDateSchema,
+  contentMd: z.string(),
+  model: z.string(),
+  createdAt: z.string(),
+  openedAt: z.string().nullable(),
+});
+
+export type Review = z.infer<typeof reviewSchema>;
+
+export const dashboardCountsSchema = z.object({
+  overdue: z.number().int().nonnegative(),
+  today: z.number().int().nonnegative(),
+  inbox: z.number().int().nonnegative(),
+});
+
+/**
+ * `GET /api/dashboard` (TECHSTACK §5). Groups are capped for a fast first
+ * paint while `counts` stays exact, so the header line never lies.
+ */
+export const dashboardSchema = z.object({
+  date: localDateSchema,
+  counts: dashboardCountsSchema,
+  groups: z.object({
+    overdue: z.array(taskSchema),
+    today: z.array(taskSchema),
+    inbox: z.array(taskSchema),
+  }),
+  activeProjects: z.array(projectSummarySchema),
+  latestReview: reviewSchema.nullable(),
+});
+
+export type Dashboard = z.infer<typeof dashboardSchema>;
+export type DashboardCounts = z.infer<typeof dashboardCountsSchema>;
+

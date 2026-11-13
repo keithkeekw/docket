@@ -26,6 +26,7 @@ function invalidateProjectData(queryClient: QueryClient): void {
   void queryClient.invalidateQueries({ queryKey: PROJECTS_KEY });
   void queryClient.invalidateQueries({ queryKey: ['milestones'] });
   void queryClient.invalidateQueries({ queryKey: ['tasks'] });
+  void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
   void queryClient.invalidateQueries({ queryKey: navQueryKey });
 }
 
@@ -87,6 +88,7 @@ export function useDeleteProject() {
       // would 404, so only the list, tasks and counts are refreshed.
       void queryClient.invalidateQueries({ queryKey: [...PROJECTS_KEY, 'list'] });
       void queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
       void queryClient.invalidateQueries({ queryKey: navQueryKey });
     },
   });
@@ -97,6 +99,7 @@ function invalidateMilestoneData(queryClient: QueryClient, projectId: string): v
   void queryClient.invalidateQueries({ queryKey: milestonesQueryKey(projectId) });
   void queryClient.invalidateQueries({ queryKey: PROJECTS_KEY });
   void queryClient.invalidateQueries({ queryKey: ['tasks'] });
+  void queryClient.invalidateQueries({ queryKey: ['dashboard'] });
   void queryClient.invalidateQueries({ queryKey: navQueryKey });
 }
 

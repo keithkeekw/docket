@@ -169,6 +169,10 @@ export type TaskFilter = {
   /** Inclusive local date bounds, `YYYY-MM-DD`. */
   dueFrom?: string;
   dueTo?: string;
+  /** Exclusive upper bound — `< today` is the dashboard's Overdue group. */
+  dueBefore?: string;
+  /** Open work only (status category ≠ done), for dashboard groups. */
+  openOnly?: boolean;
   q?: string;
   /** Exact tag name (FR-30). */
   tag?: string;
@@ -202,6 +206,14 @@ export function listTasks(db: Db, filter: TaskFilter = {}): Task[] {
 
   if (filter.dueTo) {
     conditions.push(sql`${tasks.dueDate} is not null and ${tasks.dueDate} <= ${filter.dueTo}`);
+  }
+
+  if (filter.dueBefore) {
+    conditions.push(sql`${tasks.dueDate} is not null and ${tasks.dueDate} < ${filter.dueBefore}`);
+  }
+
+  if (filter.openOnly) {
+    conditions.push(sql`${statuses.category} <> 'done'`);
   }
 
   if (filter.q) {

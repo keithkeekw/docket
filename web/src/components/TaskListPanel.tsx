@@ -1,5 +1,5 @@
 import type { Task } from '@app/shared';
-import { describeRecurrence } from '../lib/recurrence';
+import { toTaskRow } from '../lib/taskRow';
 import { EmptyState } from './EmptyState';
 import { GroupHeader } from './GroupHeader';
 import { InlineError } from './InlineError';
@@ -56,19 +56,7 @@ export function TaskListPanel({
             {group.tasks.map((task) => (
               <TaskRow
                 key={task.id}
-                task={{
-                  id: task.id,
-                  title: task.title,
-                  done: task.statusCategory === 'done',
-                  priority: task.priority,
-                  dueDate: task.dueDate,
-                  dueTime: task.dueTime,
-                  estimateMinutes: task.estimateMinutes,
-                  tags: task.tags,
-                  link: task.link ? { url: task.link.url, label: task.link.label } : null,
-                  checklist: task.checklist.total > 0 ? task.checklist : null,
-                  repeatLabel: describeRecurrence(task.recurrenceRule),
-                }}
+                task={toTaskRow(task)}
                 onOpen={() => {
                   onOpen(task);
                 }}

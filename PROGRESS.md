@@ -4,7 +4,7 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 `docs/DESIGN.md` at the start of every session.
 
 - **Last updated:** 13 Nov 2026
-- **Current step:** M1-S9 (next) — dashboard endpoint + screen
+- **Current step:** M1-S10 (next) — backup and restore
 - **Spec sources:** `docs/PRD.md` (behaviour), `docs/TECHSTACK.md` (implementation), `docs/DESIGN.md` (visuals)
 
 ---
@@ -21,8 +21,8 @@ Working log for the build. Read after `docs/PRD.md`, `docs/TECHSTACK.md` and
 | M1-S6 | Projects, milestones, checklist, links, tags, move-to-project | ✅ Done |
 | M1-S7 | List / Table / Kanban + shared filters + dnd-kit | ✅ Done |
 | M1-S8 | Statuses settings; recurrence service + tests | ✅ Done |
-| M1-S9 | Dashboard endpoint + screen | ⬜ Next |
-| M1-S10 | Backup / restore | ⬜ |
+| M1-S9 | Dashboard endpoint + screen | ✅ Done |
+| M1-S10 | Backup / restore | ⬜ Next |
 | M2-S11–13 | Settings, AI client/proposals, AI capture + breakdown | ⬜ |
 | M3-S14–15 | Reviews + scheduler, chat drawer | ⬜ |
 | M4-S16 | Undo, export, sort/group, state audit | ⬜ |
@@ -635,6 +635,70 @@ UI, Playwright at 1280 × 900:
 
 ---
 
+## M1-S9 — Dashboard ✅
+
+### Built
+
+- **`GET /api/dashboard`** (`services/dashboard.ts`): date, exact counts for
+  overdue / today / inbox, the three capped groups, the active projects with
+  their progress (reusing `listProjects`, so D8's rules apply), and
+  `latestReview` (always null until M3, typed with the real row).
+- **Task filters**: `listTasks` gained `dueBefore` (`< today`) and `openOnly`
+  (status category ≠ done). Neither is exposed on the route; they exist so the
+  dashboard groups reuse one query path.
+- **Dashboard screen** (DESIGN §5.1): the real CaptureBar (Enter saves to the
+  Inbox, shortcut chip on the right), the date as the page title with the
+  summary line right-aligned ("2 due today · 2 overdue · 3 in inbox"), the
+  3 : 2 two-column layout that stacks below 900 px, and the Tasks panel with
+  Overdue → Today → Inbox · unsorted groups beside the ProjectCards.
+- **`ProjectCard`** (DESIGN §4): whole card is a link; name + %, current
+  milestone, progress bar, "0 of 2 tasks · Next: …".
+- **Shared `toTaskRow`** (D43) now feeds every TaskRow list.
+- Writes invalidate `['dashboard']` alongside tasks, projects and counts.
+
+### Verification performed
+
+```bash
+npm run typecheck   # clean
+npm test            # 124 passed across 14 files (6 new dashboard tests)
+npm run build       # clean
+```
+
+API, against a throwaway copy of the database seeded with two active projects,
+one archived project and six tasks:
+
+- `GET /api/dashboard` → `date: "2026-11-13"`,
+  `counts: {overdue: 2, today: 2, inbox: 3}`,
+  overdue `[Renew SSL cert, Send the day-one schedule]`,
+  today `[Book the venue, Sign the renewal]`,
+  inbox `[Plan the quarterly review, Water the plants]`,
+  two active projects (the archived one excluded), `latestReview: null`.
+- Tests cover the empty case, the partition (no task in two groups), project
+  work appearing in due groups but never in the Inbox group, the 6-row cap with
+  exact counts, archived projects, and "latest review wins".
+
+UI, headless Chrome at 1280 × 900:
+
+- Title "Friday, 13 November"; summary "2 due today · 2 overdue · 3 in inbox";
+  groups Overdue 2 / Today 2 / Inbox · unsorted 2; both project cards link to
+  their project.
+- Typing into the capture bar and pressing Enter added "Reply on vendor
+  escalation", cleared the field and raised the summary to "4 in inbox".
+- Ticking "Water the plants" removed it from the list and dropped the summary to
+  "3 in inbox".
+- At 700 px the grid collapses to one column (636 px) with no horizontal
+  overflow; every link resolves (`/tasks`, `/projects/<id>`).
+
+### PRD IDs advanced
+
+- **FR-17 — done.** Overdue / Today / Inbox groups, active projects with
+  progress, and the latest-review slot (empty until M3).
+- **FR-9 — done.** `ProjectCard` renders current milestone, done/total,
+  percentage and the next due task.
+- **US-13, US-7** satisfied.
+
+---
+
 ## Decisions
 
 | # | Decision |
@@ -680,6 +744,9 @@ UI, Playwright at 1280 × 900:
 | D39 | Changing a status's **category** rewrites `completed_at` for every task in it (done → stamp, otherwise clear), the same rule as D34. Otherwise recategorising "Waiting" to Done would leave its tasks counted as open. |
 | D40 | Recurrence is one row per occurrence (TECHSTACK §4). The next task copies title, notes, project, milestone, priority, estimate, rule, links and tags, and copies the checklist **unticked**; `recurrence_parent_id` points at the first task in the series. It is created on the transition to done from either `/complete` or a PATCH to a done status, and a guard on `(parent, due_date)` stops re-ticking a task from duplicating the next one. A task with no due date never recurs, and a rule without `FREQ` is rejected instead of defaulting to yearly. |
 | D41 | The drawer's Repeat select offers Daily / Weekly / Every 2 weeks / Monthly (US-11's "weekly on chosen days" is the due date's weekday, which is what `dtstart` means), and keeps any other stored rule visible as "Custom (…)" rather than silently rewriting it. |
+| D42 | The dashboard's three groups **partition** open work — overdue, due today, and Inbox tasks that are not due yet — so no task is listed twice. `counts.inbox` deliberately matches the sidebar's Inbox count (all open project-less tasks), so the summary line can exceed the rows shown under "Inbox · unsorted"; each group is capped at 6 for a fast first paint while the counts stay exact. |
+| D43 | One `toTaskRow` mapper (web `lib/taskRow.ts`) turns an API task into TaskRow props for the dashboard, Inbox, Today and the project list — three copies had started to drift. |
+| D44 | `GET /api/dashboard` already returns `latestReview` (typed with the real reviews row), but M1 never writes reviews, so the ReviewCard is simply absent. M3 fills the same field without a schema change. `Ask assistant` stays hidden until M2 (D10). |
 
 ## Follow-ups / known gaps
 
@@ -688,7 +755,8 @@ UI, Playwright at 1280 × 900:
 - `preline/non-auto` chunk: **resolved in M1-S4** by removing the bundle (D25).
   The task drawer and quick capture landed on a native `<dialog>` instead of a
   Preline plugin (D26), so no Preline JS is loaded yet.
-- Placeholder bodies remain on Dashboard (S9) and Settings (S8).
+- Placeholder bodies are gone; the only empty-by-design areas are the dashboard's
+  review card (M3) and the Settings sections after Statuses (M2).
 - The web bundle crossed Vite's 500 kB warning in M1-S7 (554 kB, 164 kB gzip)
   when dnd-kit landed. Fine for a local app; revisit with route-level
   `import()` splitting if it keeps growing.
@@ -711,11 +779,10 @@ UI, Playwright at 1280 × 900:
 - PRD open questions for Keith: Q1 (company AI policy), Q5 (final app name).
   Neither blocks M1.
 
-## Next step — M1-S9
+## Next step — M1-S10
 
-The dashboard: `GET /api/dashboard` returning overdue, today, inbox, active
-projects and the latest review, then the DESIGN §5.1 screen — date as the page
-title with the summary line, the two-column Tasks / Active projects layout, and
-`ProjectCard` with progress, current milestone and "Next: …". The capture bar
-from DESIGN §4 lands here too, replacing the plain "Capture" button.
-Deliverables feed FR-9, FR-17 and the project half of US-7/US-13.
+Backup and restore: `POST /api/backup` writing a timestamped copy into
+`data/backups/`, `GET /api/backups` listing them, and the Settings *Data*
+section (Backup now, Restore from a listed backup, Download). Restore swaps the
+database file safely — close the connection, copy, reopen — and the UI must
+confirm before replacing data (PRD US-19, FR-27; D11 keeps uploads out of M1).

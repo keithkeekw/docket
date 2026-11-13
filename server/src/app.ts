@@ -6,6 +6,7 @@ import { statuses } from './db/schema';
 import type { Db } from './db/types';
 import { ServiceError } from './lib/errors';
 import { registerChecklistRoutes } from './routes/checklist';
+import { registerDashboardRoutes } from './routes/dashboard';
 import { registerLinkRoutes } from './routes/links';
 import { registerMilestoneRoutes } from './routes/milestones';
 import { registerProjectRoutes } from './routes/projects';
@@ -56,6 +57,7 @@ export function createApp(db: Db): Hono {
   app.get('/api/nav', (c) => c.json(getNavSummary(db)));
 
   registerTaskRoutes(app, db);
+  registerDashboardRoutes(app, db);
   registerStatusRoutes(app, db);
   registerProjectRoutes(app, db);
   registerMilestoneRoutes(app, db);
