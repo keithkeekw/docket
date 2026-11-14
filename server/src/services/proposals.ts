@@ -133,6 +133,7 @@ type ResolveOptions = {
   defaultProject?: { id: string; name: string };
   defaultStatusId?: string;
   defaultStatusName?: string;
+  defaultMilestone?: { id: string; name: string; projectId: string };
   /** Milestones proposed in this same proposal, keyed by normalised name. */
   proposedMilestones?: Map<string, string>;
 };
@@ -181,12 +182,14 @@ function resolveTask(
     }
   }
 
+  let milestoneSet = false;
   if (task.milestone) {
     const proposedName = options.proposedMilestones?.get(normalise(task.milestone));
 
     if (proposedName) {
       milestoneRef = proposedName;
       milestoneName = proposedName;
+      milestoneSet = true;
     } else {
       const match =
         projectId === null
@@ -200,10 +203,18 @@ function resolveTask(
       if (match) {
         milestoneId = match.id;
         milestoneName = match.name;
+        milestoneSet = true;
       } else {
         notes.push(`No milestone called "${task.milestone}" in that project.`);
       }
     }
+  }
+
+  // The milestone selected on the project screen applies when the model did
+  // not provide a usable milestone of its own.
+  if (!milestoneSet && options.defaultMilestone && options.defaultMilestone.projectId === projectId) {
+    milestoneId = options.defaultMilestone.id;
+    milestoneName = options.defaultMilestone.name;
   }
 
   let statusId: string | undefined = options.defaultStatusId;
@@ -270,6 +281,8 @@ export type CaptureOptions = {
   projectId?: string;
   /** Default status when capture starts from a Kanban column. */
   statusId?: string;
+  /** Default milestone selected on the project screen. */
+  milestoneId?: string;
 };
 
 type AskResult<T> = { ok: true; data: T } | { ok: false; reason: string };
@@ -312,15 +325,23 @@ export async function captureProposal(
   const complete = options.complete ?? makeCompletion(db);
   const lookups = loadLookups(db);
   const context = captureContext(options.now ?? new Date(), lookups);
-  const defaultProject = options.projectId
+  const selectedMilestone = options.milestoneId
+    ? lookups.milestones.find((milestone) => milestone.id === options.milestoneId)
+    : undefined;
+  const defaultProjectId = options.projectId ?? selectedMilestone?.projectId;
+  const defaultProject = defaultProjectId
     ? lookups.projects.find(
         (project) =>
-          project.id === options.projectId && !project.archived && !project.aiExcluded,
+          project.id === defaultProjectId && !project.archived && !project.aiExcluded,
       )
     : undefined;
   const defaultStatus = options.statusId
     ? lookups.statuses.find((status) => status.id === options.statusId)
     : undefined;
+  const defaultMilestone =
+    selectedMilestone && defaultProject && selectedMilestone.projectId === defaultProject.id
+      ? selectedMilestone
+      : undefined;
   const system = loadPrompt(db, 'capture');
   const user = `Data:\n${JSON.stringify(context, null, 2)}\n\nInput: ${trimmed}`;
 
@@ -348,6 +369,13 @@ export async function captureProposal(
         : undefined,
       defaultStatusId: defaultStatus?.id,
       defaultStatusName: defaultStatus?.name,
+      defaultMilestone: defaultMilestone
+        ? {
+            id: defaultMilestone.id,
+            name: defaultMilestone.name,
+            projectId: defaultMilestone.projectId,
+          }
+        : undefined,
     }),
   );
   return storeProposal(db, 'capture', trimmed, items);

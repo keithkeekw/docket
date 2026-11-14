@@ -10,9 +10,14 @@ export function useCaptureWithAi() {
   return useMutation<
     Proposal,
     Error,
-    { text: string; projectId?: string | null; statusId?: string | null }
+    {
+      text: string;
+      projectId?: string | null;
+      statusId?: string | null;
+      milestoneId?: string | null;
+    }
   >({
-    mutationFn: async ({ text, projectId, statusId }) =>
+    mutationFn: async ({ text, projectId, statusId, milestoneId }) =>
       (
         await apiMutate(
           '/api/ai/capture',
@@ -21,6 +26,7 @@ export function useCaptureWithAi() {
             text,
             ...(projectId ? { projectId } : {}),
             ...(statusId ? { statusId } : {}),
+            ...(milestoneId ? { milestoneId } : {}),
           },
           proposalResponseSchema,
         )

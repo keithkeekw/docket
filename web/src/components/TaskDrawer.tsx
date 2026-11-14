@@ -327,6 +327,13 @@ export function TaskDrawer() {
                           {milestone.name}
                         </option>
                       ))}
+                      {form.milestoneId !== '' &&
+                        task.milestoneName &&
+                        !(milestones.data?.milestones ?? []).some(
+                          (milestone) => milestone.id === form.milestoneId,
+                        ) && (
+                          <option value={form.milestoneId}>{task.milestoneName}</option>
+                        )}
                     </Select>
                   </Field>
 

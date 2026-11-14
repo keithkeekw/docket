@@ -25,6 +25,8 @@ export function CaptureDialog() {
   const isOpen = useUiStore((state) => state.captureOpen);
   const captureProjectId = useUiStore((state) => state.captureProjectId);
   const captureStatusId = useUiStore((state) => state.captureStatusId);
+  const captureMilestoneId = useUiStore((state) => state.captureMilestoneId);
+  const captureMilestoneName = useUiStore((state) => state.captureMilestoneName);
   const openCapture = useUiStore((state) => state.openCapture);
   const closeCapture = useUiStore((state) => state.closeCapture);
   const openProposal = useUiStore((state) => state.openProposal);
@@ -82,6 +84,7 @@ export function CaptureDialog() {
         ...parseTaskInput(trimmed),
         projectId: captureProjectId ?? undefined,
         statusId: captureStatusId ?? undefined,
+        milestoneId: captureMilestoneId ?? undefined,
       });
       closeCapture();
     } catch (cause) {
@@ -105,6 +108,7 @@ export function CaptureDialog() {
         text: trimmed,
         projectId: captureProjectId,
         statusId: captureStatusId,
+        milestoneId: captureMilestoneId,
       });
       if (closedRef.current) return;
       openProposal(proposal);
@@ -141,7 +145,11 @@ export function CaptureDialog() {
           {t('Quick Capture')}
         </h2>
         <p className="mt-1 text-xs text-zinc-500">
-          {captureProjectId ? t('Saves to this project.') : t('Saves to the Inbox.')}
+          {captureMilestoneName
+            ? t('Saves to {milestone}.', { milestone: captureMilestoneName })
+            : captureProjectId
+              ? t('Saves to this project.')
+              : t('Saves to the Inbox.')}
         </p>
 
         <input

@@ -21,6 +21,9 @@ export const controlClassName =
 const CONTROL = controlClassName;
 
 const SELECT_OPTIONS = {
+  // Keep the empty <option> selectable so "Inbox", "None" and
+  // "Does Not Repeat" can clear a field.
+  optionAllowEmptyOption: true,
   toggleTag:
     '<button type="button"><span data-title class="truncate"></span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="order-1 size-4 shrink-0 text-zinc-400" aria-hidden="true"><path fill-rule="evenodd" d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z" clip-rule="evenodd"/></svg></button>',
   toggleClasses:
@@ -95,7 +98,6 @@ export function Select({
       ? String((emptyOption.props as { children?: ReactNode }).children ?? '')
       : '';
   const placeholder = emptyLabel || t('Select...');
-  const wrapperClasses = wrapperClassName ? `relative ${wrapperClassName}` : 'relative w-full';
 
   const optionsKey = useMemo(
     () =>
@@ -113,9 +115,13 @@ export function Select({
     const el = ref.current;
     if (!el) return;
 
+    // Preline assumes the current value has a matching <option>. Async option
+    // lists (milestones, projects) can arrive after the first render.
+    if (!Array.from(el.options).some((option) => option.value === el.value)) return;
+
     el.setAttribute(
       'data-hs-select',
-      JSON.stringify({ ...SELECT_OPTIONS, wrapperClasses, placeholder }),
+      JSON.stringify({ ...SELECT_OPTIONS, wrapperClasses: 'relative w-full', placeholder }),
     );
     ensurePrelineCollections();
     const instance = new HSSelect(el);
@@ -125,19 +131,24 @@ export function Select({
       instance.destroy();
       instanceRef.current = null;
     };
-  }, [optionsKey, placeholder, wrapperClasses]);
+  }, [optionsKey, placeholder]);
 
   useEffect(() => {
-    instanceRef.current?.setValue(String(props.value ?? ''));
+    const el = ref.current;
+    const next = String(props.value ?? '');
+    if (!el || !Array.from(el.options).some((option) => option.value === next)) return;
+    instanceRef.current?.setValue(next);
   }, [props.value, optionsKey]);
 
   return (
-    <select
-      ref={ref}
-      className={cx(CONTROL, 'min-h-10', className)}
-      {...props}
-    >
-      {children}
-    </select>
+    <div className={wrapperClassName ?? 'w-full'}>
+      <select
+        ref={ref}
+        className={cx(CONTROL, 'min-h-10', className)}
+        {...props}
+      >
+        {children}
+      </select>
+    </div>
   );
 }

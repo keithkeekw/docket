@@ -11,7 +11,15 @@ type UiStore = {
   captureProjectId: string | null;
   /** When set, capture opens the task in that status (Kanban column). */
   captureStatusId: string | null;
-  openCapture: (options?: { projectId?: string | null; statusId?: string | null }) => void;
+  /** When set, capture files the task under the selected milestone. */
+  captureMilestoneId: string | null;
+  captureMilestoneName: string | null;
+  openCapture: (options?: {
+    projectId?: string | null;
+    statusId?: string | null;
+    milestoneId?: string | null;
+    milestoneName?: string | null;
+  }) => void;
   closeCapture: () => void;
 
   /** Task shown in the detail drawer (DESIGN §5.5). `null` keeps it closed. */
@@ -34,6 +42,16 @@ type UiStore = {
   openProposal: (proposal: Proposal) => void;
   closeProposal: () => void;
 
+  /** Project currently on screen, used by the global Quick Capture shortcut. */
+  projectContext: {
+    projectId: string;
+    projectName: string;
+    milestoneId: string | null;
+    milestoneName: string | null;
+  } | null;
+  setProjectContext: (context: NonNullable<UiStore['projectContext']>) => void;
+  clearProjectContext: () => void;
+
   /** Project editor, mounted once in the shell (PROGRESS D29). */
   projectDialog: ProjectDialogState;
   openProjectDialog: (state: Exclude<ProjectDialogState, null>) => void;
@@ -48,19 +66,32 @@ type UiStore = {
  * UI-only state that several screens share. Server data stays in TanStack
  * Query; this store never holds a copy of a list (PROGRESS D26).
  */
-export const useUiStore = create<UiStore>((set) => ({
+export const useUiStore = create<UiStore>((set, get) => ({
   captureOpen: false,
   captureProjectId: null,
   captureStatusId: null,
+  captureMilestoneId: null,
+  captureMilestoneName: null,
   openCapture: (options) => {
+    const context = get().projectContext;
     set({
       captureOpen: true,
-      captureProjectId: options?.projectId ?? null,
+      captureProjectId: options?.projectId ?? (options ? null : context?.projectId ?? null),
       captureStatusId: options?.statusId ?? null,
+      captureMilestoneId:
+        options?.milestoneId ?? (options ? null : context?.milestoneId ?? null),
+      captureMilestoneName:
+        options?.milestoneName ?? (options ? null : context?.milestoneName ?? null),
     });
   },
   closeCapture: () => {
-    set({ captureOpen: false, captureProjectId: null, captureStatusId: null });
+    set({
+      captureOpen: false,
+      captureProjectId: null,
+      captureStatusId: null,
+      captureMilestoneId: null,
+      captureMilestoneName: null,
+    });
   },
 
   drawerTask: null,
@@ -93,6 +124,14 @@ export const useUiStore = create<UiStore>((set) => ({
   },
   closeProposal: () => {
     set({ proposal: null });
+  },
+
+  projectContext: null,
+  setProjectContext: (projectContext) => {
+    set({ projectContext });
+  },
+  clearProjectContext: () => {
+    set({ projectContext: null });
   },
 
   projectDialog: null,

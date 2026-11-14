@@ -18,6 +18,7 @@ export function registerAiRoutes(app: Hono, db: Db, uploadsDir: string): void {
         proposal: await captureProposal(db, parsed.data.text, {
           projectId: parsed.data.projectId,
           statusId: parsed.data.statusId,
+          milestoneId: parsed.data.milestoneId,
         }),
       },
       201,

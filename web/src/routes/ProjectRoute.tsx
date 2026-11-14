@@ -1,7 +1,8 @@
+import type { Milestone } from '@app/shared';
 import { format, parseISO } from 'date-fns';
-import { useState, type FormEvent } from 'react';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link, useNavigate, useParams } from 'react-router';
-import { useArchiveProject, useCreateMilestone, useMilestones, useProject, useProjectSummary } from '../api/projects';
+import { useArchiveProject, useCreateMilestone, useMilestones, useProject, useProjectSummary, useUpdateMilestone } from '../api/projects';
 import { ApiError } from '../api/client';
 import { useBreakdown } from '../api/proposals';
 import { useStatuses } from '../api/statuses';
@@ -43,6 +44,8 @@ export function ProjectRoute() {
   const openCapture = useUiStore((state) => state.openCapture);
   const openProjectDialog = useUiStore((state) => state.openProjectDialog);
   const openProposal = useUiStore((state) => state.openProposal);
+  const setProjectContext = useUiStore((state) => state.setProjectContext);
+  const clearProjectContext = useUiStore((state) => state.clearProjectContext);
 
   const setView = useViewStore((state) => state.setView);
   const tableSort = useViewStore((state) => state.tableSort);
@@ -51,6 +54,7 @@ export function ProjectRoute() {
   const setTableGroup = useViewStore((state) => state.setTableGroup);
 
   const [milestoneFilter, setMilestoneFilter] = useState<string | null>(null);
+  const seededProjectRef = useRef<string | null>(null);
   const [addingMilestone, setAddingMilestone] = useState(false);
   const [milestoneName, setMilestoneName] = useState('');
   const [breakdownError, setBreakdownError] = useState<{
@@ -60,9 +64,42 @@ export function ProjectRoute() {
   const [confirmArchive, setConfirmArchive] = useState(false);
   const [summaryText, setSummaryText] = useState<string | null>(null);
   const [summaryError, setSummaryError] = useState<string | null>(null);
+  const [milestoneError, setMilestoneError] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
 
+  // Opening a project starts on its first unfinished milestone.
+  useEffect(() => {
+    const projectData = project.data;
+    if (!projectData || projectData.id !== id) return;
+    if (seededProjectRef.current === projectData.id) return;
+
+    seededProjectRef.current = projectData.id;
+    setMilestoneFilter(projectData.progress.currentMilestone?.id ?? null);
+  }, [project.data, id]);
+
+  // The global Quick Capture shortcut reads this context.
+  useEffect(() => {
+    const projectData = project.data;
+    if (!projectData) {
+      clearProjectContext();
+      return;
+    }
+
+    const selected = milestones.data?.milestones.find(
+      (milestone) => milestone.id === milestoneFilter,
+    );
+    setProjectContext({
+      projectId: projectData.id,
+      projectName: projectData.name,
+      milestoneId: selected?.id ?? null,
+      milestoneName: selected?.name ?? null,
+    });
+  }, [project.data, milestones.data, milestoneFilter, setProjectContext, clearProjectContext]);
+
+  useEffect(() => () => clearProjectContext(), [clearProjectContext]);
+
   const createMilestone = useCreateMilestone(id ?? '');
+  const updateMilestone = useUpdateMilestone(id ?? '');
   const breakdown = useBreakdown();
   const archiveProject = useArchiveProject();
   const projectSummary = useProjectSummary();
@@ -98,6 +135,18 @@ export function ProjectRoute() {
     : allTasks;
 
   const activeMilestone = pills.find((milestone) => milestone.id === milestoneFilter);
+  const currentMilestone = data.progress.currentMilestone
+    ? pills.find((milestone) => milestone.id === data.progress.currentMilestone?.id)
+    : undefined;
+  const milestoneToComplete =
+    activeMilestone && !activeMilestone.completedAt
+      ? activeMilestone
+      : !activeMilestone && currentMilestone && !currentMilestone.completedAt
+        ? currentMilestone
+        : undefined;
+  const captureMilestone = activeMilestone
+    ? { milestoneId: activeMilestone.id, milestoneName: activeMilestone.name }
+    : { milestoneId: null, milestoneName: null };
 
   /** FR-18: the model proposes milestones and tasks; nothing is written until confirm. */
   async function runBreakdown() {
@@ -154,6 +203,29 @@ export function ProjectRoute() {
       setSummaryText(null);
       setCopied(false);
     }, 800);
+  }
+
+  async function completeMilestone(milestone: Milestone) {
+    setMilestoneError(null);
+    try {
+      await updateMilestone.mutateAsync({
+        id: milestone.id,
+        completedAt: new Date().toISOString(),
+      });
+
+      // Follow the dot to the next unfinished milestone.
+      setMilestoneFilter((current) => {
+        if (current !== milestone.id) return current;
+        const next = pills.find(
+          (entry) => entry.id !== milestone.id && !entry.completedAt,
+        );
+        return next?.id ?? null;
+      });
+    } catch (cause) {
+      setMilestoneError(
+        cause instanceof Error ? cause.message : t('Could not complete the milestone'),
+      );
+    }
   }
 
   async function addMilestone(event: FormEvent<HTMLFormElement>) {
@@ -213,7 +285,10 @@ export function ProjectRoute() {
               >
                 {breakdown.isPending ? t('Thinking…') : t('Break Down with AI')}
               </Button>
-              <Button variant="primary" onClick={() => openCapture({ projectId: data.id })}>
+              <Button
+                variant="primary"
+                onClick={() => openCapture({ projectId: data.id, ...captureMilestone })}
+              >
                 {t('New Task')}
               </Button>
             </>
@@ -296,16 +371,45 @@ export function ProjectRoute() {
           <ViewSwitcher value={view} onChange={setView} />
           <QuickCaptureButton
             onClick={() => {
-              openCapture({ projectId: data.id });
+              openCapture({ projectId: data.id, ...captureMilestone });
             }}
           />
         </div>
-        <p className="text-xs text-zinc-500">
-          {t('Showing: {value}', {
-            value: activeMilestone ? activeMilestone.name : t('all tasks'),
-          })}
-        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          {milestoneToComplete && (
+            <Button
+              onClick={() => {
+                void completeMilestone(milestoneToComplete);
+              }}
+              disabled={updateMilestone.isPending}
+              aria-label={t('Complete {name}', { name: milestoneToComplete.name })}
+              title={t('Complete {name}', { name: milestoneToComplete.name })}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="size-4"
+                aria-hidden="true"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+              {updateMilestone.isPending ? t('Completing…') : t('Complete milestone')}
+            </Button>
+          )}
+          <p className="text-xs text-zinc-500">
+            {t('Showing: {value}', {
+              value: activeMilestone ? activeMilestone.name : t('all tasks'),
+            })}
+          </p>
+        </div>
       </div>
+
+      {milestoneError && <p className="mt-2 text-xs text-red-600">{milestoneError}</p>}
 
       {summaryError && (
         <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg bg-zinc-50 px-3 py-2.5 text-xs text-zinc-700">
@@ -337,7 +441,7 @@ export function ProjectRoute() {
           updateTask.mutate({ id: taskId, statusId });
         }}
         onAddTask={(statusId) => {
-          openCapture({ projectId: data.id, statusId });
+          openCapture({ projectId: data.id, statusId, ...captureMilestone });
         }}
         emptyMessage={
           activeMilestone

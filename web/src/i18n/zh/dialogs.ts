@@ -174,4 +174,5 @@ export const dialogs: Record<string, string> = {
 
   // Notes editor
   'Add notes…': '添加备注…',
+  'Saves to {milestone}.': '保存到 {milestone}。',
 };

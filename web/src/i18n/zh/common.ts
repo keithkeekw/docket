@@ -116,6 +116,10 @@ export const common: Record<string, string> = {
   'Clear date': '清除日期',
 
   'Current milestone': '当前里程碑',
+  'Complete milestone': '完成里程碑',
+  'Complete {name}': '完成 {name}',
+  'Completing…': '完成中…',
+  'Could not complete the milestone': '无法完成里程碑',
 
   // Units
   '{count} task': '{count} 个任务',

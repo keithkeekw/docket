@@ -89,8 +89,13 @@ describe('captureProposal', () => {
     expect(proposal.items[0]?.aiNote).toBeNull();
   });
 
-  it('applies the capture project and status as defaults', async () => {
+  it('applies the capture project, milestone and status as defaults', async () => {
     const project = db.insert(projects).values({ name: 'Onboarding' }).returning().get();
+    const milestone = db
+      .insert(milestones)
+      .values({ projectId: project.id, name: 'Phase 1' })
+      .returning()
+      .get();
     const waiting = statusId('Waiting');
     const { complete } = stub([{ title: 'Call the plumber' }]);
 
@@ -99,17 +104,19 @@ describe('captureProposal', () => {
       now: NOW,
       projectId: project.id,
       statusId: waiting,
+      milestoneId: milestone.id,
     });
     const item = proposal.items[0];
 
     expect(item?.fields).toMatchObject({
       title: 'Call the plumber',
       projectId: project.id,
-      milestoneId: null,
+      milestoneId: milestone.id,
       statusId: waiting,
     });
     expect(item?.display).toMatchObject({
       projectName: 'Onboarding',
+      milestoneName: 'Phase 1',
       statusName: 'Waiting',
     });
   });
