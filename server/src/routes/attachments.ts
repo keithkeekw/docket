@@ -1,11 +1,7 @@
 import fs from 'node:fs';
 import type { Hono } from 'hono';
 import type { Db } from '../db/types';
-import {
-  addAttachment,
-  deleteAttachment,
-  getAttachmentFile,
-} from '../services/attachments';
+import { addAttachment, deleteAttachment, getAttachmentFile } from '../services/attachments';
 
 type UploadedFile = {
   name: string;

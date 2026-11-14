@@ -176,6 +176,59 @@ describe('PATCH /api/tasks/:id', () => {
     expect(updated.updatedAt >= task.updatedAt).toBe(true);
   });
 
+  it('saves, keeps and clears the planned start and end dates', async () => {
+    const task = taskResponseSchema.parse(
+      (
+        await createTask({
+          title: 'Write report',
+          startDate: '2026-11-16',
+          endDate: '2026-11-18',
+          dueDate: '2026-11-20',
+        })
+      ).body,
+    ).task;
+    expect(task).toMatchObject({ startDate: '2026-11-16', endDate: '2026-11-18' });
+
+    const patch = async (body: Record<string, unknown>) =>
+      app.request(`/api/tasks/${task.id}`, {
+        method: 'PATCH',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+
+    const renamed = taskResponseSchema.parse(await (await patch({ title: 'Report' })).json()).task;
+    expect(renamed).toMatchObject({ startDate: '2026-11-16', endDate: '2026-11-18' });
+
+    const cleared = taskResponseSchema.parse(await (await patch({ startDate: null })).json()).task;
+    expect(cleared).toMatchObject({ startDate: null, endDate: '2026-11-18' });
+  });
+
+  it('rejects an end date before the start date, including against the saved value', async () => {
+    const bad = await createTask({
+      title: 'Backwards',
+      startDate: '2026-11-18',
+      endDate: '2026-11-16',
+    });
+    expect(bad.response.status).toBe(400);
+
+    const task = taskResponseSchema.parse(
+      (await createTask({ title: 'Plan', startDate: '2026-11-18' })).body,
+    ).task;
+    const response = await app.request(`/api/tasks/${task.id}`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ endDate: '2026-11-17' }),
+    });
+    expect(response.status).toBe(400);
+
+    const sameDay = await createTask({
+      title: 'One day',
+      startDate: '2026-11-18',
+      endDate: '2026-11-18',
+    });
+    expect(sameDay.response.status).toBe(201);
+  });
+
   it('clears the milestone when the task leaves its project', async () => {
     const project = db.insert(projects).values({ name: 'Onboarding' }).returning().get();
     const milestone = db

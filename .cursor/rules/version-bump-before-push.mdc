@@ -1,26 +1,44 @@
 ---
-description: Remind the user to bump the version before every git push
+description: Before every commit-and-push to GitHub, ask for the version number and release notes, then publish the GitHub release
 alwaysApply: true
 ---
 
-# Version Bump Reminder Before Git Push
+# Commit, Push and Release Checklist
 
-Whenever the user asks to push (or you are about to run `git push`), first remind
-them to bump the version and ask whether to do it. Do not push until they answer.
+Whenever the user asks to commit and push (or you are about to run `git push`),
+use AskQuestion to ask, before pushing:
 
-- Show the current version from the root `package.json` and suggest the next one
-  (patch for fixes, minor for features, e.g. `1.2.0` → `1.3.0`).
-- If they want a bump, follow the release steps in `README.md`:
+1. **Version number.** Show the current version from the root `package.json` and
+   explicitly ask which version to release. Offer the next patch, minor and major
+   versions (e.g. `1.2.0` → `1.2.1` / `1.3.0` / `2.0.0`), with "Other" for a custom
+   number. Never pick the version yourself.
+2. **Release notes.** Ask whether to generate the release notes.
+
+Do not push until the user answers.
+
+## Release steps
 
 ```bash
 npm version <x.y.z> --no-git-tag-version   # updates package.json and package-lock.json
 # README.md: update "Current version: **x.y.z**", the sidebar example (`vx.y.z`),
-# and move the release example in the Releasing section to the next version
+# and move the example in the Releasing section to the next version
 git add -A
 git commit -m "Release v<x.y.z>"
 git tag v<x.y.z>
 git push origin master
-git push origin v<x.y.z>   # triggers .github/workflows/release.yml, which the in-app updater reads
+git push origin v<x.y.z>   # triggers .github/workflows/release.yml
 ```
 
-- If they decline, push as asked without changing the version.
+Once the push completes, proceed with the GitHub release:
+
+- Wait for the Release workflow: `gh run list --workflow release.yml --limit 1`,
+  then `gh run watch <id> --exit-status`. If it fails, report why instead of
+  retrying blindly.
+- If the user wanted release notes, write them from the commits since the previous
+  tag (`git log v<prev>..v<x.y.z>`), in the v1.1.0/v1.2.0 style: "## What's changed",
+  plain-language bullets grouped by area, an "Upgrading" section when there are
+  migrations or breaking changes, and the "**Full Changelog**" compare link. Publish
+  with `gh release edit v<x.y.z> --notes-file <file>`, then delete the temp file.
+- Confirm with `gh release view v<x.y.z>` and give the user the release link.
+
+If the user declines a version bump, just commit and push; no tag means no release.

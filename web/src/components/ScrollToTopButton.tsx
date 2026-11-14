@@ -5,7 +5,7 @@ import { PrelineTooltip } from './PrelineTooltip';
 
 /**
  * Floating return-to-top control. It appears once the page has scrolled past
- * the first screen and sits above the mobile tab bar.
+ * the first screen and stacks above the Ask Assistant button.
  */
 export function ScrollToTopButton() {
   const t = useT();
@@ -37,12 +37,22 @@ export function ScrollToTopButton() {
         aria-hidden={!visible}
         tabIndex={visible ? 0 : -1}
         className={cx(
-          'fixed right-5 bottom-20 z-30 inline-flex size-11 items-center justify-center rounded-full border border-zinc-200 bg-white/90 text-zinc-600 shadow-lg backdrop-blur transition-opacity duration-200 hover:bg-zinc-50 hover:text-zinc-900 sm:bottom-6',
+          'fixed right-5 bottom-34 z-30 inline-flex size-11 items-center justify-center rounded-full border border-zinc-200 bg-white/90 text-zinc-600 shadow-lg backdrop-blur transition-opacity duration-200 hover:bg-zinc-50 hover:text-zinc-900 sm:bottom-20',
           visible ? 'opacity-100' : 'pointer-events-none opacity-0',
         )}
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5" aria-hidden="true">
-          <path fillRule="evenodd" d="M10 17a.75.75 0 0 1-.75-.75V5.612L5.29 9.77a.75.75 0 0 1-1.08-1.04l5.25-5.5a.75.75 0 0 1 1.08 0l5.25 5.5a.75.75 0 0 1-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0 1 10 17Z" clipRule="evenodd" />
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="size-5"
+          aria-hidden="true"
+        >
+          <path
+            fillRule="evenodd"
+            d="M10 17a.75.75 0 0 1-.75-.75V5.612L5.29 9.77a.75.75 0 0 1-1.08-1.04l5.25-5.5a.75.75 0 0 1 1.08 0l5.25 5.5a.75.75 0 0 1-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0 1 10 17Z"
+            clipRule="evenodd"
+          />
         </svg>
       </button>
     </PrelineTooltip>

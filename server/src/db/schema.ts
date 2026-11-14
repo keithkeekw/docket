@@ -113,6 +113,9 @@ export const tasks = sqliteTable(
       .notNull()
       .references(() => statuses.id, { onDelete: 'restrict' }),
     priority: integer('priority').notNull().default(3),
+    /** Planned work window; `end_date >= start_date` is a service rule. */
+    startDate: text('start_date'),
+    endDate: text('end_date'),
     dueDate: text('due_date'),
     dueTime: text('due_time'),
     estimateMinutes: integer('estimate_minutes'),

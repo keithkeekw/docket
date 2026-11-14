@@ -5,7 +5,7 @@ projects, with an optional AI assistant that never changes data without your
 confirmation.
 
 Local-only: one SQLite file, one API bound to `127.0.0.1`, no cloud sync.
-Current version: **1.2.0**.
+Current version: **1.3.0**.
 
 ## Contents
 
@@ -84,7 +84,7 @@ npm start
 - App: <http://127.0.0.1:9000>
 - Builds the web app, starts the API and static server, and supervises it so
   the in-app updater can restart it after an update.
-- The sidebar shows the running version (`v1.2.0`) above **Shortcuts**.
+- The sidebar shows the running version (`v1.3.0`) above **Shortcuts**.
 - Stop it with `Ctrl+C`.
 
 ### Run in development
@@ -218,7 +218,6 @@ web/      React + Vite + Tailwind + Preline
 scripts/  Production supervisor and Git-based updater
 data/     app.db, backups, uploads and update state (git-ignored)
 docs/     PRD, tech stack and design specs
-mockups/  Screen mockups and logo sheet
 .github/  Release workflow
 ```
 
@@ -227,12 +226,12 @@ mockups/  Screen mockups and logo sheet
 Bump the root `package.json` version, commit, then tag and push:
 
 ```bash
-npm version 1.3.0 --no-git-tag-version
+npm version 1.4.0 --no-git-tag-version
 git add -A
-git commit -m "Release 1.3.0"
-git tag v1.3.0
+git commit -m "Release 1.4.0"
+git tag v1.4.0
 git push origin master
-git push origin v1.3.0
+git push origin v1.4.0
 ```
 
 The `Release` workflow (`.github/workflows/release.yml`) runs tests, builds the

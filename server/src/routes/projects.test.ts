@@ -251,7 +251,7 @@ describe('milestones', () => {
     expect(body.milestones[1]).toMatchObject({ done: 1, total: 2 });
   });
 
-  it('deletes a milestone and leaves its tasks in the project', async () => {
+  it('deletes a milestone and moves its tasks to the Inbox', async () => {
     const project = await createProject('Onboarding');
     const milestone = await createMilestone(project.id, 'Phase 1');
     const created = await post('/api/tasks', {
@@ -260,14 +260,63 @@ describe('milestones', () => {
       milestoneId: milestone.id,
     });
     const taskId = (await created.body).task.id as string;
+    await post('/api/tasks', { title: 'Stays', projectId: project.id });
 
     const response = await app.request(`/api/milestones/${milestone.id}`, { method: 'DELETE' });
-    expect(response.status).toBe(204);
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ movedToInbox: 1 });
 
     const projectTasks = (await (
       await app.request(`/api/tasks?project=${project.id}`)
     ).json()) as any;
-    expect(projectTasks.tasks[0]).toMatchObject({ id: taskId, milestoneId: null });
+    expect(projectTasks.tasks.map((task: any) => task.title)).toEqual(['Stays']);
+
+    const moved = db.select().from(tasks).where(eq(tasks.id, taskId)).get();
+    expect(moved).toMatchObject({ projectId: null, milestoneId: null });
+  });
+
+  it('reports 404 when deleting an unknown milestone', async () => {
+    const response = await app.request('/api/milestones/missing', { method: 'DELETE' });
+    expect(response.status).toBe(404);
+  });
+
+  it('reorders milestones to match the submitted order', async () => {
+    const project = await createProject('Onboarding');
+    const one = await createMilestone(project.id, 'Phase 1');
+    const two = await createMilestone(project.id, 'Phase 2');
+    const three = await createMilestone(project.id, 'Phase 3');
+
+    const { response, body } = await post(`/api/projects/${project.id}/milestones/reorder`, {
+      ids: [three.id, one.id, two.id],
+    });
+    expect(response.status).toBe(200);
+    expect(body).toEqual({ reordered: 3 });
+
+    const list = milestoneListSchema.parse(
+      await (await app.request(`/api/projects/${project.id}/milestones`)).json(),
+    );
+    expect(list.milestones.map((milestone) => milestone.name)).toEqual([
+      'Phase 3',
+      'Phase 1',
+      'Phase 2',
+    ]);
+  });
+
+  it('rejects a reorder that is missing, repeats or borrows milestones', async () => {
+    const project = await createProject('Onboarding');
+    const other = await createProject('Other');
+    const one = await createMilestone(project.id, 'Phase 1');
+    const two = await createMilestone(project.id, 'Phase 2');
+    const foreign = await createMilestone(other.id, 'Elsewhere');
+    const path = `/api/projects/${project.id}/milestones/reorder`;
+
+    expect((await post(path, { ids: [one.id] })).response.status).toBe(400);
+    expect((await post(path, { ids: [one.id, one.id] })).response.status).toBe(400);
+    expect((await post(path, { ids: [one.id, foreign.id] })).response.status).toBe(400);
+    expect((await post(path, { ids: [two.id, one.id] })).response.status).toBe(200);
+    expect(
+      (await post('/api/projects/missing/milestones/reorder', { ids: [one.id] })).response.status,
+    ).toBe(404);
   });
 
   it('reports 404 for a milestone on an unknown project', async () => {

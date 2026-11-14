@@ -160,8 +160,8 @@ export function undoableMilestoneDelete(db: Db, milestoneId: string): void {
   const row = db.select().from(milestones).where(eq(milestones.id, milestoneId)).get();
   if (!row) return;
 
-  const taskIds = db
-    .select({ id: tasks.id })
+  const taskRows = db
+    .select({ id: tasks.id, projectId: tasks.projectId })
     .from(tasks)
     .where(eq(tasks.milestoneId, milestoneId))
     .all();
@@ -171,8 +171,11 @@ export function undoableMilestoneDelete(db: Db, milestoneId: string): void {
     undo: () => {
       db.insert(milestones).values(row).run();
 
-      for (const task of taskIds) {
-        db.update(tasks).set({ milestoneId }).where(eq(tasks.id, task.id)).run();
+      for (const task of taskRows) {
+        db.update(tasks)
+          .set({ milestoneId, projectId: task.projectId })
+          .where(eq(tasks.id, task.id))
+          .run();
       }
     },
   });

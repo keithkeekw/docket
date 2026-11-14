@@ -16,12 +16,15 @@ export function ArchivedProjectsRoute() {
   const list = projects.data?.projects ?? [];
 
   function handleRestore(id: string) {
-    restore.mutate({ id }, {
-      onSuccess: () => {
-        setConfirmId(null);
-        void navigate(`/projects/${id}`);
+    restore.mutate(
+      { id },
+      {
+        onSuccess: () => {
+          setConfirmId(null);
+          void navigate(`/projects/${id}`);
+        },
       },
-    });
+    );
   }
 
   return (
@@ -63,15 +66,27 @@ export function ArchivedProjectsRoute() {
                 <div className="flex items-center gap-2">
                   <span className="text-xs text-zinc-500">{t('Restore this project?')}</span>
                   <Button
-                    onClick={() => { handleRestore(project.id); }}
+                    onClick={() => {
+                      handleRestore(project.id);
+                    }}
                     disabled={restore.isPending}
                   >
                     {t('Restore')}
                   </Button>
-                  <Button onClick={() => { setConfirmId(null); }}>{t('Cancel')}</Button>
+                  <Button
+                    onClick={() => {
+                      setConfirmId(null);
+                    }}
+                  >
+                    {t('Cancel')}
+                  </Button>
                 </div>
               ) : (
-                <Button onClick={() => { setConfirmId(project.id); }}>
+                <Button
+                  onClick={() => {
+                    setConfirmId(project.id);
+                  }}
+                >
                   {t('Restore')}
                 </Button>
               )}

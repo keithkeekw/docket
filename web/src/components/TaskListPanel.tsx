@@ -48,6 +48,7 @@ export function TaskListPanel({
   onToggle,
   autoAssign = false,
   viewSwitcher,
+  isPastTarget,
 }: {
   groups: TaskGroup[];
   isLoading?: boolean;
@@ -60,6 +61,8 @@ export function TaskListPanel({
   autoAssign?: boolean;
   /** View control rendered beside the selection actions. */
   viewSwitcher?: ReactNode;
+  /** Highlights tasks that start or are due after the project's target date. */
+  isPastTarget?: (task: Task) => boolean;
 }) {
   const bulkDelete = useBulkDeleteTasks();
   const reorder = useReorderTasks();
@@ -231,14 +234,29 @@ export function TaskListPanel({
             <PrelineTooltip label={bulkDelete.isPending ? t('Deleting…') : t('Delete Selected')}>
               <button
                 type="button"
-                onClick={() => { void deleteSelected(); }}
+                onClick={() => {
+                  void deleteSelected();
+                }}
                 disabled={selectedCount === 0 || bulkDelete.isPending}
                 aria-label={bulkDelete.isPending ? t('Deleting…') : t('Delete Selected')}
                 className="inline-flex size-10 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition-colors hover:bg-red-100 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
               >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={cx('size-4', bulkDelete.isPending && 'animate-pulse motion-reduce:animate-none')} aria-hidden="true">
-                <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clipRule="evenodd" />
-              </svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className={cx(
+                    'size-4',
+                    bulkDelete.isPending && 'animate-pulse motion-reduce:animate-none',
+                  )}
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
               </button>
             </PrelineTooltip>
             <PrelineTooltip label={t('Cancel')}>
@@ -248,9 +266,15 @@ export function TaskListPanel({
                 aria-label={t('Cancel')}
                 className="inline-flex size-10 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
               >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-4" aria-hidden="true">
-                <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
-              </svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="size-4"
+                  aria-hidden="true"
+                >
+                  <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                </svg>
               </button>
             </PrelineTooltip>
           </>
@@ -260,14 +284,25 @@ export function TaskListPanel({
               <PrelineTooltip label={t('Auto-Assign Top 3')}>
                 <button
                   type="button"
-                  onClick={() => { void autoAssignTopThree(); }}
+                  onClick={() => {
+                    void autoAssignTopThree();
+                  }}
                   disabled={autoAssigning || allTasks.length === 0}
                   aria-label={t('Auto-Assign Top 3')}
                   className="inline-flex size-10 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={cx('size-4', autoAssigning && 'animate-pulse motion-reduce:animate-none')} aria-hidden="true">
-                  <path d="M15.98 1.804a1 1 0 0 0-1.96 0l-.24 1.192a1 1 0 0 1-.784.785l-1.192.238a1 1 0 0 0 0 1.962l1.192.238a1 1 0 0 1 .785.785l.238 1.192a1 1 0 0 0 1.962 0l.238-1.192a1 1 0 0 1 .785-.785l1.192-.238a1 1 0 0 0 0-1.962l-1.192-.238a1 1 0 0 1-.785-.785l-.238-1.192ZM6.949 5.684a1 1 0 0 0-1.898 0l-.683 2.051a1 1 0 0 1-.633.633l-2.051.683a1 1 0 0 0 0 1.898l2.051.684a1 1 0 0 1 .633.632l.683 2.051a1 1 0 0 0 1.898 0l.683-2.051a1 1 0 0 1 .633-.633l2.051-.683a1 1 0 0 0 0-1.898l-2.051-.683a1 1 0 0 1-.633-.633l-.683-2.051ZM13.949 13.684a1 1 0 0 0-1.898 0l-.184.551a1 1 0 0 1-.632.633l-.551.183a1 1 0 0 0 0 1.898l.551.183a1 1 0 0 1 .633.633l.183.551a1 1 0 0 0 1.898 0l.184-.551a1 1 0 0 1 .632-.633l.551-.183a1 1 0 0 0 0-1.898l-.551-.184a1 1 0 0 1-.633-.632l-.183-.551Z" />
-                </svg>
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className={cx(
+                      'size-4',
+                      autoAssigning && 'animate-pulse motion-reduce:animate-none',
+                    )}
+                    aria-hidden="true"
+                  >
+                    <path d="M15.98 1.804a1 1 0 0 0-1.96 0l-.24 1.192a1 1 0 0 1-.784.785l-1.192.238a1 1 0 0 0 0 1.962l1.192.238a1 1 0 0 1 .785.785l.238 1.192a1 1 0 0 0 1.962 0l.238-1.192a1 1 0 0 1 .785-.785l1.192-.238a1 1 0 0 0 0-1.962l-1.192-.238a1 1 0 0 1-.785-.785l-.238-1.192ZM6.949 5.684a1 1 0 0 0-1.898 0l-.683 2.051a1 1 0 0 1-.633.633l-2.051.683a1 1 0 0 0 0 1.898l2.051.684a1 1 0 0 1 .633.632l.683 2.051a1 1 0 0 0 1.898 0l.683-2.051a1 1 0 0 1 .633-.633l2.051-.683a1 1 0 0 0 0-1.898l-2.051-.683a1 1 0 0 1-.633-.633l-.683-2.051ZM13.949 13.684a1 1 0 0 0-1.898 0l-.184.551a1 1 0 0 1-.632.633l-.551.183a1 1 0 0 0 0 1.898l.551.183a1 1 0 0 1 .633.633l.183.551a1 1 0 0 0 1.898 0l.184-.551a1 1 0 0 1 .632-.633l.551-.183a1 1 0 0 0 0-1.898l-.551-.184a1 1 0 0 1-.633-.632l-.183-.551Z" />
+                  </svg>
                 </button>
               </PrelineTooltip>
             )}
@@ -275,15 +310,25 @@ export function TaskListPanel({
             <PrelineTooltip label={t('Select Tasks')}>
               <button
                 type="button"
-                onClick={() => { setSelecting(true); }}
+                onClick={() => {
+                  setSelecting(true);
+                }}
                 disabled={allTasks.length === 0}
                 aria-label={t('Select Tasks')}
                 className="inline-flex size-10 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-50"
               >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" className="size-4" aria-hidden="true">
-                <rect x="3" y="3" width="14" height="14" rx="2.5" />
-                <path d="m6.5 10 2.5 2.5 4.5-5" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  className="size-4"
+                  aria-hidden="true"
+                >
+                  <rect x="3" y="3" width="14" height="14" rx="2.5" />
+                  <path d="m6.5 10 2.5 2.5 4.5-5" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
               </button>
             </PrelineTooltip>
           </>
@@ -303,9 +348,16 @@ export function TaskListPanel({
                     dragDisabled={selecting}
                     selecting={selecting}
                     selected={selected.has(task.id)}
-                    onSelect={(checked) => { toggleSelected(task.id, checked); }}
-                    onOpen={() => { onOpen(task); }}
-                    onToggle={(done) => { onToggle(task.id, done); }}
+                    onSelect={(checked) => {
+                      toggleSelected(task.id, checked);
+                    }}
+                    onOpen={() => {
+                      onOpen(task);
+                    }}
+                    onToggle={(done) => {
+                      onToggle(task.id, done);
+                    }}
+                    pastTarget={isPastTarget?.(task) ?? false}
                   />
                 ))}
               </ul>
@@ -325,6 +377,7 @@ function SortableTaskRow({
   onSelect,
   onOpen,
   onToggle,
+  pastTarget,
 }: {
   task: Task;
   dragDisabled: boolean;
@@ -333,6 +386,7 @@ function SortableTaskRow({
   onSelect: (selected: boolean) => void;
   onOpen: () => void;
   onToggle: (done: boolean) => void;
+  pastTarget: boolean;
 }) {
   const t = useT();
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
@@ -352,6 +406,7 @@ function SortableTaskRow({
       onOpen={onOpen}
       onToggle={onToggle}
       fadeOnComplete
+      pastTarget={pastTarget}
       selectable={selecting}
       selected={selected}
       onSelect={onSelect}
@@ -368,14 +423,20 @@ function SortableTaskRow({
               aria-label={t('Reorder {title}', { title: task.title })}
               className="mt-0.5 flex size-5 shrink-0 cursor-grab items-center justify-center rounded text-zinc-400 hover:text-zinc-600 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 active:cursor-grabbing"
             >
-            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="size-3.5" aria-hidden="true">
-              <circle cx="6" cy="4" r="1" />
-              <circle cx="10" cy="4" r="1" />
-              <circle cx="6" cy="8" r="1" />
-              <circle cx="10" cy="8" r="1" />
-              <circle cx="6" cy="12" r="1" />
-              <circle cx="10" cy="12" r="1" />
-            </svg>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                className="size-3.5"
+                aria-hidden="true"
+              >
+                <circle cx="6" cy="4" r="1" />
+                <circle cx="10" cy="4" r="1" />
+                <circle cx="6" cy="8" r="1" />
+                <circle cx="10" cy="8" r="1" />
+                <circle cx="6" cy="12" r="1" />
+                <circle cx="10" cy="12" r="1" />
+              </svg>
             </button>
           </PrelineTooltip>
         )

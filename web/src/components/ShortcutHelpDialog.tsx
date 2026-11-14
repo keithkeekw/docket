@@ -22,7 +22,9 @@ export function ShortcutHelpDialog() {
   // Form fields are exempt so typing a shifted space never opens the sheet.
   useHotkeys(
     helpKey,
-    () => { setIsOpen((open) => !open); },
+    () => {
+      setIsOpen((open) => !open);
+    },
     { preventDefault: true },
   );
 
@@ -68,10 +70,17 @@ export function ShortcutHelpDialog() {
           ref={closeButtonRef}
           type="button"
           className="shrink-0 text-zinc-400 hover:text-zinc-600"
-          onClick={() => { setIsOpen(false); }}
+          onClick={() => {
+            setIsOpen(false);
+          }}
           aria-label={t('Close')}
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-4">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="size-4"
+          >
             <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
           </svg>
         </button>
@@ -79,10 +88,7 @@ export function ShortcutHelpDialog() {
 
       <ul className="max-h-[min(60vh,520px)] divide-y divide-zinc-100 overflow-y-auto overscroll-contain px-5">
         {ALL_SHORTCUTS.map((shortcut) => (
-          <li
-            key={shortcut.id}
-            className="flex items-center justify-between gap-4 py-2.5"
-          >
+          <li key={shortcut.id} className="flex items-center justify-between gap-4 py-2.5">
             <div className="min-w-0">
               <p className="text-sm text-zinc-900">{t(shortcut.label)}</p>
               <p className="text-xs text-zinc-500">{t(shortcut.description)}</p>
@@ -93,8 +99,8 @@ export function ShortcutHelpDialog() {
       </ul>
 
       <div className="flex flex-wrap items-center gap-1.5 border-t border-zinc-200 px-5 py-3 text-xs text-zinc-500">
-        <Kbd>{bindingLabel(helpKey)}</Kbd> {t('to toggle this list')} ·
-        <Kbd>Esc</Kbd> {t('to close')}
+        <Kbd>{bindingLabel(helpKey)}</Kbd> {t('to toggle this list')} ·<Kbd>Esc</Kbd>{' '}
+        {t('to close')}
       </div>
     </dialog>
   );

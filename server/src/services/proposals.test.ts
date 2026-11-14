@@ -304,9 +304,9 @@ describe('proposalFromRawProject', () => {
   it('refuses a name that an active project already uses', () => {
     db.insert(projects).values({ name: 'Kitchen Renovation' }).run();
 
-    expect(() => proposalFromRawProject(db, 'chat', 'Chat', { name: 'kitchen renovation' })).toThrow(
-      /already exists/,
-    );
+    expect(() =>
+      proposalFromRawProject(db, 'chat', 'Chat', { name: 'kitchen renovation' }),
+    ).toThrow(/already exists/);
   });
 
   it('applies the project before the milestones that point at it', () => {
@@ -318,11 +318,13 @@ describe('proposalFromRawProject', () => {
     });
 
     // The user renamed the project in the preview and the milestones still follow it.
-    const items = [...proposal.items].reverse().map((item) =>
-      item.op === 'create_project'
-        ? { ...item, fields: { ...item.fields, title: 'New Kitchen' } }
-        : item,
-    );
+    const items = [...proposal.items]
+      .reverse()
+      .map((item) =>
+        item.op === 'create_project'
+          ? { ...item, fields: { ...item.fields, title: 'New Kitchen' } }
+          : item,
+      );
     applyProposal(db, proposal.id, items);
 
     const project = db.select().from(projects).get();

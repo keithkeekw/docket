@@ -135,9 +135,43 @@ export function updateMilestone(db: Db, id: string, body: UpdateMilestoneBody): 
   return getMilestone(db, id);
 }
 
-/** Tasks stay in the project and drop to project level (PROGRESS D7). */
-export function deleteMilestone(db: Db, id: string): void {
+/** Every milestone of the project, once each, in the new order. */
+export function reorderMilestones(db: Db, projectId: string, ids: string[]): number {
+  const existing = db
+    .select({ id: milestones.id })
+    .from(milestones)
+    .where(eq(milestones.projectId, projectId))
+    .all();
+
+  const unique = new Set(ids);
+  if (unique.size !== ids.length) {
+    throw new ServiceError('A milestone appears more than once in the new order', 400);
+  }
+  if (existing.length !== ids.length || existing.some((row) => !unique.has(row.id))) {
+    throw new ServiceError('The new order must list every milestone of the project', 400);
+  }
+
+  db.transaction((tx) => {
+    ids.forEach((id, position) => {
+      tx.update(milestones).set({ position }).where(eq(milestones.id, id)).run();
+    });
+  });
+
+  return ids.length;
+}
+
+/** Its tasks leave the project for the Inbox; returns how many moved. Undo restores both. */
+export function deleteMilestone(db: Db, id: string): number {
+  requireMilestone(db, id);
   undoableMilestoneDelete(db, id);
-  const result = db.delete(milestones).where(eq(milestones.id, id)).run();
-  if (result.changes === 0) throw new ServiceError('Milestone not found', 404);
+
+  return db.transaction((tx) => {
+    const moved = tx
+      .update(tasks)
+      .set({ projectId: null, milestoneId: null })
+      .where(eq(tasks.milestoneId, id))
+      .run().changes;
+    tx.delete(milestones).where(eq(milestones.id, id)).run();
+    return moved;
+  });
 }

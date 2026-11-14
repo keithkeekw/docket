@@ -48,6 +48,7 @@ export function TaskViewBody({
   onGroupChange,
   autoAssign = false,
   viewSwitcher,
+  isPastTarget,
 }: {
   view: ViewMode;
   tasks: Task[];
@@ -70,6 +71,8 @@ export function TaskViewBody({
   autoAssign?: boolean;
   /** View control shown with the list actions or above Table/Kanban. */
   viewSwitcher?: ReactNode;
+  /** Highlights tasks that start or are due after the project's target date. */
+  isPastTarget?: (task: Task) => boolean;
 }) {
   const t = useT();
 
@@ -86,6 +89,7 @@ export function TaskViewBody({
         onToggle={onToggle}
         autoAssign={autoAssign}
         viewSwitcher={viewSwitcher}
+        isPastTarget={isPastTarget}
       />
     );
   }
@@ -175,6 +179,7 @@ export function TaskViewBody({
           onOpen={onOpen}
           onToggle={onToggle}
           footer={footer}
+          isPastTarget={isPastTarget}
         />
       </>
     );
@@ -198,6 +203,7 @@ export function TaskViewBody({
         onOpen={onOpen}
         onStatusChange={onStatusChange}
         onAddTask={onAddTask}
+        isPastTarget={isPastTarget}
       />
     </>
   );

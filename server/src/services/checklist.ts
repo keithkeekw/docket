@@ -1,4 +1,9 @@
-import type { AiChecklistResponse, ChecklistItem, CreateChecklistItemBody, UpdateChecklistItemBody } from '@app/shared';
+import type {
+  AiChecklistResponse,
+  ChecklistItem,
+  CreateChecklistItemBody,
+  UpdateChecklistItemBody,
+} from '@app/shared';
 import { asc, eq, sql } from 'drizzle-orm';
 import { z } from 'zod';
 import { extractJson, makeCompletion, type Completion } from '../ai/client';
@@ -110,7 +115,11 @@ const checklistOutputSchema = z.object({ items: z.array(z.string().min(1).max(20
 
 const MAX_GENERATED_ITEMS = 12;
 
-const normaliseItem = (title: string): string => title.trim().toLowerCase().replace(/[.!]+$/, '');
+const normaliseItem = (title: string): string =>
+  title
+    .trim()
+    .toLowerCase()
+    .replace(/[.!]+$/, '');
 
 /**
  * Uses the 'capture' AI feature (the most general one) to generate checklist

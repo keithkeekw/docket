@@ -81,6 +81,8 @@ export function resetPrompt(db: Db, id: string): PromptEntry {
   const prompt = PROMPT_CATALOG.find((entry) => entry.id === id);
   if (!prompt) throw new ServiceError('Prompt not found', 404);
 
-  db.delete(appSettings).where(eq(appSettings.key, promptKey(id))).run();
+  db.delete(appSettings)
+    .where(eq(appSettings.key, promptKey(id)))
+    .run();
   return promptEntry(db, id, prompt.label);
 }

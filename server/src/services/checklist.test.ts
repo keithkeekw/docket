@@ -35,11 +35,7 @@ function createTask(title: string, notes: string | null = null) {
   const status = db.select().from(statuses).get();
   if (!status) throw new Error('Statuses are not seeded');
 
-  return db
-    .insert(tasks)
-    .values({ title, notes, statusId: status.id })
-    .returning()
-    .get();
+  return db.insert(tasks).values({ title, notes, statusId: status.id }).returning().get();
 }
 
 function attach(taskId: string, filename: string, mimeType: string, contents: string) {
@@ -72,7 +68,12 @@ describe('attachment text for checklist context', () => {
   it('routes .doc and .docx through the Word extractor', async () => {
     const task = createTask('Update the form');
     attach(task.id, 'old-form.doc', 'application/msword', 'legacy bytes');
-    attach(task.id, 'new-form.docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'zip bytes');
+    attach(
+      task.id,
+      'new-form.docx',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'zip bytes',
+    );
 
     const result = await extractAttachmentText(db, task.id, uploadsDir);
 

@@ -2,7 +2,6 @@ node_modules/
 dist/
 coverage/
 data/
-mockups/
 package-lock.json
 docs/
 PROGRESS.md

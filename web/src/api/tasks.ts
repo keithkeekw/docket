@@ -8,6 +8,7 @@ import {
   type BulkRestoreTasksBody,
   type CreateTaskBody,
   type ReorderTasksBody,
+  type StatusList,
   type Task,
   type TaskList,
   type UpdateTaskBody,
@@ -22,6 +23,7 @@ import {
 import { taskFilterQuery, type TaskFilter } from '../lib/taskFilters';
 import { apiDelete, apiGet, apiMutate } from './client';
 import { navQueryKey } from './nav';
+import { statusesQueryKey } from './statuses';
 
 export type { TaskFilter };
 
@@ -99,12 +101,37 @@ export function useCreateTask() {
   });
 }
 
+/**
+ * Edits land in the cached lists before the request, so a Kanban card moves
+ * columns on drop; the server's copy replaces the guess, and a failure reverts.
+ */
 export function useUpdateTask() {
   const queryClient = useQueryClient();
 
-  return useMutation<Task, Error, { id: string } & UpdateTaskBody>({
+  return useMutation<Task, Error, { id: string } & UpdateTaskBody, { snapshot: TaskSnapshot }>({
     mutationFn: async ({ id, ...body }) =>
       (await apiMutate(`/api/tasks/${id}`, 'PATCH', body, taskResponseSchema)).task,
+    onMutate: async ({ id, ...body }) => {
+      await queryClient.cancelQueries({ queryKey: TASKS_KEY });
+      const snapshot = snapshotTaskLists(queryClient);
+      const status =
+        body.statusId === undefined
+          ? undefined
+          : queryClient
+              .getQueryData<StatusList>(statusesQueryKey)
+              ?.statuses.find((candidate) => candidate.id === body.statusId);
+
+      patchCachedTask(queryClient, id, (task) => ({
+        ...task,
+        ...body,
+        ...(status && { statusName: status.name, statusCategory: status.category }),
+      }));
+
+      return { snapshot };
+    },
+    onError: (_error, _variables, context) => {
+      if (context) restoreTaskLists(queryClient, context.snapshot);
+    },
     onSuccess: (task) => {
       patchCachedTask(queryClient, task.id, () => task);
       invalidateTaskData(queryClient);
@@ -173,13 +200,38 @@ export function useCompleteTask() {
   });
 }
 
-/** List View drag order: positions become 0..n-1 in the submitted order. */
+/**
+ * List View drag order: positions become 0..n-1 in the submitted order. Cached
+ * lists reorder at once; the moved tasks swap among the slots they already hold,
+ * so tasks outside the drag keep their places.
+ */
 export function useReorderTasks() {
   const queryClient = useQueryClient();
 
-  return useMutation<{ reordered: number }, Error, ReorderTasksBody>({
+  return useMutation<{ reordered: number }, Error, ReorderTasksBody, { snapshot: TaskSnapshot }>({
     mutationFn: async (body) =>
       apiMutate('/api/tasks/reorder', 'POST', body, reorderTasksResponseSchema),
+    onMutate: async ({ ids }) => {
+      await queryClient.cancelQueries({ queryKey: TASKS_KEY });
+      const snapshot = snapshotTaskLists(queryClient);
+      const rank = new Map(ids.map((id, index) => [id, index]));
+
+      queryClient.setQueriesData<TaskList>({ queryKey: TASKS_KEY }, (data) => {
+        if (!data) return data;
+        const moved = data.tasks
+          .filter((task) => rank.has(task.id))
+          .sort((a, b) => (rank.get(a.id) ?? 0) - (rank.get(b.id) ?? 0));
+        let next = 0;
+        return {
+          tasks: data.tasks.map((task) => (rank.has(task.id) ? (moved[next++] ?? task) : task)),
+        };
+      });
+
+      return { snapshot };
+    },
+    onError: (_error, _variables, context) => {
+      if (context) restoreTaskLists(queryClient, context.snapshot);
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: TASKS_KEY });
     },
@@ -189,12 +241,7 @@ export function useReorderTasks() {
 export function useBulkDeleteTasks() {
   const queryClient = useQueryClient();
 
-  return useMutation<
-    { deleted: number },
-    Error,
-    BulkDeleteTasksBody,
-    { snapshot: TaskSnapshot }
-  >({
+  return useMutation<{ deleted: number }, Error, BulkDeleteTasksBody, { snapshot: TaskSnapshot }>({
     mutationFn: async (body) =>
       apiMutate('/api/tasks/bulk-delete', 'POST', body, bulkDeleteTasksResponseSchema),
     onMutate: async ({ ids }) => {
@@ -216,27 +263,24 @@ export function useBulkDeleteTasks() {
 export function useBulkRestoreTasks() {
   const queryClient = useQueryClient();
 
-  return useMutation<
-    { restored: number },
-    Error,
-    BulkRestoreTasksBody,
-    { snapshot: TaskSnapshot }
-  >({
-    mutationFn: async (body) =>
-      apiMutate('/api/tasks/bulk-restore', 'POST', body, bulkRestoreTasksResponseSchema),
-    onMutate: async ({ ids }) => {
-      await queryClient.cancelQueries({ queryKey: TASKS_KEY });
-      const snapshot = snapshotTaskLists(queryClient);
-      dropCachedTasks(queryClient, new Set(ids));
-      return { snapshot };
+  return useMutation<{ restored: number }, Error, BulkRestoreTasksBody, { snapshot: TaskSnapshot }>(
+    {
+      mutationFn: async (body) =>
+        apiMutate('/api/tasks/bulk-restore', 'POST', body, bulkRestoreTasksResponseSchema),
+      onMutate: async ({ ids }) => {
+        await queryClient.cancelQueries({ queryKey: TASKS_KEY });
+        const snapshot = snapshotTaskLists(queryClient);
+        dropCachedTasks(queryClient, new Set(ids));
+        return { snapshot };
+      },
+      onError: (_error, _variables, context) => {
+        if (context) restoreTaskLists(queryClient, context.snapshot);
+      },
+      onSuccess: () => {
+        invalidateTaskData(queryClient);
+      },
     },
-    onError: (_error, _variables, context) => {
-      if (context) restoreTaskLists(queryClient, context.snapshot);
-    },
-    onSuccess: () => {
-      invalidateTaskData(queryClient);
-    },
-  });
+  );
 }
 
 export function useDeleteTask() {

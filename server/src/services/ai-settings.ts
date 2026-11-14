@@ -115,7 +115,9 @@ export function clearProviderKey(
   provider: AiProvider,
   envKeys: Keys = env.apiKeys,
 ): AiSettings {
-  db.delete(appSettings).where(eq(appSettings.key, keySetting(provider))).run();
+  db.delete(appSettings)
+    .where(eq(appSettings.key, keySetting(provider)))
+    .run();
   return getAiSettings(db, envKeys);
 }
 

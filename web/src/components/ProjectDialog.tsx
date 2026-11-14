@@ -4,16 +4,18 @@ import { useNavigate } from 'react-router';
 import {
   useCreateMilestone,
   useCreateProject,
-  useDeleteMilestone,
   useDeleteProject,
   useMilestones,
   useProject,
+  useReorderMilestones,
   useUpdateMilestone,
   useUpdateProject,
 } from '../api/projects';
 import { confirmAction } from '../store/confirm';
 import { useUiStore } from '../store/ui';
 import { useT } from '../lib/i18n';
+import { moveItem } from '../lib/moveItem';
+import { useRemoveMilestone } from '../lib/useRemoveMilestone';
 import { Button } from './Button';
 import { DatePicker } from './DatePicker';
 import { Field, Input, Textarea } from './Field';
@@ -370,7 +372,8 @@ function MilestoneManager({ projectId }: { projectId: string }) {
   const milestones = useMilestones(projectId);
   const createMilestone = useCreateMilestone(projectId);
   const updateMilestone = useUpdateMilestone(projectId);
-  const deleteMilestone = useDeleteMilestone(projectId);
+  const reorderMilestones = useReorderMilestones(projectId);
+  const removeMilestone = useRemoveMilestone(projectId);
 
   const [name, setName] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -390,25 +393,14 @@ function MilestoneManager({ projectId }: { projectId: string }) {
     }
   }
 
-  /**
-   * Reordering rewrites positions to match the new index order, which also
-   * normalises gaps left by deletes.
-   */
   async function move(index: number, delta: number) {
     const target = index + delta;
     if (target < 0 || target >= items.length) return;
 
-    const next = [...items];
-    const [moved] = next.splice(index, 1);
-    if (!moved) return;
-    next.splice(target, 0, moved);
-
     try {
-      for (const [position, milestone] of next.entries()) {
-        if (milestone.position !== position) {
-          await updateMilestone.mutateAsync({ id: milestone.id, position });
-        }
-      }
+      await reorderMilestones.mutateAsync({
+        ids: moveItem(items, index, target).map((milestone) => milestone.id),
+      });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('Could not reorder milestones'));
     }
@@ -426,17 +418,8 @@ function MilestoneManager({ projectId }: { projectId: string }) {
   }
 
   async function remove(milestone: Milestone) {
-    const confirmed = await confirmAction({
-      title: t('Delete Milestone'),
-      message: t('“{name}” will be removed. Its tasks stay in the project.', {
-        name: milestone.name,
-      }),
-      confirmLabel: t('Delete Milestone'),
-    });
-    if (!confirmed) return;
-
     try {
-      await deleteMilestone.mutateAsync({ id: milestone.id });
+      await removeMilestone.remove(milestone);
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('Could not delete the milestone'));
     }

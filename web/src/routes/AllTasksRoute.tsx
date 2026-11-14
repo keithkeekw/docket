@@ -96,9 +96,7 @@ export function AllTasksRoute() {
     count: rows.length,
   })}${active ? ` · ${t('filtered')}` : ''}`;
 
-  const emptyMessage = active
-    ? t('No tasks match these filters.')
-    : t('No tasks yet.');
+  const emptyMessage = active ? t('No tasks match these filters.') : t('No tasks yet.');
 
   const viewControls = (
     <div className="flex items-center gap-2">

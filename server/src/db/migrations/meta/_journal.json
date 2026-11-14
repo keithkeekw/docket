@@ -29,6 +29,13 @@
       "when": 1794621036670,
       "tag": "0003_more_ai_providers",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1794627465372,
+      "tag": "0004_tense_power_man",
+      "breakpoints": true
     }
   ]
 }

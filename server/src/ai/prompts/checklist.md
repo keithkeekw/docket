@@ -4,6 +4,7 @@ Return ONLY a JSON object with this exact shape — no prose, no fences:
 {"items":["Step one","Step two","Step three"]}
 
 Rules:
+
 - 3 to 8 items for most tasks; never more than 12
 - Each item is an actionable step, starting with a verb (Check, Draft, Send, Review…)
 - Items should be in a logical order

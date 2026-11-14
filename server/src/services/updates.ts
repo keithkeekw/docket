@@ -189,27 +189,6 @@ export function writeUpdateRequest(tag: string): void {
   );
 }
 
-export function readUpdateRequest(): { tag: string; requestedAt: string } | null {
-  try {
-    const parsed = JSON.parse(fs.readFileSync(requestFile(), 'utf8')) as {
-      tag?: unknown;
-      requestedAt?: unknown;
-    };
-    if (typeof parsed.tag !== 'string' || typeof parsed.requestedAt !== 'string') return null;
-    return { tag: parsed.tag, requestedAt: parsed.requestedAt };
-  } catch {
-    return null;
-  }
-}
-
-export function clearUpdateRequest(): void {
-  try {
-    fs.rmSync(requestFile(), { force: true });
-  } catch {
-    // The next update overwrites the request anyway.
-  }
-}
-
 /** The supervisor sets this flag; only then can the server hand over an update. */
 export function isSupervised(): boolean {
   return process.env.DOCKET_SUPERVISED === '1';

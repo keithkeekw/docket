@@ -93,11 +93,7 @@ export async function apiMutate<T>(
 }
 
 /** Multipart upload: the browser sets the boundary, so never set Content-Type. */
-export async function apiUpload<T>(
-  path: string,
-  file: File,
-  schema: ZodType<T>,
-): Promise<T> {
+export async function apiUpload<T>(path: string, file: File, schema: ZodType<T>): Promise<T> {
   const form = new FormData();
   form.set('file', file);
 
@@ -110,10 +106,7 @@ export async function apiDelete(path: string): Promise<void> {
 }
 
 /** DELETE that answers with a body, such as a reset resource. */
-export async function apiDeleteJson<T>(
-  path: string,
-  schema: ZodType<T>,
-): Promise<T> {
+export async function apiDeleteJson<T>(path: string, schema: ZodType<T>): Promise<T> {
   const response = await request(path, { method: 'DELETE' });
   return parseJson(response, schema, path);
 }

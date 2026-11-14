@@ -71,7 +71,10 @@ describe('dueReviews', () => {
   it('finds nothing when scheduled reviews are turned off', () => {
     expect(dueReviews({ ...SETTINGS, enabled: false }, new Date(2026, 10, 13, 9, 0))).toEqual([]);
     expect(
-      dueReviews({ ...SETTINGS, enabled: false, frequency: 'weekly' }, new Date(2026, 10, 13, 9, 0)),
+      dueReviews(
+        { ...SETTINGS, enabled: false, frequency: 'weekly' },
+        new Date(2026, 10, 13, 9, 0),
+      ),
     ).toEqual([]);
   });
 

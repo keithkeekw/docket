@@ -137,6 +137,7 @@ function compactTask(task: Task): Record<string, unknown> {
     milestone: task.milestoneName,
     status: task.statusName,
     priority: `P${task.priority}`,
+    planned: task.startDate || task.endDate ? { start: task.startDate, end: task.endDate } : null,
     due: task.dueDate ? `${task.dueDate}${task.dueTime ? ` ${task.dueTime}` : ''}` : null,
     tags: task.tags,
   };

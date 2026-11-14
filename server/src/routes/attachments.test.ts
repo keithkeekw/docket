@@ -95,9 +95,9 @@ describe('task attachments (FR-31)', () => {
     expect(response.status).toBe(204);
     expect((await detail(taskId)).attachments).toEqual([]);
     expect(fs.readdirSync(uploadsDir)).toHaveLength(0);
-    await expect(
-      app.request(`/api/attachments/${attachment.id}/download`),
-    ).resolves.toMatchObject({ status: 404 });
+    await expect(app.request(`/api/attachments/${attachment.id}/download`)).resolves.toMatchObject({
+      status: 404,
+    });
   });
 
   it('supports several files on one task, in upload order', async () => {

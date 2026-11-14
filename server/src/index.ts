@@ -9,9 +9,7 @@ import { pruneOrphanAttachmentFiles } from './services/attachments';
 
 // In production the built frontend lives at <repo>/web/dist.
 const staticDir =
-  process.env.NODE_ENV === 'production'
-    ? path.join(REPO_ROOT, 'web/dist')
-    : undefined;
+  process.env.NODE_ENV === 'production' ? path.join(REPO_ROOT, 'web/dist') : undefined;
 
 const uploadsDir = path.join(REPO_ROOT, 'data/uploads');
 // A deleted task cascades its rows away but the bytes stay for undo; clear any

@@ -58,11 +58,18 @@ export function ConfirmDialog() {
         <div className="mt-5 flex flex-wrap justify-end gap-2">
           <Button
             ref={cancelRef}
-            onClick={() => { respond(false); }}
+            onClick={() => {
+              respond(false);
+            }}
           >
             {options?.cancelLabel ?? t('Cancel')}
           </Button>
-          <Button variant="danger" onClick={() => { respond(true); }}>
+          <Button
+            variant="danger"
+            onClick={() => {
+              respond(true);
+            }}
+          >
             {options?.confirmLabel ?? t('Delete')}
           </Button>
         </div>

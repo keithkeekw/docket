@@ -59,23 +59,23 @@ export function CommandPalette() {
     };
   }, [query]);
 
-  const taskSearch = useTasks(
-    { q: taskQuery, completed: 'all' },
-    isOpen && taskQuery !== '',
-    true,
-  );
+  const taskSearch = useTasks({ q: taskQuery, completed: 'all' }, isOpen && taskQuery !== '', true);
 
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
 
   useHotkeys(
     paletteKey,
-    () => { setIsOpen((open) => !open); },
+    () => {
+      setIsOpen((open) => !open);
+    },
     { preventDefault: true, enableOnFormTags: true },
   );
 
   const commands = useMemo<Command[]>(() => {
-    const go = (to: string) => () => { void navigate(to); };
+    const go = (to: string) => () => {
+      void navigate(to);
+    };
 
     return [
       { id: 'page:dashboard', label: t('Dashboard'), group: t('Pages'), run: go('/') },
@@ -85,49 +85,67 @@ export function CommandPalette() {
       { id: 'page:reviews', label: t('Reviews'), group: t('Pages'), run: go('/reviews') },
       { id: 'page:logbook', label: t('Logbook'), group: t('Pages'), run: go('/logbook') },
       { id: 'page:guide', label: t('User Guide'), group: t('Pages'), run: go('/guide') },
-      { id: 'page:archived', label: t('Archived Projects'), group: t('Pages'), run: go('/projects/archived') },
+      {
+        id: 'page:archived',
+        label: t('Archived Projects'),
+        group: t('Pages'),
+        run: go('/projects/archived'),
+      },
       { id: 'page:settings', label: t('Settings'), group: t('Pages'), run: go('/settings') },
+      { id: 'page:about', label: t('About'), group: t('Pages'), run: go('/about') },
       {
         id: 'action:new-task',
         label: t('New Task'),
         group: t('Actions'),
         keywords: 'capture add create',
-        run: () => { openCapture(); },
+        run: () => {
+          openCapture();
+        },
       },
       {
         id: 'action:new-project',
         label: t('New Project'),
         group: t('Actions'),
         keywords: 'create add',
-        run: () => { openProjectDialog({ mode: 'create' }); },
+        run: () => {
+          openProjectDialog({ mode: 'create' });
+        },
       },
       {
         id: 'action:assistant',
         label: t('Ask Assistant'),
         group: t('Actions'),
         keywords: 'chat ai help',
-        run: () => { openChat(); },
+        run: () => {
+          openChat();
+        },
       },
       {
         id: 'theme:light',
         label: t('Light Theme'),
         group: t('Appearance'),
         keywords: 'theme light appearance mode',
-        run: () => { setThemeMode('light'); },
+        run: () => {
+          setThemeMode('light');
+        },
       },
       {
         id: 'theme:dark',
         label: t('Dark Theme'),
         group: t('Appearance'),
         keywords: 'theme dark appearance mode',
-        run: () => { setThemeMode('dark'); },
+        run: () => {
+          setThemeMode('dark');
+        },
       },
       {
         id: 'theme:system',
         label: t('Automatic Theme'),
         group: t('Appearance'),
         keywords: 'theme automatic system appearance mode machine',
-        run: () => { setThemeMode('system'); },
+        run: () => {
+          setThemeMode('system');
+        },
       },
       ...(nav.data?.projects ?? []).map((project) => ({
         id: `project:${project.id}`,
@@ -148,7 +166,9 @@ export function CommandPalette() {
       group: t('Tasks'),
       detail: task.projectName ?? t('Inbox'),
       done: task.statusCategory === 'done',
-      run: () => { openTask(task); },
+      run: () => {
+        openTask(task);
+      },
     }));
   }, [taskQuery, query, taskSearch.data, openTask, t]);
 
@@ -219,9 +239,7 @@ export function CommandPalette() {
       setActive((index) => (filtered.length ? (index + 1) % filtered.length : 0));
     } else if (event.key === 'ArrowUp') {
       event.preventDefault();
-      setActive((index) =>
-        filtered.length ? (index - 1 + filtered.length) % filtered.length : 0,
-      );
+      setActive((index) => (filtered.length ? (index - 1 + filtered.length) % filtered.length : 0));
     } else if (event.key === 'Enter') {
       event.preventDefault();
       runCommand(filtered[active]);
@@ -302,8 +320,12 @@ export function CommandPalette() {
               )}
               <button
                 type="button"
-                onClick={() => { runCommand(command); }}
-                onMouseEnter={() => { setActive(index); }}
+                onClick={() => {
+                  runCommand(command);
+                }}
+                onMouseEnter={() => {
+                  setActive(index);
+                }}
                 className={cx(
                   'flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2 text-left',
                   isActive ? 'bg-zinc-100' : 'hover:bg-zinc-50',

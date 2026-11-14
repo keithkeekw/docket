@@ -37,6 +37,8 @@ const taskSelection = {
   statusName: statuses.name,
   statusCategory: statuses.category,
   priority: tasks.priority,
+  startDate: tasks.startDate,
+  endDate: tasks.endDate,
   dueDate: tasks.dueDate,
   dueTime: tasks.dueTime,
   estimateMinutes: tasks.estimateMinutes,
@@ -59,6 +61,8 @@ type TaskRow = {
   statusName: string;
   statusCategory: 'open' | 'active' | 'done';
   priority: number;
+  startDate: string | null;
+  endDate: string | null;
   dueDate: string | null;
   dueTime: string | null;
   estimateMinutes: number | null;
@@ -370,6 +374,12 @@ function assertMilestoneFitsProject(
   }
 }
 
+function assertDateRange(startDate: string | null, endDate: string | null): void {
+  if (startDate !== null && endDate !== null && endDate < startDate) {
+    throw new ServiceError('End date cannot be before the start date', 400);
+  }
+}
+
 export function createTask(db: Db, body: CreateTaskBody): Task {
   const statusId = body.statusId ?? defaultOpenStatusId(db);
   if (!statusId) throw new ServiceError('No statuses configured', 500);
@@ -380,6 +390,7 @@ export function createTask(db: Db, body: CreateTaskBody): Task {
 
   assertProjectExists(db, projectId);
   assertMilestoneFitsProject(db, milestoneId, projectId);
+  assertDateRange(body.startDate ?? null, body.endDate ?? null);
 
   const inserted = db
     .insert(tasks)
@@ -390,6 +401,8 @@ export function createTask(db: Db, body: CreateTaskBody): Task {
       milestoneId,
       statusId,
       priority: body.priority ?? 3,
+      startDate: body.startDate ?? null,
+      endDate: body.endDate ?? null,
       dueDate: body.dueDate ?? null,
       dueTime: body.dueTime ?? null,
       estimateMinutes: body.estimateMinutes ?? null,
@@ -419,6 +432,10 @@ export function updateTask(db: Db, id: string, body: UpdateTaskBody): Task {
 
   assertProjectExists(db, projectId);
   assertMilestoneFitsProject(db, milestoneId, projectId);
+  assertDateRange(
+    body.startDate !== undefined ? body.startDate : existing.startDate,
+    body.endDate !== undefined ? body.endDate : existing.endDate,
+  );
 
   const patch: Partial<typeof tasks.$inferInsert> = {
     updatedAt: new Date().toISOString(),
@@ -441,6 +458,8 @@ export function updateTask(db: Db, id: string, body: UpdateTaskBody): Task {
   }
 
   if (body.priority !== undefined) patch.priority = body.priority;
+  if (body.startDate !== undefined) patch.startDate = body.startDate;
+  if (body.endDate !== undefined) patch.endDate = body.endDate;
   if (body.dueDate !== undefined) patch.dueDate = body.dueDate;
   if (body.dueTime !== undefined) patch.dueTime = body.dueTime;
   if (body.estimateMinutes !== undefined) patch.estimateMinutes = body.estimateMinutes;
@@ -544,11 +563,7 @@ export function reorderTasks(db: Db, ids: string[]): number {
     throw new ServiceError('A task appears more than once in the new order', 400);
   }
 
-  const existing = db
-    .select({ id: tasks.id })
-    .from(tasks)
-    .where(inArray(tasks.id, ids))
-    .all();
+  const existing = db.select({ id: tasks.id }).from(tasks).where(inArray(tasks.id, ids)).all();
 
   if (existing.length !== ids.length) throw new ServiceError('Task not found', 404);
 
@@ -582,11 +597,7 @@ export function restoreTasks(db: Db, ids: string[]): number {
 
 export function deleteTasks(db: Db, ids: string[]): number {
   const unique = [...new Set(ids)];
-  const existing = db
-    .select({ id: tasks.id })
-    .from(tasks)
-    .where(inArray(tasks.id, unique))
-    .all();
+  const existing = db.select({ id: tasks.id }).from(tasks).where(inArray(tasks.id, unique)).all();
 
   if (existing.length === 0) return 0;
 

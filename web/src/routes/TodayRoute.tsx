@@ -64,10 +64,7 @@ export function TodayRoute() {
 
   return (
     <>
-      <PageHeader
-        title={t('Today')}
-        description={t('Overdue work and anything due today.')}
-      />
+      <PageHeader title={t('Today')} description={t('Overdue work and anything due today.')} />
 
       {view === 'list' ? (
         <TaskListPanel

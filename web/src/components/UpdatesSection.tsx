@@ -1,7 +1,6 @@
 import { updateStatusSchema } from '@app/shared';
 import { format, parseISO } from 'date-fns';
 import { useEffect, useState } from 'react';
-import { useLocation } from 'react-router';
 import { apiGet } from '../api/client';
 import { useApplyUpdate, useCheckUpdates, useUpdateInfo } from '../api/updates';
 import { useDateLocale, useT, tNow } from '../lib/i18n';
@@ -10,37 +9,17 @@ import { Button } from './Button';
 import { InlineError } from './InlineError';
 
 /**
- * Settings → About & Updates. The check is read-only; applying hands the server
+ * About → Updates. The check is read-only; applying hands the server
  * over to the supervisor, so the page polls until the new version answers.
  */
 export function UpdatesSection() {
   const t = useT();
   const dateLocale = useDateLocale();
-  const location = useLocation();
   const info = useUpdateInfo();
   const check = useCheckUpdates();
   const apply = useApplyUpdate();
   const [updating, setUpdating] = useState(false);
   const [updateError, setUpdateError] = useState<string | null>(null);
-
-  // The sidebar update pill links to #about-updates. Settings sections load
-  // above this one, so retry while the page settles instead of scrolling once.
-  useEffect(() => {
-    if (location.hash !== '#about-updates') return;
-
-    const scroll = () => {
-      const section = document.getElementById('about-updates');
-      if (!section) return;
-      const rect = section.getBoundingClientRect();
-      if (rect.top >= 0 && rect.top <= window.innerHeight - 160) return;
-      section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-    };
-
-    const timers = [0, 250, 700, 1300].map((delay) => window.setTimeout(scroll, delay));
-    return () => {
-      for (const timer of timers) window.clearTimeout(timer);
-    };
-  }, [location.hash]);
 
   // Finish an update that was already in flight when the page loaded.
   useEffect(() => {
@@ -125,8 +104,8 @@ export function UpdatesSection() {
   const checkedAt = data ? format(parseISO(data.checkedAt), 'HH:mm', { locale: dateLocale }) : null;
 
   return (
-    <section id="about-updates" className="mt-8 scroll-mt-6 border-t border-zinc-200 pt-5">
-      <h2 className="text-[15px] font-semibold text-zinc-900">{t('About & Updates')}</h2>
+    <section id="updates" className="mt-8 border-t border-zinc-200 pt-5">
+      <h2 className="text-[15px] font-semibold text-zinc-900">{t('Updates')}</h2>
       <p className="mt-1 max-w-[560px] text-xs text-zinc-500">
         {t('Check GitHub Releases and install a newer version from here.')}
       </p>

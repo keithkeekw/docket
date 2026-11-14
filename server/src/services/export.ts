@@ -60,8 +60,12 @@ export function exportJson(db: Db): Record<string, unknown> {
 }
 
 function formatDue(task: typeof tasks.$inferSelect): string {
-  if (!task.dueDate) return '';
-  return ` — due ${task.dueDate}${task.dueTime ? ` ${task.dueTime}` : ''}`;
+  const planned =
+    task.startDate || task.endDate
+      ? ` — planned ${task.startDate ?? '…'} to ${task.endDate ?? '…'}`
+      : '';
+  if (!task.dueDate) return planned;
+  return `${planned} — due ${task.dueDate}${task.dueTime ? ` ${task.dueTime}` : ''}`;
 }
 
 function taskLine(task: typeof tasks.$inferSelect, statusName: string, location: string): string {

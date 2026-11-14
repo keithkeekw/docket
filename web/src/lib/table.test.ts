@@ -13,6 +13,8 @@ function task(overrides: Partial<Task> & { id: string; title: string }): Task {
     statusName: 'To do',
     statusCategory: 'open',
     priority: 3,
+    startDate: null,
+    endDate: null,
     dueDate: null,
     dueTime: null,
     estimateMinutes: null,

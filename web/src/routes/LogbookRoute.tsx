@@ -1,10 +1,5 @@
 import { useState } from 'react';
-import {
-  useBulkDeleteTasks,
-  useBulkRestoreTasks,
-  useCompleteTask,
-  useTasks,
-} from '../api/tasks';
+import { useBulkDeleteTasks, useBulkRestoreTasks, useCompleteTask, useTasks } from '../api/tasks';
 import { Checkbox } from '../components/Checkbox';
 import { EmptyState } from '../components/EmptyState';
 import { GroupHeader } from '../components/GroupHeader';
@@ -187,7 +182,9 @@ export function LogbookRoute() {
                     </svg>
                   </button>
                 </PrelineTooltip>
-                <PrelineTooltip label={bulkDelete.isPending ? t('Deleting…') : t('Delete Selected')}>
+                <PrelineTooltip
+                  label={bulkDelete.isPending ? t('Deleting…') : t('Delete Selected')}
+                >
                   <button
                     type="button"
                     onClick={() => {

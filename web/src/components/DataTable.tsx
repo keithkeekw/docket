@@ -25,13 +25,27 @@ const COLUMNS: ReadonlyArray<{ key: SortKey | null; label: string; srOnly?: bool
   { key: 'links', label: 'Links' },
 ];
 
+/** Unsorted columns show a faint up-down mark so every header reads as sortable. */
 function SortIndicator({ active, dir }: { active: boolean; dir: 'asc' | 'desc' }) {
-  if (!active) return null;
+  const path = !active
+    ? 'M10 3a.75.75 0 0 1 .55.24l3.25 3.5a.75.75 0 1 1-1.1 1.02L10 4.852 7.3 7.76a.75.75 0 0 1-1.1-1.02l3.25-3.5A.75.75 0 0 1 10 3Zm-3.76 9.2a.75.75 0 0 1 1.06.04l2.7 2.908 2.7-2.908a.75.75 0 1 1 1.1 1.02l-3.25 3.5a.75.75 0 0 1-1.1 0l-3.25-3.5a.75.75 0 0 1 .04-1.06Z'
+    : dir === 'asc'
+      ? 'M10 17a.75.75 0 0 1-.75-.75V5.612L5.29 9.77a.75.75 0 0 1-1.08-1.04l5.25-5.5a.75.75 0 0 1 1.08 0l5.25 5.5a.75.75 0 1 1-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0 1 10 17Z'
+      : 'M10 3a.75.75 0 0 1 .75.75v10.638l3.96-4.158a.75.75 0 1 1 1.08 1.04l-5.25 5.5a.75.75 0 0 1-1.08 0l-5.25-5.5a.75.75 0 1 1 1.08-1.04l3.96 4.158V3.75A.75.75 0 0 1 10 3Z';
 
   return (
-    <span aria-hidden="true" className="ml-1 text-zinc-500">
-      {dir === 'asc' ? '↑' : '↓'}
-    </span>
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      aria-hidden="true"
+      className={cx(
+        'ml-1 size-3.5 shrink-0',
+        active ? 'text-zinc-700' : 'text-zinc-300 group-hover:text-zinc-500',
+      )}
+    >
+      <path fillRule="evenodd" clipRule="evenodd" d={path} />
+    </svg>
   );
 }
 
@@ -47,6 +61,7 @@ export function DataTable({
   onOpen,
   onToggle,
   footer,
+  isPastTarget,
 }: {
   groups: TaskGroup[];
   sort: TableSort;
@@ -54,6 +69,8 @@ export function DataTable({
   onOpen: (task: Task) => void;
   onToggle: (id: string, done: boolean) => void;
   footer: string;
+  /** Highlights tasks that start or are due after the project's target date. */
+  isPastTarget?: (task: Task) => boolean;
 }) {
   const t = useT();
   const grouped = groups.length > 1 || (groups[0]?.label ?? '') !== '';
@@ -87,7 +104,11 @@ export function DataTable({
                     ) : (
                       <button
                         type="button"
-                        className="inline-flex items-center font-medium text-zinc-600"
+                        title={t('Sort by {field}', { field: t(column.label) })}
+                        className={cx(
+                          'group -mx-1.5 inline-flex cursor-pointer items-center rounded-md px-1.5 py-0.5 font-medium transition-colors hover:bg-zinc-100 hover:text-zinc-900',
+                          active ? 'text-zinc-900' : 'text-zinc-600',
+                        )}
                         onClick={() => {
                           onSort(column.key as SortKey);
                         }}
@@ -117,91 +138,101 @@ export function DataTable({
                   </tr>
                 )}
 
-                {group.tasks.map((task) => (
-                  <tr
-                    key={task.id}
-                    className={cx(
-                      'h-12 border-b border-zinc-100 last:border-b-0',
-                      task.statusCategory === 'done' &&
-                        'animate-[task-fade-out_3s_ease-in_forwards] motion-reduce:animate-none',
-                    )}
-                  >
-                    <td className="py-1 pl-4">
-                      <Checkbox
-                        checked={task.statusCategory === 'done'}
-                        label={
-                          task.statusCategory === 'done'
-                            ? t('Mark "{title}" as not done', { title: task.title })
-                            : t('Mark "{title}" as done', { title: task.title })
-                        }
-                        onChange={(done) => {
-                          onToggle(task.id, done);
-                        }}
-                      />
-                    </td>
-
-                    <td className="py-1 pr-3">
-                      <button
-                        type="button"
-                        className={
-                          task.statusCategory === 'done'
-                            ? 'text-left text-sm text-zinc-500 line-through'
-                            : 'text-left text-sm text-zinc-900'
-                        }
-                        onClick={() => {
-                          onOpen(task);
-                        }}
-                      >
-                        {task.title}
-                      </button>
-                    </td>
-
-                    <td className="py-1 pr-3 text-[13px] text-zinc-600">
-                      {task.projectName ?? <span className="text-zinc-500">{t('Inbox')}</span>}
-                    </td>
-
-                    <td className="py-1 pr-3 text-[13px] text-zinc-600">
-                      {task.milestoneName ?? DASH}
-                    </td>
-
-                    <td className="py-1 pr-3">
-                      <StatusChip>{task.statusName}</StatusChip>
-                    </td>
-
-                    <td className="py-1 pr-3">
-                      <PriorityLabel priority={task.priority} />
-                    </td>
-
-                    <td className="py-1 pr-3">
-                      {task.dueDate ? (
-                        <DueLabel
-                          dueDate={task.dueDate}
-                          dueTime={task.dueTime}
-                          variant="table"
-                          isDone={task.statusCategory === 'done'}
+                {group.tasks.map((task) => {
+                  const pastTarget = isPastTarget?.(task) ?? false;
+                  return (
+                    <tr
+                      key={task.id}
+                      className={cx(
+                        'h-12 border-b border-zinc-100 last:border-b-0',
+                        pastTarget && 'bg-red-50',
+                        task.statusCategory === 'done' &&
+                          'animate-[task-fade-out_3s_ease-in_forwards] motion-reduce:animate-none',
+                      )}
+                    >
+                      <td className="py-1 pl-4">
+                        <Checkbox
+                          checked={task.statusCategory === 'done'}
+                          label={
+                            task.statusCategory === 'done'
+                              ? t('Mark "{title}" as not done', { title: task.title })
+                              : t('Mark "{title}" as done', { title: task.title })
+                          }
+                          onChange={(done) => {
+                            onToggle(task.id, done);
+                          }}
                         />
-                      ) : (
-                        <span className="text-xs text-zinc-500">{DASH}</span>
-                      )}
-                    </td>
+                      </td>
 
-                    <td className="py-1 pr-3 text-[13px] text-zinc-600">
-                      {formatEstimate(task.estimateMinutes) ?? DASH}
-                    </td>
+                      <td className="py-1 pr-3">
+                        <button
+                          type="button"
+                          data-task-id={task.id}
+                          className={
+                            task.statusCategory === 'done'
+                              ? 'text-left text-sm text-zinc-500 line-through'
+                              : pastTarget
+                                ? 'text-left text-sm font-semibold text-red-700'
+                                : 'text-left text-sm text-zinc-900'
+                          }
+                          onClick={() => {
+                            onOpen(task);
+                          }}
+                        >
+                          {task.title}
+                          {pastTarget && (
+                            <span className="sr-only"> ({t('After the project target date')})</span>
+                          )}
+                        </button>
+                      </td>
 
-                    <td className="py-1 pr-3 text-[13px] text-zinc-600">
-                      {describeRecurrence(task.recurrenceRule) ?? DASH}
-                    </td>
+                      <td className="py-1 pr-3 text-[13px] text-zinc-600">
+                        {task.projectName ?? <span className="text-zinc-500">{t('Inbox')}</span>}
+                      </td>
 
-                    <td className="py-1 pr-4">
-                      {task.link ? (
-                        <LinkBadge href={task.link.url}>{task.link.label}</LinkBadge>
-                      ) : (
-                        <span className="text-xs text-zinc-500">{DASH}</span>
-                      )}
-                    </td>
-                  </tr>
-                ))}
+                      <td className="py-1 pr-3 text-[13px] text-zinc-600">
+                        {task.milestoneName ?? DASH}
+                      </td>
+
+                      <td className="py-1 pr-3">
+                        <StatusChip>{task.statusName}</StatusChip>
+                      </td>
+
+                      <td className="py-1 pr-3">
+                        <PriorityLabel priority={task.priority} />
+                      </td>
+
+                      <td className="py-1 pr-3">
+                        {task.dueDate ? (
+                          <DueLabel
+                            dueDate={task.dueDate}
+                            dueTime={task.dueTime}
+                            variant="table"
+                            isDone={task.statusCategory === 'done'}
+                          />
+                        ) : (
+                          <span className="text-xs text-zinc-500">{DASH}</span>
+                        )}
+                      </td>
+
+                      <td className="py-1 pr-3 text-[13px] text-zinc-600">
+                        {formatEstimate(task.estimateMinutes) ?? DASH}
+                      </td>
+
+                      <td className="py-1 pr-3 text-[13px] text-zinc-600">
+                        {describeRecurrence(task.recurrenceRule) ?? DASH}
+                      </td>
+
+                      <td className="py-1 pr-4">
+                        {task.link ? (
+                          <LinkBadge href={task.link.url}>{task.link.label}</LinkBadge>
+                        ) : (
+                          <span className="text-xs text-zinc-500">{DASH}</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
               </Fragment>
             ))}
           </tbody>

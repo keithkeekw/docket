@@ -93,15 +93,38 @@ export function SettingsIcon({ className }: IconProps) {
 }
 
 /** Panel with a chevron: points left to collapse, right to expand. */
-export function SidebarToggleIcon({
-  className,
-  collapsed,
-}: IconProps & { collapsed: boolean }) {
+export function SidebarToggleIcon({ className, collapsed }: IconProps & { collapsed: boolean }) {
   return (
     <NavIcon className={className}>
       <rect x="3" y="3" width="18" height="18" rx="2" />
       <path d="M9 3v18" />
       <path d={collapsed ? 'm14 9 3 3-3 3' : 'm16 15-3-3 3-3'} />
+    </NavIcon>
+  );
+}
+
+export function GuideIcon({ className }: IconProps) {
+  return (
+    <NavIcon className={className}>
+      <path d="M12 7v14" />
+      <path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3Z" />
+    </NavIcon>
+  );
+}
+
+export function AboutIcon({ className }: IconProps) {
+  return (
+    <NavIcon className={className}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v5M12 8h.01" />
+    </NavIcon>
+  );
+}
+
+export function ProjectsIcon({ className }: IconProps) {
+  return (
+    <NavIcon className={className}>
+      <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
     </NavIcon>
   );
 }

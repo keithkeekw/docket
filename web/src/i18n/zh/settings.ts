@@ -12,7 +12,6 @@ export const settings: Record<string, string> = {
     '应用在这台设备上的运行方式。所有内容都只保存在本地。',
 
   // Statuses
-  Statuses: '状态',
   'The order here is the order of Kanban columns and the status picker. A status in use cannot be deleted until its tasks move to another one.':
     '这里的顺序即看板列和状态选择器的顺序。正在使用的状态需先将任务移到其他状态后才能删除。',
   'Add Status': '添加状态',
@@ -40,7 +39,6 @@ export const settings: Record<string, string> = {
   Active: '进行中',
 
   // Key bindings
-  'Key Bindings': '快捷键',
   'Keyboard shortcuts available in the app. Click a configurable shortcut to change it.':
     '应用中可用的键盘快捷键。点击可自定义的快捷键即可更改。',
   'Reset All': '全部重置',
@@ -85,7 +83,6 @@ export const settings: Record<string, string> = {
   'Open Settings': '打开设置',
 
   // AI
-  AI: 'AI',
   'Nothing leaves this machine until a feature below is configured and its provider has a key. Keys are stored on this computer and only their last four characters are ever shown again.':
     '只有下方功能完成配置且其提供商已设置密钥时，才会向外部发送数据。密钥只保存在本机，之后只会显示最后四个字符。',
   'Not Configured': '未配置',
@@ -124,7 +121,6 @@ export const settings: Record<string, string> = {
   Chat: '对话',
 
   // Prompt management
-  'Prompt Management': '提示词管理',
   'Every system prompt the app sends to a model. Edit one below; changes apply to the next AI request.':
     '应用发送给模型的全部系统提示词。可在下方编辑，修改将在下一次 AI 请求时生效。',
   'Prompt saved.': '提示词已保存。',
@@ -164,13 +160,11 @@ export const settings: Record<string, string> = {
     '已达到 {total} 个时区的上限。移除一个后才能添加新的。',
 
   // Privacy
-  Privacy: '隐私',
   'Excluded projects and their tasks are left out of every AI request. Change it in a project’s settings.':
     '被排除的项目及其任务不会出现在任何 AI 请求中。可在项目的设置中更改。',
   'No projects are excluded.': '没有被排除的项目。',
 
   // Data, backup and restore
-  Data: '数据',
   'Backups are whole copies of the database, kept in': '备份是数据库的完整副本，保存在',
   '. Restoring replaces every project, task and setting with the copy you pick.':
     '。恢复会用你选择的副本替换所有项目、任务和设置。',
@@ -187,6 +181,7 @@ export const settings: Record<string, string> = {
   Download: '下载',
   'Restoring…': '正在恢复…',
   'Confirm Restore': '确认恢复',
+  'Restore this backup?': '恢复此备份？',
   Restore: '恢复',
 
   // Export
@@ -196,7 +191,13 @@ export const settings: Record<string, string> = {
   'Export Markdown': '导出 Markdown',
 
   // About & Updates
-  'About & Updates': '关于与更新',
+  About: '关于',
+  Updates: '更新',
+  'Update available': '有可用更新',
+  'The version you are running and how to update it.': '你正在使用的版本，以及如何更新。',
+  'A local task manager: everything stays on this machine.':
+    '一款本地任务管理器：所有数据都保存在这台机器上。',
+  'Read the User Guide': '阅读用户指南',
   'Check GitHub Releases and install a newer version from here.':
     '检查 GitHub Releases，并在此安装新版本。',
   'Current version: {version}': '当前版本：{version}',

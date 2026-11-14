@@ -107,7 +107,7 @@ describe('undo a deleted project', () => {
 });
 
 describe('undo a deleted milestone', () => {
-  it('puts the milestone back and re-links its tasks', () => {
+  it('puts the milestone back and returns its tasks from the Inbox', () => {
     const project = createProject(db, { name: 'Onboarding' });
     const milestone = createMilestone(db, project.id, { name: 'Phase 1' });
     const task = createTask(db, {
@@ -117,17 +117,21 @@ describe('undo a deleted milestone', () => {
       milestoneId: milestone.id,
     });
 
-    deleteMilestone(db, milestone.id);
+    expect(deleteMilestone(db, milestone.id)).toBe(1);
 
     expect(db.select().from(milestones).all()).toHaveLength(0);
-    expect(db.select().from(tasks).where(eq(tasks.id, task.id)).get()?.milestoneId).toBeNull();
+    expect(db.select().from(tasks).where(eq(tasks.id, task.id)).get()).toMatchObject({
+      projectId: null,
+      milestoneId: null,
+    });
 
     runUndo();
 
     expect(db.select().from(milestones).all()).toHaveLength(1);
-    expect(db.select().from(tasks).where(eq(tasks.id, task.id)).get()?.milestoneId).toBe(
-      milestone.id,
-    );
+    expect(db.select().from(tasks).where(eq(tasks.id, task.id)).get()).toMatchObject({
+      projectId: project.id,
+      milestoneId: milestone.id,
+    });
   });
 });
 

@@ -7,10 +7,14 @@ import { cx } from '../lib/cx';
 import { useT } from '../lib/i18n';
 import { bindingLabel } from '../lib/platform';
 import { useKeybindingsStore } from '../store/keybindings';
+import { useSidebarSectionsStore } from '../store/sidebarSections';
 import { useUiStore } from '../store/ui';
 import { Kbd } from './Kbd';
+import { UpdateBadge } from './UpdateBadge';
 import {
+  AboutIcon,
   DashboardIcon,
+  GuideIcon,
   InboxIcon,
   LogbookIcon,
   NewProjectIcon,
@@ -44,12 +48,57 @@ export function Sidebar() {
   const openProjectDialog = useUiStore((state) => state.openProjectDialog);
   const collapsed = useUiStore((state) => state.sidebarCollapsed);
   const toggleSidebar = useUiStore((state) => state.toggleSidebar);
+  const projectsCollapsed = useSidebarSectionsStore((state) => state.projectsCollapsed);
+  const toggleProjects = useSidebarSectionsStore((state) => state.toggleProjects);
   const paletteKey = useKeybindingsStore((s) => s.bindings.commandPalette ?? 'mod+p');
   const shortcutsKey = useKeybindingsStore((s) => s.bindings.shortcutHelp ?? 'shift+space');
   const counts = nav.data?.counts;
   const projects = nav.data?.projects ?? [];
   const updateInfo = useUpdateInfo();
   const latestRelease = updateInfo.data?.updateAvailable ? updateInfo.data.latest : null;
+
+  const aboutLabel = latestRelease
+    ? `${t('About')} · ${t('Update available: {version}', { version: latestRelease.tag })}`
+    : t('About');
+  const aboutLink = (
+    <PrelineTooltip label={aboutLabel} className={collapsed ? 'w-full' : undefined}>
+      <NavLink
+        to="/about"
+        aria-label={aboutLabel}
+        className={({ isActive }) =>
+          cx(
+            'relative flex items-center justify-center rounded-lg transition-colors',
+            collapsed ? 'mb-0.5 min-h-10 w-full' : 'size-10',
+            isActive
+              ? 'bg-zinc-100 text-zinc-900'
+              : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900',
+          )
+        }
+      >
+        <AboutIcon />
+        {latestRelease && <UpdateBadge />}
+      </NavLink>
+    </PrelineTooltip>
+  );
+  const guideLink = (
+    <PrelineTooltip label={t('User Guide')} className={collapsed ? 'w-full' : undefined}>
+      <NavLink
+        to="/guide"
+        aria-label={t('User Guide')}
+        className={({ isActive }) =>
+          cx(
+            'flex items-center justify-center rounded-lg transition-colors',
+            collapsed ? 'mb-0.5 min-h-10 w-full' : 'size-10',
+            isActive
+              ? 'bg-zinc-100 text-zinc-900'
+              : 'text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900',
+          )
+        }
+      >
+        <GuideIcon />
+      </NavLink>
+    </PrelineTooltip>
+  );
 
   // Auto-collapse on tablet; restore on desktop
   useEffect(() => {
@@ -158,37 +207,67 @@ export function Sidebar() {
         {/* Projects section */}
         {!collapsed ? (
           <div className="mt-5">
-            <p className="px-3 pb-1 text-xs font-medium text-zinc-400">{t('Projects')}</p>
-            {projects.length > 0 && (
-              <ul className="flex flex-col gap-0.5">
-                {projects.map((project) => (
-                  <li key={project.id}>
-                    <NavItem
-                      to={`/projects/${project.id}`}
-                      label={project.name}
-                      dot
-                      collapsed={false}
-                    />
-                  </li>
-                ))}
-              </ul>
-            )}
             <button
               type="button"
-              className="mt-1 flex w-full items-center gap-1.5 rounded-xl border border-dashed border-zinc-300 px-3 py-2 text-left text-xs text-zinc-400 transition-colors hover:border-zinc-400 hover:text-zinc-600"
-              onClick={() => {
-                openProjectDialog({ mode: 'create' });
-              }}
+              aria-expanded={!projectsCollapsed}
+              aria-controls="sidebar-projects"
+              title={projectsCollapsed ? t('Show Projects') : t('Hide Projects')}
+              className="group flex min-h-10 w-full items-center gap-2 rounded-lg px-3 text-left text-sm text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+              onClick={toggleProjects}
             >
-              <NewProjectIcon className="size-3.5" />
-              {t('New Project')}
+              <span className="flex-1">{t('Projects')}</span>
+              {projectsCollapsed && projects.length > 0 && (
+                <span className="tabular-nums">{projects.length}</span>
+              )}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden="true"
+                className={cx(
+                  'size-4 shrink-0 text-zinc-400 transition-transform duration-150 motion-reduce:transition-none',
+                  projectsCollapsed && '-rotate-90',
+                )}
+              >
+                <path
+                  fillRule="evenodd"
+                  clipRule="evenodd"
+                  d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06Z"
+                />
+              </svg>
             </button>
-            <Link
-              to="/projects/archived"
-              className="mt-1 flex w-full items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-600"
-            >
-              {t('Archived Projects')}
-            </Link>
+            <div id="sidebar-projects" hidden={projectsCollapsed}>
+              {projects.length > 0 && (
+                <ul className="flex flex-col gap-0.5">
+                  {projects.map((project) => (
+                    <li key={project.id}>
+                      <NavItem
+                        to={`/projects/${project.id}`}
+                        label={project.name}
+                        dot
+                        collapsed={false}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+              <button
+                type="button"
+                className="mt-1 flex w-full items-center gap-1.5 rounded-xl border border-dashed border-zinc-300 px-3 py-2 text-left text-xs text-zinc-400 transition-colors hover:border-zinc-400 hover:text-zinc-600"
+                onClick={() => {
+                  openProjectDialog({ mode: 'create' });
+                }}
+              >
+                <NewProjectIcon className="size-3.5" />
+                {t('New Project')}
+              </button>
+              <Link
+                to="/projects/archived"
+                className="mt-1 flex w-full items-center gap-1.5 rounded-xl px-3 py-1.5 text-xs text-zinc-400 transition-colors hover:bg-zinc-50 hover:text-zinc-600"
+              >
+                {t('Archived Projects')}
+              </Link>
+            </div>
           </div>
         ) : (
           <div className="mt-3">
@@ -210,25 +289,10 @@ export function Sidebar() {
         {/* Shortcut legend + Settings pinned to bottom */}
         <div className="mt-auto pt-4">
           {!collapsed && (
-            <div className="mb-2 flex items-center justify-center gap-2 px-3">
+            <div className="mb-2 flex items-center justify-center px-3">
               <span className="font-mono text-[10px] tabular-nums text-zinc-400">
                 v{__APP_VERSION__}
               </span>
-              {latestRelease && (
-                <Link
-                  to="/settings#about-updates"
-                  aria-label={t('Update available: {version}', {
-                    version: latestRelease.tag,
-                  })}
-                  title={t('Update available: {version}', { version: latestRelease.tag })}
-                  className="inline-flex min-w-0 items-center gap-1 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-medium text-blue-700 transition-colors hover:bg-blue-200"
-                >
-                  <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-blue-600" />
-                  <span className="truncate">
-                    {t('Update {version}', { version: latestRelease.tag })}
-                  </span>
-                </Link>
-              )}
             </div>
           )}
           {!collapsed && (
@@ -260,6 +324,8 @@ export function Sidebar() {
               </button>
             </PrelineTooltip>
           ) : null}
+          {collapsed && aboutLink}
+          {collapsed && guideLink}
           {collapsed ? (
             <NavItem to="/settings" label={t('Settings')} collapsed icon={icons.settings} />
           ) : (
@@ -280,6 +346,8 @@ export function Sidebar() {
                   <SettingsIcon />
                 </NavLink>
               </PrelineTooltip>
+              {aboutLink}
+              {guideLink}
               <PrelineTooltip label={t('Collapse Sidebar')}>
                 <button
                   type="button"

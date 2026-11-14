@@ -55,10 +55,7 @@ export function InboxRoute() {
 
   return (
     <>
-      <PageHeader
-        title={t('Inbox')}
-        description={t('Work that has no project yet.')}
-      />
+      <PageHeader title={t('Inbox')} description={t('Work that has no project yet.')} />
 
       {view === 'table' ? (
         <>

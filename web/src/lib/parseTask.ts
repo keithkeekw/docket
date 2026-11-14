@@ -106,14 +106,23 @@ function takeFrequency(text: string): {
   if (interval) {
     const count = Number(interval[1]);
     const unit = interval[2]?.toLowerCase() ?? '';
-    const freq = unit === 'day' ? 'DAILY' : unit === 'week' ? 'WEEKLY' : unit === 'month' ? 'MONTHLY' : 'YEARLY';
+    const freq =
+      unit === 'day'
+        ? 'DAILY'
+        : unit === 'week'
+          ? 'WEEKLY'
+          : unit === 'month'
+            ? 'MONTHLY'
+            : 'YEARLY';
     return {
       text: next.replace(interval[0], ' '),
       recurrenceRule: appendInterval(`FREQ=${freq}`, count),
     };
   }
 
-  const weekday = next.match(/\bevery\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)s?\b/i);
+  const weekday = next.match(
+    /\bevery\s+(sunday|monday|tuesday|wednesday|thursday|friday|saturday)s?\b/i,
+  );
   if (weekday) {
     return {
       text: next.replace(weekday[0], ' '),
@@ -145,7 +154,14 @@ function takeFrequency(text: string): {
   const bare = next.match(/\b(daily|weekly|monthly|yearly|annually)\s*$/i);
   if (bare) {
     const word = bare[1]?.toLowerCase() ?? '';
-    const freq = word === 'daily' ? 'DAILY' : word === 'weekly' ? 'WEEKLY' : word === 'monthly' ? 'MONTHLY' : 'YEARLY';
+    const freq =
+      word === 'daily'
+        ? 'DAILY'
+        : word === 'weekly'
+          ? 'WEEKLY'
+          : word === 'monthly'
+            ? 'MONTHLY'
+            : 'YEARLY';
     return { text: next.replace(bare[0], ' '), recurrenceRule: `FREQ=${freq}` };
   }
 
@@ -248,7 +264,8 @@ function takeDate(
     }
   }
 
-  const dayAfter = next.match(/\bthe\s+day\s+after\s+tomorrow\b/i) ?? next.match(/\bday\s+after\s+tomorrow\b/i);
+  const dayAfter =
+    next.match(/\bthe\s+day\s+after\s+tomorrow\b/i) ?? next.match(/\bday\s+after\s+tomorrow\b/i);
   if (dayAfter) {
     return { text: next.replace(dayAfter[0], ' '), dueDate: asDate(addDays(now, 2)) };
   }
@@ -265,13 +282,14 @@ function takeDate(
   if (inFuture) {
     const count = Number(inFuture[1]);
     const unit = inFuture[2]?.toLowerCase() ?? '';
-    const date = unit === 'day'
-      ? addDays(now, count)
-      : unit === 'week'
-        ? addWeeks(now, count)
-        : unit === 'month'
-          ? addMonths(now, count)
-          : addYears(now, count);
+    const date =
+      unit === 'day'
+        ? addDays(now, count)
+        : unit === 'week'
+          ? addWeeks(now, count)
+          : unit === 'month'
+            ? addMonths(now, count)
+            : addYears(now, count);
     return { text: next.replace(inFuture[0], ' '), dueDate: asDate(date) };
   }
 

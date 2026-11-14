@@ -17,6 +17,8 @@ function task(overrides: Partial<Task> & Pick<Task, 'id' | 'title'>): Task {
     statusName: 'To do',
     statusCategory: 'open',
     priority: 3,
+    startDate: null,
+    endDate: null,
     dueDate: null,
     dueTime: null,
     estimateMinutes: null,
@@ -38,8 +40,20 @@ describe('pickTopTasks', () => {
       task({ id: 'p3', title: 'P3', priority: 3 }),
       task({ id: 'p2', title: 'P2', priority: 2 }),
       task({ id: 'p1-new', title: 'P1 New', priority: 1 }),
-      task({ id: 'p1-progress', title: 'P1 Progress', priority: 1, statusName: 'In progress', statusCategory: 'active' }),
-      task({ id: 'p1-waiting', title: 'P1 Waiting', priority: 1, statusName: 'Waiting', statusCategory: 'active' }),
+      task({
+        id: 'p1-progress',
+        title: 'P1 Progress',
+        priority: 1,
+        statusName: 'In progress',
+        statusCategory: 'active',
+      }),
+      task({
+        id: 'p1-waiting',
+        title: 'P1 Waiting',
+        priority: 1,
+        statusName: 'Waiting',
+        statusCategory: 'active',
+      }),
     ];
 
     expect(pickTopTasks(tasks).map((entry) => entry.id)).toEqual([
@@ -68,10 +82,6 @@ describe('pickTopTasks', () => {
       task({ id: 'sooner', title: 'Sooner', dueDate: '2026-11-20' }),
     ];
 
-    expect(pickTopTasks(tasks).map((entry) => entry.id)).toEqual([
-      'sooner',
-      'later',
-      'undated',
-    ]);
+    expect(pickTopTasks(tasks).map((entry) => entry.id)).toEqual(['sooner', 'later', 'undated']);
   });
 });

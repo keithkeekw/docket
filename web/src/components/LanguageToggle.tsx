@@ -45,25 +45,27 @@ export function LanguageToggle() {
       <PrelineTooltip label={`${t('Language')}: ${current}`}>
         <button
           type="button"
-          onClick={() => { setOpen((value) => !value); }}
+          onClick={() => {
+            setOpen((value) => !value);
+          }}
           aria-label={`${t('Language')}: ${current}. ${t('Open language menu')}`}
           aria-haspopup="menu"
           aria-expanded={open}
           className="inline-flex size-8 items-center justify-center rounded-full border border-zinc-200 bg-white/90 text-zinc-600 shadow-sm backdrop-blur transition-colors hover:bg-zinc-50 hover:text-zinc-900"
         >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          viewBox="0 0 20 20"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={1.5}
-          strokeLinecap="round"
-          className="size-4"
-          aria-hidden="true"
-        >
-          <circle cx="10" cy="10" r="7" />
-          <path d="M3 10h14M10 3c2.2 2.4 3.3 4.8 3.3 7s-1.1 4.6-3.3 7c-2.2-2.4-3.3-4.8-3.3-7s1.1-4.6 3.3-7Z" />
-        </svg>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth={1.5}
+            strokeLinecap="round"
+            className="size-4"
+            aria-hidden="true"
+          >
+            <circle cx="10" cy="10" r="7" />
+            <path d="M3 10h14M10 3c2.2 2.4 3.3 4.8 3.3 7s-1.1 4.6-3.3 7c-2.2-2.4-3.3-4.8-3.3-7s1.1-4.6 3.3-7Z" />
+          </svg>
         </button>
       </PrelineTooltip>
 
@@ -95,8 +97,18 @@ export function LanguageToggle() {
               >
                 <span className="flex-1">{option.label}</span>
                 {active && (
-                  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-3.5" aria-hidden="true">
-                    <path fillRule="evenodd" d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z" clipRule="evenodd" />
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    className="size-3.5"
+                    aria-hidden="true"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
+                      clipRule="evenodd"
+                    />
                   </svg>
                 )}
               </button>

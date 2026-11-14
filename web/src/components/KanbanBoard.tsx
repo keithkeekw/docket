@@ -75,12 +75,15 @@ export function KanbanBoard({
   onOpen,
   onStatusChange,
   onAddTask,
+  isPastTarget,
 }: {
   statuses: Status[];
   tasks: Task[];
   onOpen: (task: Task) => void;
   onStatusChange: (taskId: string, statusId: string) => void;
   onAddTask: (statusId: string) => void;
+  /** Highlights tasks that start or are due after the project's target date. */
+  isPastTarget?: (task: Task) => boolean;
 }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [confettiBurst, setConfettiBurst] = useState(0);
@@ -137,6 +140,7 @@ export function KanbanBoard({
             onOpen={onOpen}
             onAddTask={onAddTask}
             draggingId={activeId}
+            isPastTarget={isPastTarget}
           />
         ))}
       </div>
@@ -158,12 +162,14 @@ function KanbanColumn({
   onOpen,
   onAddTask,
   draggingId,
+  isPastTarget,
 }: {
   status: Status;
   tasks: Task[];
   onOpen: (task: Task) => void;
   onAddTask: (statusId: string) => void;
   draggingId: string | null;
+  isPastTarget?: (task: Task) => boolean;
 }) {
   const t = useT();
   const { setNodeRef, isOver } = useDroppable({ id: status.id });
@@ -191,6 +197,7 @@ function KanbanColumn({
             task={task}
             onOpen={onOpen}
             isDragging={draggingId === task.id}
+            pastTarget={isPastTarget?.(task) ?? false}
           />
         ))}
 
@@ -212,10 +219,12 @@ function KanbanCard({
   task,
   onOpen,
   isDragging,
+  pastTarget,
 }: {
   task: Task;
   onOpen: (task: Task) => void;
   isDragging: boolean;
+  pastTarget: boolean;
 }) {
   const t = useT();
   const { attributes, listeners, setNodeRef } = useDraggable({ id: task.id });
@@ -226,12 +235,17 @@ function KanbanCard({
   return (
     <div
       ref={setNodeRef}
-      className={cx('rounded-[10px] border border-zinc-200 bg-white', isDragging && 'opacity-40')}
+      className={cx(
+        'rounded-[10px] border',
+        pastTarget ? 'border-red-200 bg-red-50' : 'border-zinc-200 bg-white',
+        isDragging && 'opacity-40',
+      )}
     >
       <button
         type="button"
         {...attributes}
         {...listeners}
+        data-task-id={task.id}
         className="w-full rounded-[10px] px-3.5 py-3 text-left"
         onClick={() => {
           onOpen(task);
@@ -240,18 +254,21 @@ function KanbanCard({
         <span
           className={cx(
             'block text-sm leading-snug',
-            done ? 'text-zinc-500 line-through' : 'text-zinc-900',
+            done
+              ? 'text-zinc-500 line-through'
+              : pastTarget
+                ? 'font-semibold text-red-700'
+                : 'text-zinc-900',
           )}
         >
           {task.title}
+          {pastTarget && <span className="sr-only"> ({t('After the project target date')})</span>}
         </span>
 
         <span className="mt-2 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
           <PriorityLabel priority={task.priority} />
           <DueLabel dueDate={task.dueDate} dueTime={task.dueTime} isDone={done} />
-          {estimate && (
-            <span title={t('Estimate {value}', { value: estimate })}>{estimate}</span>
-          )}
+          {estimate && <span title={t('Estimate {value}', { value: estimate })}>{estimate}</span>}
           {repeat && (
             <span title={t('Repeats {label}', { label: t(repeat).toLowerCase() })}>
               <span aria-hidden="true">↻</span> {t(repeat)}

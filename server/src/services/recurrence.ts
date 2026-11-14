@@ -14,6 +14,22 @@ function asLocalDate(date: Date): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
+const DAY_MS = 86_400_000;
+
+function utcDay(date: string): number {
+  const [year = 0, month = 1, day = 1] = date.split('-').map(Number);
+  return Date.UTC(year, month - 1, day);
+}
+
+/** Moves a planned date by the gap between two due dates, so the plan keeps its lead time. */
+export function shiftByDueGap(date: string | null, fromDue: string, toDue: string): string | null {
+  if (date === null) return null;
+  const shifted = new Date(
+    utcDay(date) + Math.round((utcDay(toDue) - utcDay(fromDue)) / DAY_MS) * DAY_MS,
+  );
+  return `${shifted.getUTCFullYear()}-${pad(shifted.getUTCMonth() + 1)}-${pad(shifted.getUTCDate())}`;
+}
+
 export type NextOccurrence = {
   dueDate: string;
   dueTime: string | null;
@@ -73,6 +89,8 @@ export function createNextOccurrence(db: Db, taskId: string): string | null {
       projectId: tasks.projectId,
       milestoneId: tasks.milestoneId,
       priority: tasks.priority,
+      startDate: tasks.startDate,
+      endDate: tasks.endDate,
       dueDate: tasks.dueDate,
       dueTime: tasks.dueTime,
       estimateMinutes: tasks.estimateMinutes,
@@ -116,6 +134,8 @@ export function createNextOccurrence(db: Db, taskId: string): string | null {
       milestoneId: task.milestoneId,
       statusId,
       priority: task.priority,
+      startDate: shiftByDueGap(task.startDate, task.dueDate, next.dueDate),
+      endDate: shiftByDueGap(task.endDate, task.dueDate, next.dueDate),
       dueDate: next.dueDate,
       dueTime: next.dueTime,
       estimateMinutes: task.estimateMinutes,

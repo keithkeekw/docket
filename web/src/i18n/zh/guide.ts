@@ -16,10 +16,12 @@ export const guide: Record<string, string> = {
   // Getting Started
   'Docket is a local task manager. Everything is stored on this machine, and the sidebar is your map: Dashboard, Inbox, Today, All Tasks, Reviews, Logbook, projects and Settings.':
     'Docket 是一款本地任务管理器。所有数据都保存在这台机器上，侧边栏就是你的地图：仪表板、收件箱、今天、所有任务、回顾、日志、项目和设置。',
-  'The three circular buttons at the top right open this guide, choose the language, and choose a Light, Dark or Automatic theme. The floating arrow at the bottom right returns a long page to the top.':
-    '右上角的三个圆形按钮分别可以打开本指南、切换语言，以及选择浅色、深色或自动主题。右下角的悬浮箭头可将长页面返回顶部。',
-  'At the bottom of the sidebar, the gear opens Settings and the panel icon beside it collapses the sidebar to a narrow icon rail; the same icon expands it again.':
-    '侧边栏底部的齿轮图标可打开设置，旁边的面板图标可将侧边栏收起为窄图标栏；再次点击同一图标即可展开。',
+  'The circular buttons at the top right choose the language and a Light, Dark or Automatic theme; on a phone, a third one opens this guide. The floating arrow at the bottom right returns a long page to the top.':
+    '右上角的圆形按钮可以切换语言，以及选择浅色、深色或自动主题；在手机上，第三个按钮可打开本指南。右下角的悬浮箭头可将长页面返回顶部。',
+  'At the bottom of the sidebar, the gear opens Settings, the “i” opens About, the book opens this guide, and the panel icon collapses the sidebar to a narrow icon rail; the same icon expands it again.':
+    '侧边栏底部的齿轮图标可打开设置，“i”图标可打开关于页面，书本图标可打开本指南，面板图标可将侧边栏收起为窄图标栏；再次点击同一图标即可展开。',
+  'The About page shows the version you are running. Check for a newer version and install it from there; a red dot on the “i” icon in the sidebar means an update is waiting. On a phone, open About from the bottom of Settings.':
+    '关于页面显示你正在使用的版本，并可在那里检查和安装新版本；侧边栏“i”图标上的红点表示有可用更新。在手机上，请从设置页面底部打开关于页面。',
   'You can also press': '也可以按',
   'to toggle it.': '进行切换。',
 
@@ -89,6 +91,12 @@ export const guide: Record<string, string> = {
   // Projects
   'Create a project from the sidebar or Dashboard, then give it a description, target date and optional milestones. The project screen gathers its tasks and progress. Projects can be archived when finished or deleted; deleted projects keep their tasks and move them to the Inbox.':
     '从侧边栏或仪表板创建项目，然后填写描述、目标日期和可选的里程碑。项目页面会汇总它的任务和进度。项目可以在完成后归档或删除；删除项目时任务会保留并移入收件箱。',
+  'Drag the milestone pills to reorder them, and double-click one to rename it. Selecting a milestone shows Rename, Delete and Complete icons at the right of the toolbar. Deleting asks for confirmation, moves the milestone’s tasks to the Inbox with a notice saying how many moved, and can be undone.':
+    '拖动里程碑标签即可重新排序，双击标签可重命名。选中某个里程碑后，工具栏右侧会显示重命名、删除和完成图标。删除前会请求确认，里程碑中的任务会移到收件箱，并弹出提示告知移动了多少个任务；此操作可以撤销。',
+  'The Timeline icon in the project header charts every milestone by the start and end dates of its tasks. The chart begins at the earliest start date in the first milestone, so at least one task there needs a start date, and it runs to the latest end date in the last milestone when one is set.':
+    '项目标题栏中的时间线图标会按任务的开始和结束日期绘制每个里程碑。图表从第一个里程碑中最早的开始日期起算，因此其中至少要有一个任务设置了开始日期；如果最后一个里程碑设置了结束日期，图表会延伸到其中最晚的结束日期。',
+  'An open task whose start date or due date falls after the project’s target date is highlighted in red on the project screen, in List, Table and Kanban views.':
+    '未完成任务的开始日期或截止日期晚于项目目标日期时，项目页面会在列表、表格和看板视图中以红色突出显示该任务。',
   'You can also ask the assistant to create a project. It asks whether to generate milestones; if so, it asks for a short description and, when the idea is still vague, a few quick questions (never more than four) before proposing the project and its milestones for you to confirm.':
     '你也可以让助手创建项目。它会先询问是否自动生成里程碑；如果需要，会请你提供简短描述，若想法仍不够清晰，还会再问几个简短问题（最多四个），然后提出项目及其里程碑供你确认。',
   Use: '使用',
@@ -101,6 +109,8 @@ export const guide: Record<string, string> = {
     '点击任意任务标题即可打开任务抽屉。其中包含：',
   'Title, notes (Markdown that formats inside the editor as you type), project, milestone, status, priority, due date, due time, estimate and repeat.':
     '标题、备注（Markdown 会在编辑器内随输入实时格式化）、项目、里程碑、状态、优先级、截止日期、截止时间、预估和重复。',
+  'Start Date and End Date are when you plan to work on the task; the Due Date is the deadline it must be finished by. The end cannot be before the start, and a repeating task moves its plan forward with its due date.':
+    '开始日期和结束日期表示你计划处理该任务的时间段；截止日期则是必须完成任务的最后期限。结束日期不能早于开始日期，重复任务的计划日期会随截止日期一起顺延。',
   'A checklist with optional AI generation, links, tags and file uploads (up to 10 MB each). AI checklists read the task title, notes and readable attachments — text files and Word .doc/.docx — as context; binary files are skipped.':
     '清单（可用 AI 生成）、链接、标签和文件上传（每个不超过 10 MB）。AI 清单会把任务标题、备注和可读取的附件（文本文件和 Word .doc/.docx）作为上下文；二进制文件会被跳过。',
   'Download or remove uploaded files; every delete asks for confirmation first.':
@@ -110,9 +120,9 @@ export const guide: Record<string, string> = {
 
   // AI Features
   'The assistant opens with': '按',
-  ', or from': '，或使用仪表板上的',
-  'on the Dashboard. It can answer questions about your work and propose changes; proposals are previewed before anything is written.':
-    '即可打开助手。它可以回答关于你工作的问题并提出修改建议；任何内容写入前都会先预览提案。',
+  ', or with the': '，或点击每个页面右下角的',
+  'button in the bottom-right corner of every screen. It can answer questions about your work and propose changes; proposals are previewed before anything is written.':
+    '按钮即可打开助手。它可以回答关于你工作的问题并提出修改建议；任何内容写入前都会先预览提案。',
   'When you ask it to add a task, it first asks which project (or the Inbox) it belongs to. All of its buttons are icons: hover one to see its name.':
     '当你让它添加任务时，它会先询问任务属于哪个项目（或收件箱）。助手的所有按钮都是图标：将鼠标悬停在图标上即可看到名称。',
   'Other AI features include:': '其他 AI 功能包括：',
@@ -152,7 +162,6 @@ export const guide: Record<string, string> = {
     '——开启或关闭定时回顾，选择每日或每周，并设置时间（每周回顾还可选择星期几）。',
   '— add up to three world clocks, shown under the date on the Dashboard.':
     '——最多添加三个世界时钟，显示在仪表板的日期下方。',
-  '— check for a newer version and install it from here.': '——检查是否有新版本，并在此处安装。',
   Privacy: '隐私',
   '— see which projects are excluded from AI.': '——查看哪些项目被排除在 AI 之外。',
   Data: '数据',

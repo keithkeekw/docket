@@ -31,9 +31,7 @@ async function createTask(body: Record<string, unknown>) {
 }
 
 async function allTasks() {
-  return taskListSchema.parse(
-    await (await app.request('/api/tasks?completed=all')).json(),
-  ).tasks;
+  return taskListSchema.parse(await (await app.request('/api/tasks?completed=all')).json()).tasks;
 }
 
 function statusIdByName(name: string): string {
@@ -72,6 +70,25 @@ describe('recurring tasks (FR-15)', () => {
 
     const original = tasks.find((entry) => entry.id === task.id);
     expect(original).toMatchObject({ statusName: 'Done', recurrenceParentId: null });
+  });
+
+  it('moves the planned start and end dates along with the due date', async () => {
+    const task = await createTask({
+      title: 'Weekly report',
+      startDate: '2026-11-10',
+      endDate: '2026-11-12',
+      dueDate: '2026-11-13',
+      recurrenceRule: 'FREQ=WEEKLY',
+    });
+
+    await send('POST', `/api/tasks/${task.id}/complete`, {});
+
+    const next = (await allTasks()).find((entry) => entry.id !== task.id);
+    expect(next).toMatchObject({
+      startDate: '2026-11-17',
+      endDate: '2026-11-19',
+      dueDate: '2026-11-20',
+    });
   });
 
   it('copies links and tags, and the checklist unticked', async () => {

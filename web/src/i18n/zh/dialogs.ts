@@ -17,6 +17,9 @@ export const dialogs: Record<string, string> = {
   // Task drawer: fields
   'Current Project': '当前项目',
   'Due Time': '截止时间',
+  'Start Date': '开始日期',
+  'End Date': '结束日期',
+  'End date cannot be before the start date.': '结束日期不能早于开始日期。',
   'Estimate (Minutes)': '预估（分钟）',
   'Blank means no estimate.': '留空表示不预估。',
   "Weekly repeats on the due date's weekday.": '每周重复将按截止日期所在的星期几进行。',
@@ -107,11 +110,19 @@ export const dialogs: Record<string, string> = {
   'Could not delete the milestone': '无法删除里程碑',
   'Could not rename': '无法重命名',
   'Delete Milestone': '删除里程碑',
-  '“{name}” will be removed. Its tasks stay in the project.':
-    '“{name}”将被移除。其任务会保留在项目中。',
+  '“{name}” will be deleted. It has no tasks.': '“{name}”将被删除。它没有任何任务。',
+  '“{name}” will be deleted. Its {count} task will move to the Inbox.':
+    '“{name}”将被删除。其中的 {count} 个任务会移到收件箱。',
+  '“{name}” will be deleted. Its {count} tasks will move to the Inbox.':
+    '“{name}”将被删除。其中的 {count} 个任务会移到收件箱。',
+  'Milestone “{name}” deleted': '里程碑“{name}”已删除',
+  'Tasks Moved to Inbox': '任务已移到收件箱',
+  '{count} task from “{name}” is now in the Inbox.': '“{name}”中的 {count} 个任务已移到收件箱。',
+  '{count} tasks from “{name}” are now in the Inbox.': '“{name}”中的 {count} 个任务已移到收件箱。',
+  'Rename {name}': '重命名 {name}',
+  'Delete {name}': '删除 {name}',
+  'Drag to reorder. Double-click to rename.': '拖动以重新排序，双击可重命名。',
   'Milestone name: {name}': '里程碑名称：{name}',
-  'Move {name} up': '上移 {name}',
-  'Move {name} down': '下移 {name}',
   'Delete milestone {name}': '删除里程碑 {name}',
   Up: '上移',
   Down: '下移',
@@ -122,7 +133,6 @@ export const dialogs: Record<string, string> = {
   'Saves to the Inbox.': '保存到收件箱。',
   'What needs doing?': '需要做什么？',
   'Task Title': '任务标题',
-  'Open Settings': '打开设置',
   'to add': '添加',
   'for AI': 'AI 解析',
   'Thinking…': '正在思考…',
@@ -140,8 +150,6 @@ export const dialogs: Record<string, string> = {
   'Proposed Tasks': '建议任务',
   'Parsed by: {feature} model': '由{feature}模型解析',
   'Change in Settings': '在设置中更改',
-  Breakdown: '拆解',
-  Chat: '对话',
   'New Task': '新任务',
   Move: '移动',
   'New Milestone': '新里程碑',
@@ -173,6 +181,30 @@ export const dialogs: Record<string, string> = {
   'Ask the assistant…': '向助手提问…',
   Send: '发送',
   'Enter to send · Shift Enter for a new line': 'Enter 发送 · Shift+Enter 换行',
+
+  // Project timeline
+  Timeline: '时间线',
+  'Project Timeline': '项目时间线',
+  OK: '确定',
+  'Milestones placed by the planned start and end dates of their tasks.':
+    '按任务的计划开始和结束日期排列里程碑。',
+  '{start} to {end}': '{start} 至 {end}',
+  'From {start}': '自 {start} 起',
+  'This project has no milestones yet, so there is no timeline to show.':
+    '此项目还没有里程碑，因此没有可显示的时间线。',
+  'Unable to show the timeline: no task in the first milestone, “{name}”, has a start date. Add a start date to one of its tasks and try again.':
+    '无法显示时间线：第一个里程碑“{name}”中没有任何任务设置了开始日期。请为其中一个任务添加开始日期后再试。',
+  'No task in the last milestone has an end date yet, so the chart stops at the latest planned date.':
+    '最后一个里程碑中的任务都还没有结束日期，因此图表截止于最晚的计划日期。',
+  'No planned dates': '未计划日期',
+  'Starts {date}': '{date} 开始',
+  'Ends {date}': '{date} 结束',
+
+  // Table headers
+  'Sort by {field}': '按{field}排序',
+
+  // Tasks past the project target date
+  'After the project target date': '晚于项目目标日期',
 
   // Notes editor
   'Add notes…': '添加备注…',

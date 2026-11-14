@@ -43,6 +43,7 @@ export function TaskRow({
   rowStyle,
   isDragging = false,
   fadeOnComplete = false,
+  pastTarget = false,
 }: {
   task: TaskRowTask;
   onToggle?: (done: boolean) => void;
@@ -58,6 +59,8 @@ export function TaskRow({
   isDragging?: boolean;
   /** Fades a freshly completed row out over 3 s in the open task lists. */
   fadeOnComplete?: boolean;
+  /** Starts or is due after the project's target date. */
+  pastTarget?: boolean;
 }) {
   const t = useT();
   const estimate = formatEstimate(task.estimateMinutes);
@@ -96,8 +99,15 @@ export function TaskRow({
 
   const titleClassName = cx(
     'w-full text-left text-sm sm:min-w-[8rem] sm:flex-1',
-    task.done ? 'text-zinc-500 line-through' : 'text-zinc-900',
+    task.done
+      ? 'text-zinc-500 line-through'
+      : pastTarget
+        ? 'font-semibold text-red-700'
+        : 'text-zinc-900',
   );
+  const pastTargetNote = pastTarget ? (
+    <span className="sr-only"> ({t('After the project target date')})</span>
+  ) : null;
 
   return (
     <li
@@ -105,6 +115,7 @@ export function TaskRow({
       style={rowStyle}
       className={cx(
         'flex min-h-11 items-start gap-3 rounded-lg border-t border-zinc-100 px-3 py-2.5',
+        pastTarget && 'bg-red-50',
         isDragging && 'relative z-10 bg-zinc-50 shadow-sm',
         fadeOnComplete &&
           task.done &&
@@ -143,15 +154,20 @@ export function TaskRow({
         {onOpen ? (
           <button
             type="button"
+            data-task-id={task.id}
             className={titleClassName}
             onClick={() => {
               onOpen(task.id);
             }}
           >
             {task.title}
+            {pastTargetNote}
           </button>
         ) : (
-          <span className={titleClassName}>{task.title}</span>
+          <span className={titleClassName}>
+            {task.title}
+            {pastTargetNote}
+          </span>
         )}
 
         {hasMeta && (
@@ -183,9 +199,7 @@ export function TaskRow({
               </span>
             )}
 
-            {estimate && (
-              <span title={t('Estimate {value}', { value: estimate })}>{estimate}</span>
-            )}
+            {estimate && <span title={t('Estimate {value}', { value: estimate })}>{estimate}</span>}
 
             {checklist && (
               <span

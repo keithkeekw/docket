@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest';
-import { nextOccurrence } from './recurrence';
+import { nextOccurrence, shiftByDueGap } from './recurrence';
+
+describe('shiftByDueGap', () => {
+  it('moves a planned date by the same number of days as the due date', () => {
+    expect(shiftByDueGap('2026-11-10', '2026-11-13', '2026-11-20')).toBe('2026-11-17');
+  });
+
+  it('crosses month ends and leaves an empty date empty', () => {
+    expect(shiftByDueGap('2026-01-28', '2026-01-31', '2026-02-28')).toBe('2026-02-25');
+    expect(shiftByDueGap(null, '2026-11-13', '2026-11-20')).toBeNull();
+  });
+});
 
 describe('nextOccurrence', () => {
   it('advances a daily task by one day', () => {

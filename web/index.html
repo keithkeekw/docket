@@ -14,10 +14,10 @@
       // Apply the saved theme before the bundle loads to avoid a light flash.
       try {
         var stored = localStorage.getItem('docket:theme');
-        var mode = stored === 'light' || stored === 'dark' || stored === 'system'
-          ? stored
-          : 'system';
-        var dark = mode === 'dark' ||
+        var mode =
+          stored === 'light' || stored === 'dark' || stored === 'system' ? stored : 'system';
+        var dark =
+          mode === 'dark' ||
           (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
         if (dark) document.documentElement.classList.add('dark');
         document.documentElement.style.colorScheme = dark ? 'dark' : 'light';

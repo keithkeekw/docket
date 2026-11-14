@@ -1,4 +1,10 @@
-import { aiBreakdownBodySchema, aiCaptureBodySchema, aiChatBodySchema, aiChecklistBodySchema, aiProjectSummaryBodySchema } from '@app/shared';
+import {
+  aiBreakdownBodySchema,
+  aiCaptureBodySchema,
+  aiChatBodySchema,
+  aiChecklistBodySchema,
+  aiProjectSummaryBodySchema,
+} from '@app/shared';
 import type { Hono } from 'hono';
 import type { Db } from '../db/types';
 import { invalidBody, readJson } from '../lib/http';

@@ -127,6 +127,9 @@ export const taskSchema = z.object({
   statusName: z.string().min(1),
   statusCategory: statusCategorySchema,
   priority: prioritySchema,
+  /** When the work is planned to happen; the due date is the hard deadline. */
+  startDate: localDateSchema.nullable(),
+  endDate: localDateSchema.nullable(),
   dueDate: localDateSchema.nullable(),
   dueTime: localTimeSchema.nullable(),
   estimateMinutes: z.number().int().positive().nullable(),
@@ -197,6 +200,8 @@ export const createTaskBodySchema = z.strictObject({
   notes: z.string().max(20_000).nullish(),
   statusId: z.string().min(1).nullish(),
   priority: prioritySchema.nullish(),
+  startDate: localDateSchema.nullish(),
+  endDate: localDateSchema.nullish(),
   dueDate: localDateSchema.nullish(),
   dueTime: localTimeSchema.nullish(),
   estimateMinutes: z.number().int().positive().max(100_000).nullish(),
@@ -210,6 +215,8 @@ export const updateTaskBodySchema = z.strictObject({
   notes: z.string().max(20_000).nullable().optional(),
   statusId: z.string().min(1).optional(),
   priority: prioritySchema.optional(),
+  startDate: localDateSchema.nullable().optional(),
+  endDate: localDateSchema.nullable().optional(),
   dueDate: localDateSchema.nullable().optional(),
   dueTime: localTimeSchema.nullable().optional(),
   estimateMinutes: z.number().int().positive().max(100_000).nullable().optional(),
@@ -379,10 +386,26 @@ export const updateMilestoneBodySchema = z.strictObject({
   completedAt: z.string().nullable().optional(),
 });
 
+/** `POST /api/projects/:id/milestones/reorder` — every milestone id, in the new order. */
+export const reorderMilestonesBodySchema = z.strictObject({
+  ids: z.array(z.string().min(1)).min(1).max(500),
+});
+
+export const reorderMilestonesResponseSchema = z.object({
+  reordered: z.number().int().nonnegative(),
+});
+
+/** `DELETE /api/milestones/:id` — its tasks move to the Inbox. */
+export const deleteMilestoneResponseSchema = z.object({
+  movedToInbox: z.number().int().nonnegative(),
+});
+
 export type CreateProjectBody = z.infer<typeof createProjectBodySchema>;
 export type UpdateProjectBody = z.infer<typeof updateProjectBodySchema>;
 export type CreateMilestoneBody = z.infer<typeof createMilestoneBodySchema>;
 export type UpdateMilestoneBody = z.infer<typeof updateMilestoneBodySchema>;
+export type ReorderMilestonesBody = z.infer<typeof reorderMilestonesBodySchema>;
+export type DeleteMilestoneResponse = z.infer<typeof deleteMilestoneResponseSchema>;
 
 // ---------------------------------------------------------------------------
 // Tags (FR-30)
@@ -555,12 +578,7 @@ export const aiProviderStatusSchema = z.object({
 });
 
 export const updateAiProviderKeyBodySchema = z.strictObject({
-  apiKey: z
-    .string()
-    .trim()
-    .min(1)
-    .max(500)
-    .regex(/^\S+$/, 'An API key cannot contain spaces'),
+  apiKey: z.string().trim().min(1).max(500).regex(/^\S+$/, 'An API key cannot contain spaces'),
 });
 
 /** `provider: null` means the feature is not configured. */

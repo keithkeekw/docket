@@ -225,7 +225,11 @@ function resolveTask(
 
   // The milestone selected on the project screen applies when the model did
   // not provide a usable milestone of its own.
-  if (!milestoneSet && options.defaultMilestone && options.defaultMilestone.projectId === projectId) {
+  if (
+    !milestoneSet &&
+    options.defaultMilestone &&
+    options.defaultMilestone.projectId === projectId
+  ) {
     milestoneId = options.defaultMilestone.id;
     milestoneName = options.defaultMilestone.name;
   }
@@ -344,8 +348,7 @@ export async function captureProposal(
   const defaultProjectId = options.projectId ?? selectedMilestone?.projectId;
   const defaultProject = defaultProjectId
     ? lookups.projects.find(
-        (project) =>
-          project.id === defaultProjectId && !project.archived && !project.aiExcluded,
+        (project) => project.id === defaultProjectId && !project.archived && !project.aiExcluded,
       )
     : undefined;
   const defaultStatus = options.statusId

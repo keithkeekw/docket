@@ -6,7 +6,6 @@
 export const dashboard: Record<string, string> = {
   // Page header and summary line
   'Inbox · Unsorted': '收件箱 · 未分类',
-  'Ask Assistant': '询问助手',
   'Done Rearranging': '完成排列',
   'Rearrange Cards': '排列卡片',
   'Drag the cards by their handle to rearrange them. The order is saved on this device.':
@@ -20,10 +19,6 @@ export const dashboard: Record<string, string> = {
   'No active projects.': '没有进行中的项目。',
   'Enjoy it while it lasts — an empty list is the only list that never needs a status update.':
     '趁现在享受一下吧——空列表是唯一永远不需要更新状态的列表。',
-
-  // Capture bar
-  'What needs doing?': '需要做什么？',
-  'Could not save the task': '无法保存该任务',
 
   // Calendar
   'Previous Month': '上个月',
@@ -53,11 +48,9 @@ export const dashboard: Record<string, string> = {
   '{done} of {total} tasks': '{done}/{total} 个任务',
   'Next: {title}': '下一个：{title}',
   'Project Complete': '项目已完成',
-  'Archiving…': '归档中…',
 
   // Dashboard card reordering
   'Move {title}': '移动{title}',
   'Drop here': '放到这里',
   '+{count} more': '还有 {count} 项',
-  'Drag to Reorder': '拖动排序',
 };

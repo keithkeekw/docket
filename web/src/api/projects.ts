@@ -1,12 +1,15 @@
 import {
   aiProjectSummaryResponseSchema,
+  deleteMilestoneResponseSchema,
   milestoneListSchema,
   milestoneResponseSchema,
   projectListSchema,
   projectResponseSchema,
+  reorderMilestonesResponseSchema,
   type AiProjectSummaryResponse,
   type CreateMilestoneBody,
   type CreateProjectBody,
+  type DeleteMilestoneResponse,
   type Milestone,
   type MilestoneList,
   type ProjectList,
@@ -15,7 +18,7 @@ import {
   type UpdateProjectBody,
 } from '@app/shared';
 import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
-import { apiDelete, apiGet, apiMutate } from './client';
+import { apiDelete, apiDeleteJson, apiGet, apiMutate } from './client';
 import { navQueryKey } from './nav';
 
 const PROJECTS_KEY = ['projects'] as const;
@@ -108,8 +111,11 @@ export function useArchiveProject() {
   const queryClient = useQueryClient();
   return useMutation<ProjectSummary, Error, { id: string }>({
     mutationFn: async ({ id }) =>
-      (await apiMutate(`/api/projects/${id}`, 'PATCH', { archived: true }, projectResponseSchema)).project,
-    onSuccess: () => { invalidateProjectData(queryClient); },
+      (await apiMutate(`/api/projects/${id}`, 'PATCH', { archived: true }, projectResponseSchema))
+        .project,
+    onSuccess: () => {
+      invalidateProjectData(queryClient);
+    },
   });
 }
 
@@ -117,8 +123,11 @@ export function useRestoreProject() {
   const queryClient = useQueryClient();
   return useMutation<ProjectSummary, Error, { id: string }>({
     mutationFn: async ({ id }) =>
-      (await apiMutate(`/api/projects/${id}`, 'PATCH', { archived: false }, projectResponseSchema)).project,
-    onSuccess: () => { invalidateProjectData(queryClient); },
+      (await apiMutate(`/api/projects/${id}`, 'PATCH', { archived: false }, projectResponseSchema))
+        .project,
+    onSuccess: () => {
+      invalidateProjectData(queryClient);
+    },
   });
 }
 
@@ -169,13 +178,52 @@ export function useUpdateMilestone(projectId: string) {
   });
 }
 
+/** Its tasks move to the Inbox; the response says how many. */
 export function useDeleteMilestone(projectId: string) {
   const queryClient = useQueryClient();
 
-  return useMutation<void, Error, { id: string }>({
-    mutationFn: async ({ id }) => apiDelete(`/api/milestones/${id}`),
+  return useMutation<DeleteMilestoneResponse, Error, { id: string }>({
+    mutationFn: async ({ id }) =>
+      apiDeleteJson(`/api/milestones/${id}`, deleteMilestoneResponseSchema),
     onSuccess: () => {
       invalidateMilestoneData(queryClient, projectId);
     },
   });
+}
+
+/** Pills move at once; a failed save rolls the order back. */
+export function useReorderMilestones(projectId: string) {
+  const queryClient = useQueryClient();
+  const key = milestonesQueryKey(projectId);
+
+  return useMutation<{ reordered: number }, Error, { ids: string[] }, { previous?: MilestoneList }>(
+    {
+      mutationFn: (body) =>
+        apiMutate(
+          `/api/projects/${projectId}/milestones/reorder`,
+          'POST',
+          body,
+          reorderMilestonesResponseSchema,
+        ),
+      onMutate: async ({ ids }) => {
+        await queryClient.cancelQueries({ queryKey: key });
+        const previous = queryClient.getQueryData<MilestoneList>(key);
+        if (previous) {
+          const byId = new Map(previous.milestones.map((milestone) => [milestone.id, milestone]));
+          const milestones = ids.flatMap((id, position) => {
+            const milestone = byId.get(id);
+            return milestone ? [{ ...milestone, position }] : [];
+          });
+          queryClient.setQueryData<MilestoneList>(key, { milestones });
+        }
+        return { previous };
+      },
+      onError: (_error, _body, context) => {
+        if (context?.previous) queryClient.setQueryData(key, context.previous);
+      },
+      onSettled: () => {
+        invalidateMilestoneData(queryClient, projectId);
+      },
+    },
+  );
 }

@@ -33,8 +33,7 @@ export function useUpdateReviewSchedule() {
     UpdateReviewScheduleBody,
     { previous: ReviewSchedule | undefined }
   >({
-    mutationFn: (body) =>
-      apiMutate('/api/settings/reviews', 'PUT', body, reviewScheduleSchema),
+    mutationFn: (body) => apiMutate('/api/settings/reviews', 'PUT', body, reviewScheduleSchema),
     onMutate: async (body) => {
       await queryClient.cancelQueries({ queryKey: reviewScheduleQueryKey });
       const previous = queryClient.getQueryData<ReviewSchedule>(reviewScheduleQueryKey);

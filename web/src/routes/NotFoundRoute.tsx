@@ -23,7 +23,9 @@ export function NotFoundRoute() {
         {t('This page is still in the backlog.')}
       </h1>
       <p className="mx-auto mt-3 max-w-[560px] text-sm leading-relaxed text-zinc-600">
-        {t('We checked every project, milestone, tag and archived corner. This URL never made it out of triage. The good news: your overdue count is unchanged.')}
+        {t(
+          'We checked every project, milestone, tag and archived corner. This URL never made it out of triage. The good news: your overdue count is unchanged.',
+        )}
       </p>
 
       <div className="relative mt-7 overflow-hidden rounded-2xl border border-dashed border-zinc-300 bg-white p-5 text-left shadow-sm">

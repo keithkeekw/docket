@@ -2,10 +2,10 @@ export const misc: Record<string, string> = {
   // Sidebar and navigation
   'Expand Sidebar': '展开侧边栏',
   'Collapse Sidebar': '收起侧边栏',
+  'Show Projects': '展开项目',
+  'Hide Projects': '收起项目',
   Primary: '主导航',
   Shortcuts: '快捷键',
-  'Command Palette': '命令面板',
-  'Keyboard Shortcuts': '键盘快捷键',
   'Mobile Navigation': '移动端导航',
 
   // Top bar and theme
@@ -18,8 +18,6 @@ export const misc: Record<string, string> = {
   Dismiss: '关闭',
 
   // Command palette
-  'New Task': '新建任务',
-  'Ask Assistant': '询问助手',
   'Light Theme': '浅色主题',
   'Dark Theme': '深色主题',
   'Automatic Theme': '自动主题',
@@ -31,53 +29,16 @@ export const misc: Record<string, string> = {
   'No matches.': '没有匹配项。',
   'to navigate': '导航',
   'to open': '打开',
-  'to close': '关闭',
 
   // Shortcut help
   'Every shortcut in the app, using your current bindings.':
     '应用中的全部快捷键，按你当前的绑定显示。',
   'to toggle this list': '切换此列表',
 
-  // Keyboard shortcut labels and descriptions
-  'AI Capture': 'AI 记录',
-  'Collapse / Expand Sidebar': '收起 / 展开侧边栏',
-  'Go to Dashboard': '前往仪表板',
-  'Go to Inbox': '前往收件箱',
-  'Go to Today': '前往今天',
-  'Go to All Tasks': '前往所有任务',
-  'Go to Reviews': '前往回顾',
-  'Go to Logbook': '前往日志',
-  'Go to Settings': '前往设置',
-  'Save Capture': '保存记录',
-  'Close Dialog': '关闭对话框',
-  'Kanban Drag': '看板拖拽',
-  'Open the capture dialog from anywhere': '在任意位置打开记录对话框',
-  'Parse the capture text with AI': '用 AI 解析记录文本',
-  'Toggle the sidebar between full width and the icon rail':
-    '在完整宽度和图标栏之间切换侧边栏',
-  'Open the assistant drawer from anywhere': '在任意位置打开助手抽屉',
-  'Search and jump to pages, projects, tasks and actions': '搜索并跳转到页面、项目、任务和操作',
-  'Show the full list of shortcuts in an overlay': '在浮层中显示完整快捷键列表',
-  'Open the Dashboard': '打开仪表板',
-  'Open the Inbox': '打开收件箱',
-  'Open Today': '打开今天',
-  'Open the All Tasks list': '打开所有任务列表',
-  'Open Reviews': '打开回顾',
-  'Open the Logbook': '打开日志',
-  'Open Settings': '打开设置',
-  'Save the task directly from the capture dialog': '直接从记录对话框保存任务',
-  'Dismiss the active dialog or modal': '关闭当前对话框或模态框',
-  'Start or drop a card when using keyboard in Kanban view':
-    '在看板视图中用键盘开始或放下卡片',
-
   // Reviews
-  Daily: '每日',
-  Weekly: '每周',
   Manual: '手动',
-  Review: '回顾',
   '{kind} Review': '{kind}回顾',
   'Proof you did more than move tasks to tomorrow.': '证明你做的不只是把任务推到明天。',
-  'Generating…': '正在生成…',
   'Generate Now': '立即生成',
   'Past Reviews': '过往回顾',
   'No reviews yet. Generate one now, or let the schedule write them.':

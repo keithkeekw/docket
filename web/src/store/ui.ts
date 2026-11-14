@@ -32,6 +32,11 @@ type UiStore = {
   showUndo: (label: string) => void;
   clearUndo: () => void;
 
+  /** Overlay notification for side effects the user should know about. */
+  notice: { id: number; title: string; message: string } | null;
+  showNotice: (notice: { title: string; message: string }) => void;
+  clearNotice: () => void;
+
   /** Chat drawer (FR-22), mounted once in the shell. */
   chatOpen: boolean;
   openChat: () => void;
@@ -76,12 +81,11 @@ export const useUiStore = create<UiStore>((set, get) => ({
     const context = get().projectContext;
     set({
       captureOpen: true,
-      captureProjectId: options?.projectId ?? (options ? null : context?.projectId ?? null),
+      captureProjectId: options?.projectId ?? (options ? null : (context?.projectId ?? null)),
       captureStatusId: options?.statusId ?? null,
-      captureMilestoneId:
-        options?.milestoneId ?? (options ? null : context?.milestoneId ?? null),
+      captureMilestoneId: options?.milestoneId ?? (options ? null : (context?.milestoneId ?? null)),
       captureMilestoneName:
-        options?.milestoneName ?? (options ? null : context?.milestoneName ?? null),
+        options?.milestoneName ?? (options ? null : (context?.milestoneName ?? null)),
     });
   },
   closeCapture: () => {
@@ -108,6 +112,14 @@ export const useUiStore = create<UiStore>((set, get) => ({
   },
   clearUndo: () => {
     set({ undoLabel: null });
+  },
+
+  notice: null,
+  showNotice: (notice) => {
+    set({ notice: { ...notice, id: Date.now() } });
+  },
+  clearNotice: () => {
+    set({ notice: null });
   },
 
   chatOpen: false,

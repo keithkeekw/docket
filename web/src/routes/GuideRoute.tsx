@@ -67,12 +67,12 @@ export function GuideRoute() {
             </p>
             <p>
               {t(
-                'The three circular buttons at the top right open this guide, choose the language, and choose a Light, Dark or Automatic theme. The floating arrow at the bottom right returns a long page to the top.',
+                'The circular buttons at the top right choose the language and a Light, Dark or Automatic theme; on a phone, a third one opens this guide. The floating arrow at the bottom right returns a long page to the top.',
               )}
             </p>
             <p>
               {t(
-                'At the bottom of the sidebar, the gear opens Settings and the panel icon beside it collapses the sidebar to a narrow icon rail; the same icon expands it again.',
+                'At the bottom of the sidebar, the gear opens Settings, the “i” opens About, the book opens this guide, and the panel icon collapses the sidebar to a narrow icon rail; the same icon expands it again.',
               )}{' '}
               {t('You can also press')} <Kbd>{bindingLabel(bindings.toggleSidebar ?? 'x')}</Kbd>{' '}
               {t('to toggle it.')}
@@ -248,6 +248,21 @@ export function GuideRoute() {
             </p>
             <p>
               {t(
+                'Drag the milestone pills to reorder them, and double-click one to rename it. Selecting a milestone shows Rename, Delete and Complete icons at the right of the toolbar. Deleting asks for confirmation, moves the milestone’s tasks to the Inbox with a notice saying how many moved, and can be undone.',
+              )}
+            </p>
+            <p>
+              {t(
+                'The Timeline icon in the project header charts every milestone by the start and end dates of its tasks. The chart begins at the earliest start date in the first milestone, so at least one task there needs a start date, and it runs to the latest end date in the last milestone when one is set.',
+              )}
+            </p>
+            <p>
+              {t(
+                'An open task whose start date or due date falls after the project’s target date is highlighted in red on the project screen, in List, Table and Kanban views.',
+              )}
+            </p>
+            <p>
+              {t(
                 'You can also ask the assistant to create a project. It asks whether to generate milestones; if so, it asks for a short description and, when the idea is still vague, a few quick questions (never more than four) before proposing the project and its milestones for you to confirm.',
               )}
             </p>
@@ -267,6 +282,11 @@ export function GuideRoute() {
               </li>
               <li>
                 {t(
+                  'Start Date and End Date are when you plan to work on the task; the Due Date is the deadline it must be finished by. The end cannot be before the start, and a repeating task moves its plan forward with its due date.',
+                )}
+              </li>
+              <li>
+                {t(
                   'A checklist with optional AI generation, links, tags and file uploads (up to 10 MB each). AI checklists read the task title, notes and readable attachments — text files and Word .doc/.docx — as context; binary files are skipped.',
                 )}
               </li>
@@ -281,9 +301,9 @@ export function GuideRoute() {
             <p>
               {t('The assistant opens with')}{' '}
               <Kbd>{bindingLabel(bindings.askAssistant ?? 'ctrl+a')}</Kbd>
-              {t(', or from')} <strong>{t('Ask Assistant')}</strong>{' '}
+              {t(', or with the')} <strong>{t('Ask Assistant')}</strong>{' '}
               {t(
-                'on the Dashboard. It can answer questions about your work and propose changes; proposals are previewed before anything is written.',
+                'button in the bottom-right corner of every screen. It can answer questions about your work and propose changes; proposals are previewed before anything is written.',
               )}
             </p>
             <p>
@@ -375,11 +395,12 @@ export function GuideRoute() {
                 <strong>{t('Data')}</strong>{' '}
                 {t('— create and restore backups, and export everything as JSON or Markdown.')}
               </li>
-              <li>
-                <strong>{t('About & Updates')}</strong>{' '}
-                {t('— check for a newer version and install it from here.')}
-              </li>
             </ul>
+            <p>
+              {t(
+                'The About page shows the version you are running. Check for a newer version and install it from there; a red dot on the “i” icon in the sidebar means an update is waiting. On a phone, open About from the bottom of Settings.',
+              )}
+            </p>
           </GuideSection>
 
           <GuideSection id="data" title={t('Data and Privacy')}>

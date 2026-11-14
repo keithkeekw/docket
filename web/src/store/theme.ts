@@ -16,8 +16,7 @@ function readMode(): ThemeMode {
 }
 
 function prefersDark(): boolean {
-  return typeof window !== 'undefined' &&
-    window.matchMedia('(prefers-color-scheme: dark)').matches;
+  return typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches;
 }
 
 function resolve(mode: ThemeMode): 'light' | 'dark' {

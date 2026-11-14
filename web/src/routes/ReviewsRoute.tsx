@@ -1,9 +1,9 @@
 import type { Review } from '@app/shared';
 import { format, parseISO } from 'date-fns';
 import { useState } from 'react';
-import ReactMarkdown from 'react-markdown';
 import { useGenerateReview, useReview, useReviews } from '../api/reviews';
 import { InlineError } from '../components/InlineError';
+import { Markdown } from '../components/Markdown';
 import { PageHeader } from '../components/PageHeader';
 import { PrelineTooltip } from '../components/PrelineTooltip';
 import { cx } from '../lib/cx';
@@ -61,7 +61,10 @@ export function ReviewsRoute() {
                 xmlns="http://www.w3.org/2000/svg"
                 viewBox="0 0 20 20"
                 fill="currentColor"
-                className={cx('size-4', generate.isPending && 'animate-pulse motion-reduce:animate-none')}
+                className={cx(
+                  'size-4',
+                  generate.isPending && 'animate-pulse motion-reduce:animate-none',
+                )}
                 aria-hidden="true"
               >
                 <path d="M15.98 1.804a1 1 0 0 0-1.96 0l-.24 1.192a1 1 0 0 1-.784.785l-1.192.238a1 1 0 0 0 0 1.962l1.192.238a1 1 0 0 1 .785.785l.238 1.192a1 1 0 0 0 1.962 0l.238-1.192a1 1 0 0 1 .785-.785l1.192-.238a1 1 0 0 0 0-1.962l-1.192-.238a1 1 0 0 1-.785-.785l-.238-1.192ZM6.949 5.684a1 1 0 0 0-1.898 0l-.683 2.051a1 1 0 0 1-.633.633l-2.051.683a1 1 0 0 0 0 1.898l2.051.684a1 1 0 0 1 .633.632l.683 2.051a1 1 0 0 0 1.898 0l.683-2.051a1 1 0 0 1 .633-.633l2.051-.683a1 1 0 0 0 0-1.898l-2.051-.683a1 1 0 0 1-.633-.633l-.683-2.051ZM13.949 13.684a1 1 0 0 0-1.898 0l-.184.551a1 1 0 0 1-.632.633l-.551.183a1 1 0 0 0 0 1.898l.551.183a1 1 0 0 1 .633.633l.183.551a1 1 0 0 0 1.898 0l.184-.551a1 1 0 0 1 .632-.633l.551-.183a1 1 0 0 0 0-1.898l-.551-.184a1 1 0 0 1-.633-.632l-.183-.551Z" />
@@ -102,7 +105,11 @@ export function ReviewsRoute() {
                       }}
                     >
                       <span className="block text-[13px] text-zinc-900">
-                        {format(parseISO(review.createdAt), locale === 'zh' ? 'yyyy年M月d日' : 'd MMM yyyy', { locale: dateLocale })}
+                        {format(
+                          parseISO(review.createdAt),
+                          locale === 'zh' ? 'yyyy年M月d日' : 'd MMM yyyy',
+                          { locale: dateLocale },
+                        )}
                       </span>
                       <span className="block text-xs text-zinc-500">
                         {t(KIND_LABEL[review.kind])} ·{' '}
@@ -140,7 +147,11 @@ export function ReviewsRoute() {
                 </h2>
                 <p className="text-xs text-zinc-500">
                   {active.data.periodStart === active.data.periodEnd
-                    ? format(parseISO(active.data.periodStart), locale === 'zh' ? 'M月d日 EEEE' : 'EEEE, d MMMM', { locale: dateLocale })
+                    ? format(
+                        parseISO(active.data.periodStart),
+                        locale === 'zh' ? 'M月d日 EEEE' : 'EEEE, d MMMM',
+                        { locale: dateLocale },
+                      )
                     : `${format(parseISO(active.data.periodStart), locale === 'zh' ? 'M月d日' : 'd MMM', { locale: dateLocale })} – ${format(
                         parseISO(active.data.periodEnd),
                         locale === 'zh' ? 'M月d日' : 'd MMM',
@@ -151,7 +162,7 @@ export function ReviewsRoute() {
               </header>
 
               <div className="mt-3 space-y-2 text-sm leading-normal text-zinc-700 [&_h1]:text-base [&_h1]:font-semibold [&_h1]:text-zinc-900 [&_h2]:text-[15px] [&_h2]:font-semibold [&_h2]:text-zinc-900 [&_h3]:text-[13px] [&_h3]:font-semibold [&_h3]:text-zinc-900 [&_li]:my-1 [&_strong]:font-medium [&_strong]:text-zinc-900 [&_ul]:list-disc [&_ul]:pl-5">
-                <ReactMarkdown>{active.data.contentMd}</ReactMarkdown>
+                <Markdown>{active.data.contentMd}</Markdown>
               </div>
             </article>
           )}

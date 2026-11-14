@@ -17,7 +17,6 @@ export default tseslint.config(
       '**/dist/**',
       '**/coverage/**',
       'data/**',
-      'mockups/**',
       '**/*.d.ts',
       'web/public/**',
     ],

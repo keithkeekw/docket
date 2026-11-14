@@ -8,7 +8,7 @@ import type {
   UpdateReviewScheduleBody,
 } from '@app/shared';
 import { addDays, format, parseISO } from 'date-fns';
-import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
+import { useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link } from 'react-router';
 import {
   useAiSettings,
@@ -32,14 +32,11 @@ import { PageHeader } from '../components/PageHeader';
 import { PrelineTooltip } from '../components/PrelineTooltip';
 import { Switch } from '../components/Switch';
 import { TimeZonePicker } from '../components/TimeZonePicker';
-import { UpdatesSection } from '../components/UpdatesSection';
+import { AboutIcon } from '../components/NavIcons';
+import { UpdateBadge } from '../components/UpdateBadge';
+import { useUpdateInfo } from '../api/updates';
 import { Kbd } from '../components/Kbd';
-import {
-  formatClockDay,
-  formatClockOffset,
-  formatClockTime,
-  timeZoneLabel,
-} from '../lib/clocks';
+import { formatClockDay, formatClockOffset, formatClockTime, timeZoneLabel } from '../lib/clocks';
 import { cx } from '../lib/cx';
 import { useLocale } from '../lib/i18n';
 import { useDateLocale, useT } from '../lib/i18n';
@@ -78,7 +75,7 @@ export function SettingsRoute() {
         <ClocksSection />
         <PrivacySection />
         <DataSection />
-        <UpdatesSection />
+        <AboutLink />
       </div>
     </>
   );
@@ -193,7 +190,7 @@ function StatusesSection() {
       )}
 
       {rows.length > 0 && (
-        <ul className="mt-3 flex flex-col gap-2">
+        <ul className="@container mt-3 flex flex-col gap-2">
           {rows.map((status, index) => (
             <StatusRow
               key={status.id}
@@ -291,8 +288,8 @@ function StatusRow({
   }, [status.name]);
 
   return (
-    <li className="flex flex-wrap items-center gap-2">
-      <div className="min-w-[9rem] flex-1">
+    <li className="mb-1 flex flex-col gap-2 rounded-xl border border-zinc-200 bg-white p-3 last:mb-0 @[30rem]:mb-0 @[30rem]:flex-row @[30rem]:items-center @[30rem]:border-0 @[30rem]:bg-transparent @[30rem]:p-0">
+      <div className="min-w-[9rem] @[30rem]:flex-1">
         <Input
           aria-label={t('Status name: {name}', { name: status.name })}
           value={name}
@@ -307,69 +304,167 @@ function StatusRow({
         />
       </div>
 
-      <div className="w-[7.5rem] shrink-0">
-        <Select
-          aria-label={t('Category for {name}', { name: status.name })}
-          value={status.category}
-          onChange={(event) => {
-            onRecategorise(event.target.value as StatusCategory);
-          }}
-        >
-          {CATEGORIES.map((entry) => (
-            <option key={entry.value} value={entry.value}>
-              {t(entry.label)}
-            </option>
-          ))}
-        </Select>
-      </div>
+      <div className="flex items-center gap-2 @[30rem]:contents">
+        <div className="w-[7.5rem] shrink-0">
+          <Select
+            aria-label={t('Category for {name}', { name: status.name })}
+            value={status.category}
+            onChange={(event) => {
+              onRecategorise(event.target.value as StatusCategory);
+            }}
+          >
+            {CATEGORIES.map((entry) => (
+              <option key={entry.value} value={entry.value}>
+                {t(entry.label)}
+              </option>
+            ))}
+          </Select>
+        </div>
 
-      <span className="w-[4.5rem] shrink-0 text-right text-xs text-zinc-500">
-        {status.taskCount === 0
-          ? t('Unused')
-          : t(status.taskCount === 1 ? '{count} task' : '{count} tasks', {
-              count: status.taskCount,
-            })}
-      </span>
+        <span className="min-w-0 flex-1 text-xs text-zinc-500 @[30rem]:w-[4.5rem] @[30rem]:flex-none @[30rem]:shrink-0 @[30rem]:text-right">
+          {status.taskCount === 0
+            ? t('Unused')
+            : t(status.taskCount === 1 ? '{count} task' : '{count} tasks', {
+                count: status.taskCount,
+              })}
+        </span>
 
-      <div className="flex shrink-0 items-center gap-1">
-        <button
-          type="button"
-          onClick={onMoveUp}
-          disabled={first}
-          aria-label={t('Move {name} up', { name: status.name })}
-          title={t('Move Up')}
-          className="inline-flex size-10 items-center justify-center rounded-lg border border-zinc-300 bg-white text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-900 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-white disabled:text-zinc-300"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5" aria-hidden="true">
-            <path fillRule="evenodd" d="M14.77 12.79a.75.75 0 0 1-1.06-.02L10 8.832l-3.71 3.938a.75.75 0 1 1-1.08-1.04l4.25-4.5a.75.75 0 0 1 1.08 0l4.25 4.5a.75.75 0 0 1-.02 1.06Z" clipRule="evenodd" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          onClick={onMoveDown}
-          disabled={last}
-          aria-label={t('Move {name} down', { name: status.name })}
-          title={t('Move Down')}
-          className="inline-flex size-10 items-center justify-center rounded-lg border border-zinc-300 bg-white text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-900 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-white disabled:text-zinc-300"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-5" aria-hidden="true">
-            <path fillRule="evenodd" d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z" clipRule="evenodd" />
-          </svg>
-        </button>
-        <button
-          type="button"
-          onClick={onDelete}
-          disabled={!canDelete}
-          aria-label={t('Delete status {name}', { name: status.name })}
-          title={canDelete ? t('Delete Status') : t('Move its tasks to another status first')}
-          className="inline-flex size-10 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition-colors hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-white disabled:text-zinc-300"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="currentColor" className="size-5" aria-hidden="true">
-            <path fillRule="evenodd" d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z" clipRule="evenodd" />
-          </svg>
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={onMoveUp}
+            disabled={first}
+            aria-label={t('Move {name} up', { name: status.name })}
+            title={t('Move Up')}
+            className="inline-flex size-10 items-center justify-center rounded-lg border border-zinc-300 bg-white text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-900 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-white disabled:text-zinc-300"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="size-5"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M14.77 12.79a.75.75 0 0 1-1.06-.02L10 8.832l-3.71 3.938a.75.75 0 1 1-1.08-1.04l4.25-4.5a.75.75 0 0 1 1.08 0l4.25 4.5a.75.75 0 0 1-.02 1.06Z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={onMoveDown}
+            disabled={last}
+            aria-label={t('Move {name} down', { name: status.name })}
+            title={t('Move Down')}
+            className="inline-flex size-10 items-center justify-center rounded-lg border border-zinc-300 bg-white text-zinc-700 transition-colors hover:border-zinc-400 hover:bg-zinc-50 hover:text-zinc-900 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-white disabled:text-zinc-300"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="size-5"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M5.23 7.21a.75.75 0 0 1 1.06.02L10 11.168l3.71-3.938a.75.75 0 1 1 1.08 1.04l-4.25 4.5a.75.75 0 0 1-1.08 0l-4.25-4.5a.75.75 0 0 1 .02-1.06Z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            onClick={onDelete}
+            disabled={!canDelete}
+            aria-label={t('Delete status {name}', { name: status.name })}
+            title={canDelete ? t('Delete Status') : t('Move its tasks to another status first')}
+            className="inline-flex size-10 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition-colors hover:border-red-300 hover:bg-red-100 disabled:cursor-not-allowed disabled:border-zinc-200 disabled:bg-white disabled:text-zinc-300"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 16 16"
+              fill="currentColor"
+              className="size-5"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M5 3.25V4H2.75a.75.75 0 0 0 0 1.5h.3l.815 8.15A1.5 1.5 0 0 0 5.357 15h5.285a1.5 1.5 0 0 0 1.493-1.35l.815-8.15h.3a.75.75 0 0 0 0-1.5H11v-.75A2.25 2.25 0 0 0 8.75 1h-1.5A2.25 2.25 0 0 0 5 3.25Zm2.25-.75a.75.75 0 0 0-.75.75V4h3v-.75a.75.75 0 0 0-.75-.75h-1.5ZM6.05 6a.75.75 0 0 1 .787.713l.275 5.5a.75.75 0 0 1-1.498.075l-.275-5.5A.75.75 0 0 1 6.05 6Zm3.9 0a.75.75 0 0 1 .712.787l-.275 5.5a.75.75 0 0 1-1.498-.075l.275-5.5a.75.75 0 0 1 .786-.711Z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </button>
+        </div>
       </div>
     </li>
+  );
+}
+
+/** Phones have no sidebar, so Settings links to the About page instead. */
+function AboutLink() {
+  const t = useT();
+  const updateAvailable = useUpdateInfo().data?.updateAvailable ?? false;
+
+  return (
+    <section className="mt-8 border-t border-zinc-200 pt-5 sm:hidden">
+      <Link
+        to="/about"
+        className="flex min-h-12 items-center gap-3 rounded-xl border border-zinc-200 bg-white px-4 text-sm text-zinc-900 transition-colors hover:bg-zinc-50"
+      >
+        <span className="relative flex size-8 items-center justify-center text-zinc-600">
+          <AboutIcon />
+          {updateAvailable && <UpdateBadge className="top-0 right-0" />}
+        </span>
+        <span className="flex-1">{t('About')}</span>
+        {updateAvailable && <span className="text-xs text-zinc-500">{t('Update available')}</span>}
+      </Link>
+    </section>
+  );
+}
+
+const BACKUP_ICON_BASE =
+  'inline-flex size-10 shrink-0 items-center justify-center rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-50';
+const BACKUP_ICON_BUTTON = `${BACKUP_ICON_BASE} border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900`;
+
+function BackupIconButton({
+  label,
+  tone,
+  disabled,
+  onClick,
+  children,
+}: {
+  label: string;
+  tone?: 'primary';
+  disabled?: boolean;
+  onClick: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <PrelineTooltip label={label}>
+      <button
+        type="button"
+        aria-label={label}
+        disabled={disabled}
+        onClick={onClick}
+        className={
+          tone === 'primary'
+            ? `${BACKUP_ICON_BASE} border-zinc-900 bg-zinc-900 text-white hover:bg-zinc-700`
+            : BACKUP_ICON_BUTTON
+        }
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="size-4"
+          aria-hidden="true"
+        >
+          {children}
+        </svg>
+      </button>
+    </PrelineTooltip>
   );
 }
 
@@ -429,8 +524,7 @@ function DataSection() {
     <section className="mt-8 border-t border-zinc-200 pt-5">
       <h2 className="text-[15px] font-semibold text-zinc-900">{t('Data')}</h2>
       <p className="mt-1 max-w-[560px] text-xs text-zinc-500">
-        {t('Backups are whole copies of the database, kept in')}{' '}
-        <code>data/backups</code>
+        {t('Backups are whole copies of the database, kept in')} <code>data/backups</code>
         {t('. Restoring replaces every project, task and setting with the copy you pick.')}
       </p>
 
@@ -459,54 +553,89 @@ function DataSection() {
       {rows.length > 0 && (
         <ul className="mt-3 flex flex-col gap-2">
           {rows.map((backup) => (
-            <li key={backup.file} className="flex flex-wrap items-center gap-2">
-              <span className="min-w-[12rem] flex-1 truncate text-sm text-zinc-900">
-                {format(parseISO(backup.createdAt), locale === 'zh' ? 'yyyy年M月d日 HH:mm:ss' : 'd MMM yyyy, HH:mm:ss', {
-                  locale: dateLocale,
-                })}
-              </span>
+            <li key={backup.file} className="flex items-center gap-2">
+              <div className="flex min-w-0 flex-1 flex-col sm:flex-row sm:items-center sm:gap-2">
+                <span className="truncate text-sm text-zinc-900 sm:flex-1">
+                  {format(
+                    parseISO(backup.createdAt),
+                    locale === 'zh' ? 'yyyy年M月d日 HH:mm:ss' : 'd MMM yyyy, HH:mm:ss',
+                    {
+                      locale: dateLocale,
+                    },
+                  )}
+                </span>
+                <span className="text-xs text-zinc-500 sm:w-[4.5rem] sm:text-right">
+                  {formatBytes(backup.sizeBytes)}
+                </span>
+              </div>
 
-              <span className="w-[4.5rem] text-right text-xs text-zinc-500">
-                {formatBytes(backup.sizeBytes)}
-              </span>
-
-              <a
-                href={`/api/backups/${encodeURIComponent(backup.file)}`}
-                download={backup.file}
-                className="inline-flex min-h-10 items-center rounded-lg border border-zinc-200 bg-white px-3.5 text-[13px] text-zinc-900"
-              >
-                {t('Download')}
-              </a>
-
-              {confirming === backup.file ? (
-                <>
-                  <Button
-                    onClick={() => {
-                      void handleRestore(backup.file);
-                    }}
-                    disabled={restore.isPending}
-                  >
-                    {restore.isPending ? t('Restoring…') : t('Confirm Restore')}
-                  </Button>
-                  <Button
-                    onClick={() => {
-                      setConfirming(null);
-                    }}
-                  >
-                    {t('Cancel')}
-                  </Button>
-                </>
-              ) : (
-                <Button
-                  onClick={() => {
-                    setConfirming(backup.file);
-                    setMessage(null);
-                    setError(null);
-                  }}
-                >
-                  {t('Restore')}
-                </Button>
-              )}
+              <div className="flex shrink-0 items-center gap-1">
+                {confirming === backup.file ? (
+                  <>
+                    <span className="mr-1 hidden text-xs text-zinc-500 sm:inline">
+                      {restore.isPending ? t('Restoring…') : t('Restore this backup?')}
+                    </span>
+                    <BackupIconButton
+                      label={t('Confirm Restore')}
+                      tone="primary"
+                      disabled={restore.isPending}
+                      onClick={() => {
+                        void handleRestore(backup.file);
+                      }}
+                    >
+                      <path
+                        fillRule="evenodd"
+                        clipRule="evenodd"
+                        d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
+                      />
+                    </BackupIconButton>
+                    <BackupIconButton
+                      label={t('Cancel')}
+                      onClick={() => {
+                        setConfirming(null);
+                      }}
+                    >
+                      <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                    </BackupIconButton>
+                  </>
+                ) : (
+                  <>
+                    <PrelineTooltip label={t('Download')}>
+                      <a
+                        href={`/api/backups/${encodeURIComponent(backup.file)}`}
+                        download={backup.file}
+                        aria-label={t('Download')}
+                        className={BACKUP_ICON_BUTTON}
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 20 20"
+                          fill="currentColor"
+                          className="size-4"
+                          aria-hidden="true"
+                        >
+                          <path d="M10.75 2.75a.75.75 0 0 0-1.5 0v8.614L6.295 8.235a.75.75 0 1 0-1.09 1.03l4.25 4.5a.75.75 0 0 0 1.09 0l4.25-4.5a.75.75 0 0 0-1.09-1.03l-2.955 3.129V2.75Z" />
+                          <path d="M3.5 12.75a.75.75 0 0 0-1.5 0v2.5A2.75 2.75 0 0 0 4.75 18h10.5A2.75 2.75 0 0 0 18 15.25v-2.5a.75.75 0 0 0-1.5 0v2.5c0 .69-.56 1.25-1.25 1.25H4.75c-.69 0-1.25-.56-1.25-1.25v-2.5Z" />
+                        </svg>
+                      </a>
+                    </PrelineTooltip>
+                    <BackupIconButton
+                      label={t('Restore')}
+                      onClick={() => {
+                        setConfirming(backup.file);
+                        setMessage(null);
+                        setError(null);
+                      }}
+                    >
+                      <path
+                        fillRule="evenodd"
+                        clipRule="evenodd"
+                        d="M7.793 2.232a.75.75 0 0 1-.025 1.06L3.622 7.25h10.003a5.375 5.375 0 0 1 0 10.75H10.75a.75.75 0 0 1 0-1.5h2.875a3.875 3.875 0 0 0 0-7.75H3.622l4.146 3.957a.75.75 0 0 1-1.036 1.085l-5.5-5.25a.75.75 0 0 1 0-1.085l5.5-5.25a.75.75 0 0 1 1.06.025Z"
+                      />
+                    </BackupIconButton>
+                  </>
+                )}
+              </div>
             </li>
           ))}
         </ul>
@@ -1000,7 +1129,8 @@ function AiSection() {
                       label={label}
                       disabled={draft[feature].provider === ''}
                       hasKey={ai.data.providers.some(
-                        (status) => status.provider === draft[feature].provider && status.configured,
+                        (status) =>
+                          status.provider === draft[feature].provider && status.configured,
                       )}
                       value={draft[feature].model}
                       onChange={(model) => {
@@ -1116,7 +1246,11 @@ function PromptEditor({ prompt }: { prompt: PromptEntry }) {
           className="size-3.5 shrink-0 text-zinc-400 transition-transform group-open:rotate-90"
           aria-hidden="true"
         >
-          <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.168 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.5 4.25a.75.75 0 0 1 0 1.08l-4.5 4.25a.75.75 0 0 1-1.06-.02Z" clipRule="evenodd" />
+          <path
+            fillRule="evenodd"
+            d="M7.21 14.77a.75.75 0 0 1 .02-1.06L11.168 10 7.23 6.29a.75.75 0 1 1 1.04-1.08l4.5 4.25a.75.75 0 0 1 0 1.08l-4.5 4.25a.75.75 0 0 1-1.06-.02Z"
+            clipRule="evenodd"
+          />
         </svg>
         <span className="text-sm font-medium text-zinc-900">{t(prompt.label)}</span>
         {prompt.customized && (
@@ -1143,13 +1277,17 @@ function PromptEditor({ prompt }: { prompt: PromptEntry }) {
         <div className="mt-2 flex flex-wrap items-center gap-2">
           <Button
             variant="primary"
-            onClick={() => { void handleSave(); }}
+            onClick={() => {
+              void handleSave();
+            }}
             disabled={!dirty || draft.trim() === '' || save.isPending}
           >
             {save.isPending ? t('Saving…') : t('Save Prompt')}
           </Button>
           <Button
-            onClick={() => { void handleReset(); }}
+            onClick={() => {
+              void handleReset();
+            }}
             disabled={!prompt.customized || reset.isPending}
           >
             {reset.isPending ? t('Resetting…') : t('Reset to Default')}
@@ -1305,9 +1443,12 @@ function ReviewsSection() {
 
           {needsModel && (
             <p className="border-t border-zinc-100 px-4 py-3 text-xs text-orange-700">
-              {t('Choose a model for {feature} in the AI section above, or no review will be written.', {
-                feature: weekly ? t('Weekly Review') : t('Daily Review'),
-              })}
+              {t(
+                'Choose a model for {feature} in the AI section above, or no review will be written.',
+                {
+                  feature: weekly ? t('Weekly Review') : t('Daily Review'),
+                },
+              )}
             </p>
           )}
         </div>
@@ -1385,7 +1526,8 @@ function ClocksSection() {
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium text-zinc-900">{timeZoneLabel(zone)}</p>
                 <p className="truncate text-[11px] text-zinc-500">
-                  {zone} · {formatClockDay(zone, now, intlLocale)} · {formatClockOffset(zone, now, intlLocale)}
+                  {zone} · {formatClockDay(zone, now, intlLocale)} ·{' '}
+                  {formatClockOffset(zone, now, intlLocale)}
                 </p>
               </div>
               <span className="font-mono text-sm font-semibold tabular-nums text-zinc-900">
@@ -1515,9 +1657,7 @@ function KeyBindingsSection() {
       }
 
       const conflict = ALL_SHORTCUTS.find(
-        (other) =>
-          other.id !== id &&
-          (bindings[other.id] ?? other.defaultBinding) === newBinding,
+        (other) => other.id !== id && (bindings[other.id] ?? other.defaultBinding) === newBinding,
       );
       if (conflict) {
         setRecordingError(t('Already used by “{name}”.', { name: t(conflict.label) }));
@@ -1545,7 +1685,7 @@ function KeyBindingsSection() {
   );
 
   return (
-    <section className="mt-8 border-t border-zinc-200 pt-5">
+    <section className="mt-8 hidden border-t border-zinc-200 pt-5 sm:block">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h2 className="text-[15px] font-semibold text-zinc-900">{t('Key Bindings')}</h2>
@@ -1575,7 +1715,10 @@ function KeyBindingsSection() {
           const isRecording = recording === shortcut.id;
 
           return (
-            <li key={shortcut.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+            <li
+              key={shortcut.id}
+              className="flex flex-wrap items-center justify-between gap-3 px-4 py-3"
+            >
               <div className="min-w-0">
                 <p className="text-sm font-medium text-zinc-900">{t(shortcut.label)}</p>
                 <p className="text-xs text-zinc-500">{t(shortcut.description)}</p>
@@ -1592,7 +1735,10 @@ function KeyBindingsSection() {
                       type="button"
                       className="flex min-w-[160px] items-center justify-center rounded-lg border-2 border-blue-400 bg-blue-50 px-3 py-1.5 text-xs font-medium text-blue-700 outline-none ring-2 ring-blue-300 ring-offset-1"
                       autoFocus
-                      onBlur={() => { setRecording(null); setRecordingError(null); }}
+                      onBlur={() => {
+                        setRecording(null);
+                        setRecordingError(null);
+                      }}
                     >
                       {t('Press keys… (Esc to cancel)')}
                     </button>
@@ -1600,12 +1746,16 @@ function KeyBindingsSection() {
                     <button
                       type="button"
                       className="flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-2 py-1 text-xs text-zinc-700 transition-colors hover:border-zinc-300 hover:bg-white"
-                      onClick={() => { startRecording(shortcut.id); }}
+                      onClick={() => {
+                        startRecording(shortcut.id);
+                      }}
                       title={t('Click to Change')}
                     >
                       <Kbd>{bindingLabel(current)}</Kbd>
                       {isCustom && (
-                        <span className="ml-0.5 rounded bg-blue-100 px-1 py-0.5 text-[10px] font-medium text-blue-700">{t('custom')}</span>
+                        <span className="ml-0.5 rounded bg-blue-100 px-1 py-0.5 text-[10px] font-medium text-blue-700">
+                          {t('custom')}
+                        </span>
                       )}
                     </button>
                   )
@@ -1617,7 +1767,9 @@ function KeyBindingsSection() {
                   <button
                     type="button"
                     className="text-xs text-zinc-400 hover:text-zinc-600"
-                    onClick={() => { resetBinding(shortcut.id); }}
+                    onClick={() => {
+                      resetBinding(shortcut.id);
+                    }}
                     title={t('Reset to Default')}
                   >
                     {t('Reset')}

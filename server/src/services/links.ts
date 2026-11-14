@@ -1,5 +1,5 @@
 import type { CreateTaskLinkBody, TaskLink } from '@app/shared';
-import { asc, eq } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { taskLinks, tasks } from '../db/schema';
 import type { Db } from '../db/types';
 import { ServiceError } from '../lib/errors';
@@ -11,15 +11,6 @@ const linkSelection = {
   url: taskLinks.url,
   label: taskLinks.label,
 };
-
-export function listLinks(db: Db, taskId: string): TaskLink[] {
-  return db
-    .select(linkSelection)
-    .from(taskLinks)
-    .where(eq(taskLinks.taskId, taskId))
-    .orderBy(asc(taskLinks.id))
-    .all();
-}
 
 /** FR-16: the label is derived on save unless the caller supplies one. */
 export function addLink(db: Db, taskId: string, body: CreateTaskLinkBody): TaskLink {

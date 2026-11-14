@@ -8,6 +8,8 @@ import {
   type UpdateTaskBody,
 } from '@app/shared';
 import {
+  lazy,
+  Suspense,
   useEffect,
   useRef,
   useState,
@@ -34,6 +36,7 @@ import {
 } from '../api/taskDetail';
 import { useDeleteTask, useUpdateTask } from '../api/tasks';
 import { cx } from '../lib/cx';
+import { loadMarkdownEditor } from '../lib/deferredChunks';
 import { useT } from '../lib/i18n';
 import { recurrenceOptions } from '../lib/recurrence';
 import { confirmAction } from '../store/confirm';
@@ -45,13 +48,21 @@ import { DatePicker } from './DatePicker';
 import { Field, Input, Select } from './Field';
 import { InlineError } from './InlineError';
 import { Kbd } from './Kbd';
-import { MarkdownEditor } from './MarkdownEditor';
+
+const MarkdownEditor = lazy(async () => ({ default: (await loadMarkdownEditor()).MarkdownEditor }));
+
+/** Same footprint as the editor, so the drawer doesn't jump when it arrives. */
+function NotesPlaceholder() {
+  return <div className="min-h-[122px] rounded-[10px] border border-zinc-200 bg-white" />;
+}
 
 type FormState = {
   title: string;
   notes: string;
   statusId: string;
   priority: Priority;
+  startDate: string;
+  endDate: string;
   dueDate: string;
   dueTime: string;
   estimateMinutes: string;
@@ -66,6 +77,8 @@ function toForm(task: TaskDetail): FormState {
     notes: task.notes ?? '',
     statusId: task.statusId,
     priority: task.priority,
+    startDate: task.startDate ?? '',
+    endDate: task.endDate ?? '',
     dueDate: task.dueDate ?? '',
     dueTime: task.dueTime ?? '',
     estimateMinutes: task.estimateMinutes === null ? '' : String(task.estimateMinutes),
@@ -87,6 +100,11 @@ function toPatch(task: TaskDetail, form: FormState): UpdateTaskBody {
 
   if (form.statusId !== task.statusId) patch.statusId = form.statusId;
   if (form.priority !== task.priority) patch.priority = form.priority;
+
+  const startDate = form.startDate === '' ? null : form.startDate;
+  if (startDate !== task.startDate) patch.startDate = startDate;
+  const endDate = form.endDate === '' ? null : form.endDate;
+  if (endDate !== task.endDate) patch.endDate = endDate;
 
   const dueDate = form.dueDate === '' ? null : form.dueDate;
   if (dueDate !== task.dueDate) patch.dueDate = dueDate;
@@ -168,6 +186,11 @@ export function TaskDrawer() {
 
     if (form.title.trim() === '') {
       setError(t('A task needs a title.'));
+      return;
+    }
+
+    if (form.startDate !== '' && form.endDate !== '' && form.endDate < form.startDate) {
+      setError(t('End date cannot be before the start date.'));
       return;
     }
 
@@ -277,14 +300,16 @@ export function TaskDrawer() {
                   <div className="col-span-2">
                     <div className="flex flex-col gap-1.5">
                       <span className="text-[11px] text-zinc-500">{t('Notes')}</span>
-                      <MarkdownEditor
-                        key={task.id}
-                        value={form.notes}
-                        onChange={(notes) => {
-                          setForm({ ...form, notes });
-                        }}
-                        placeholder={t('Add notes… Markdown works as you type.')}
-                      />
+                      <Suspense fallback={<NotesPlaceholder />}>
+                        <MarkdownEditor
+                          key={task.id}
+                          value={form.notes}
+                          onChange={(notes) => {
+                            setForm({ ...form, notes });
+                          }}
+                          placeholder={t('Add notes… Markdown works as you type.')}
+                        />
+                      </Suspense>
                       <span className="text-[11px] text-zinc-500">
                         {t('Markdown is formatted inside the box as you type.')}
                       </span>
@@ -331,9 +356,7 @@ export function TaskDrawer() {
                         task.milestoneName &&
                         !(milestones.data?.milestones ?? []).some(
                           (milestone) => milestone.id === form.milestoneId,
-                        ) && (
-                          <option value={form.milestoneId}>{task.milestoneName}</option>
-                        )}
+                        ) && <option value={form.milestoneId}>{task.milestoneName}</option>}
                     </Select>
                   </Field>
 
@@ -365,6 +388,26 @@ export function TaskDrawer() {
                     </Select>
                   </Field>
 
+                  <Field label={t('Start Date')}>
+                    <DatePicker
+                      value={form.startDate}
+                      max={form.endDate || undefined}
+                      onChange={(startDate) => {
+                        setForm({ ...form, startDate });
+                      }}
+                    />
+                  </Field>
+
+                  <Field label={t('End Date')}>
+                    <DatePicker
+                      value={form.endDate}
+                      min={form.startDate || undefined}
+                      onChange={(endDate) => {
+                        setForm({ ...form, endDate });
+                      }}
+                    />
+                  </Field>
+
                   <Field label={t('Due Date')}>
                     <DatePicker
                       value={form.dueDate}
@@ -389,7 +432,7 @@ export function TaskDrawer() {
                     <Input
                       type="number"
                       min={1}
-                      step={5}
+                      step={1}
                       inputMode="numeric"
                       value={form.estimateMinutes}
                       onChange={(event) => {

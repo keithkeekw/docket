@@ -90,8 +90,7 @@ export function Select({
   const t = useT();
   const emptyOption = Children.toArray(children).find(
     (child) =>
-      isValidElement(child) &&
-      String((child.props as { value?: unknown }).value ?? '') === '',
+      isValidElement(child) && String((child.props as { value?: unknown }).value ?? '') === '',
   );
   const emptyLabel =
     emptyOption && isValidElement(emptyOption)
@@ -142,11 +141,7 @@ export function Select({
 
   return (
     <div className={wrapperClassName ?? 'w-full'}>
-      <select
-        ref={ref}
-        className={cx(CONTROL, 'min-h-10', className)}
-        {...props}
-      >
+      <select ref={ref} className={cx(CONTROL, 'min-h-10', className)} {...props}>
         {children}
       </select>
     </div>

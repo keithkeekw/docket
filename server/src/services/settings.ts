@@ -1,5 +1,4 @@
 import type { ReviewSchedule, UpdateReviewScheduleBody } from '@app/shared';
-import { eq } from 'drizzle-orm';
 import { appSettings } from '../db/schema';
 import type { Db } from '../db/types';
 
@@ -50,7 +49,8 @@ export function readReviewSchedule(db: Db): ReviewSchedule {
 
 export function updateReviewSchedule(db: Db, body: UpdateReviewScheduleBody): ReviewSchedule {
   const updates: Array<[string, string]> = [];
-  if (body.enabled !== undefined) updates.push(['review_schedule_enabled', body.enabled ? '1' : '0']);
+  if (body.enabled !== undefined)
+    updates.push(['review_schedule_enabled', body.enabled ? '1' : '0']);
   if (body.frequency !== undefined) updates.push(['review_frequency', body.frequency]);
   if (body.weeklyDay !== undefined) updates.push(['weekly_review_day', String(body.weeklyDay)]);
   if (body.dailyTime !== undefined) updates.push(['daily_review_time', body.dailyTime]);
@@ -62,8 +62,4 @@ export function updateReviewSchedule(db: Db, body: UpdateReviewScheduleBody): Re
   });
 
   return readReviewSchedule(db);
-}
-
-export function deleteAppSetting(db: Db, key: string): void {
-  db.delete(appSettings).where(eq(appSettings.key, key)).run();
 }

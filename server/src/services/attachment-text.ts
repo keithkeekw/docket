@@ -84,9 +84,7 @@ export async function extractAttachmentText(
     const extension = path.extname(attachment.filename).toLowerCase();
     const mime = attachment.mimeType.toLowerCase();
     const isText =
-      TEXT_EXTENSIONS.has(extension) ||
-      mime.startsWith('text/') ||
-      mime === 'application/json';
+      TEXT_EXTENSIONS.has(extension) || mime.startsWith('text/') || mime === 'application/json';
     const isWord =
       WORD_EXTENSIONS.has(extension) ||
       mime === 'application/msword' ||

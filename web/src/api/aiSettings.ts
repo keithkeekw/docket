@@ -38,9 +38,7 @@ export function useSavePrompt() {
       (await apiMutate(`/api/settings/prompts/${id}`, 'PUT', { content }, promptResponseSchema))
         .prompt,
     onSuccess: (prompt) => {
-      queryClient.setQueryData<PromptList>(promptsQueryKey, (list) =>
-        replacePrompt(list, prompt),
-      );
+      queryClient.setQueryData<PromptList>(promptsQueryKey, (list) => replacePrompt(list, prompt));
     },
   });
 }
@@ -52,9 +50,7 @@ export function useResetPrompt() {
     mutationFn: async ({ id }) =>
       (await apiDeleteJson(`/api/settings/prompts/${id}`, promptResponseSchema)).prompt,
     onSuccess: (prompt) => {
-      queryClient.setQueryData<PromptList>(promptsQueryKey, (list) =>
-        replacePrompt(list, prompt),
-      );
+      queryClient.setQueryData<PromptList>(promptsQueryKey, (list) => replacePrompt(list, prompt));
     },
   });
 }

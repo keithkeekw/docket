@@ -1,10 +1,21 @@
 import { useEffect, useRef } from 'react';
 import { cx } from '../lib/cx';
-import { useLocale, useT } from '../lib/i18n';
+import { translate, useLocale, useT } from '../lib/i18n';
 import { ensurePrelineCollections } from '../lib/preline';
 import { controlClassName } from './Field';
 
 type DatepickerInstance = { destroy: () => void };
+
+const EARLIEST_DATE = '1970-01-01';
+const CHEVRON_LEFT =
+  'M11.78 5.22a.75.75 0 0 1 0 1.06L8.06 10l3.72 3.72a.75.75 0 1 1-1.06 1.06l-4.25-4.25a.75.75 0 0 1 0-1.06l4.25-4.25a.75.75 0 0 1 1.06 0Z';
+const CHEVRON_RIGHT =
+  'M8.22 5.22a.75.75 0 0 1 1.06 0l4.25 4.25a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06-1.06L11.94 10 8.22 6.28a.75.75 0 0 1 0-1.06Z';
+
+function arrowTemplate(direction: 'prev' | 'next', label: string, path: string): string {
+  const safeLabel = label.replace(/"/g, '&quot;');
+  return `<button type="button" data-vc-arrow="${direction}" aria-label="${safeLabel}"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="size-4 shrink-0" aria-hidden="true"><path fill-rule="evenodd" clip-rule="evenodd" d="${path}" /></svg></button>`;
+}
 
 /**
  * Preline's Advanced Datepicker wrapped for React. The plugin writes the
@@ -71,11 +82,15 @@ export function DatePicker({
 
     // Native dialogs live in the browser's top layer, so a calendar appended
     // to <body> would paint behind them. Move it inside the open dialog.
+    // Several pickers can share one dialog; only the opened one's calendar is shown.
+    const ownCalendar = (): HTMLElement | null =>
+      document.querySelector<HTMLElement>('.vc[data-vc-input]:not([data-vc-calendar-hidden])');
+
     const moveIntoDialog = () => {
       const dialog = el.closest('dialog');
       if (!dialog) return;
-      const calendar = document.querySelector('.vc[data-vc-input]');
-      if (!calendar) return;
+      const calendar = ownCalendar();
+      if (!calendar?.isConnected) return;
 
       if (calendar.parentElement !== dialog) dialog.appendChild(calendar);
 
@@ -101,8 +116,8 @@ export function DatePicker({
     const handleOpen = () => {
       window.setTimeout(() => {
         moveIntoDialog();
-        const calendar = document.querySelector('.vc[data-vc-input]');
-        if (calendar) adjustPosition(calendar);
+        const calendar = ownCalendar();
+        if (calendar?.isConnected) adjustPosition(calendar);
       }, 60);
     };
 
@@ -136,8 +151,14 @@ export function DatePicker({
           inputModeOptions: { dateSeparator: '-', closeOnSelect: true },
           applyUtilityClasses: true,
           showTodayButton: true,
-          ...(min ? { dateMin: min } : {}),
+          // Preline's own minimum is today, which hides the previous-month arrow.
+          dateMin: min ?? EARLIEST_DATE,
           ...(max ? { dateMax: max } : {}),
+          // The utility stylesheet styles the arrow buttons but draws no icon.
+          templates: {
+            arrowPrev: arrowTemplate('prev', translate(locale, 'Previous Month'), CHEVRON_LEFT),
+            arrowNext: arrowTemplate('next', translate(locale, 'Next Month'), CHEVRON_RIGHT),
+          },
         }),
       );
 
@@ -213,7 +234,13 @@ export function DatePicker({
           title={t('Clear date')}
           className="absolute top-1/2 right-2 inline-flex size-6 -translate-y-1/2 items-center justify-center rounded-md text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
         >
-          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-3.5" aria-hidden="true">
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            viewBox="0 0 20 20"
+            fill="currentColor"
+            className="size-3.5"
+            aria-hidden="true"
+          >
             <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
           </svg>
         </button>
@@ -225,7 +252,11 @@ export function DatePicker({
           className="pointer-events-none absolute top-1/2 right-3 size-4 -translate-y-1/2 text-zinc-400"
           aria-hidden="true"
         >
-          <path fillRule="evenodd" d="M5.75 2a.75.75 0 0 1 .75.75V4h7V2.75a.75.75 0 0 1 1.5 0V4h.25A2.75 2.75 0 0 1 18 6.75v8.5A2.75 2.75 0 0 1 15.25 18H4.75A2.75 2.75 0 0 1 2 15.25v-8.5A2.75 2.75 0 0 1 4.75 4H5V2.75A.75.75 0 0 1 5.75 2Zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75Z" clipRule="evenodd" />
+          <path
+            fillRule="evenodd"
+            d="M5.75 2a.75.75 0 0 1 .75.75V4h7V2.75a.75.75 0 0 1 1.5 0V4h.25A2.75 2.75 0 0 1 18 6.75v8.5A2.75 2.75 0 0 1 15.25 18H4.75A2.75 2.75 0 0 1 2 15.25v-8.5A2.75 2.75 0 0 1 4.75 4H5V2.75A.75.75 0 0 1 5.75 2Zm-1 5.5c-.69 0-1.25.56-1.25 1.25v6.5c0 .69.56 1.25 1.25 1.25h10.5c.69 0 1.25-.56 1.25-1.25v-6.5c0-.69-.56-1.25-1.25-1.25H4.75Z"
+            clipRule="evenodd"
+          />
         </svg>
       )}
     </div>

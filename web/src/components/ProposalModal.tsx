@@ -22,7 +22,12 @@ const OP_LABEL: Record<ProposalItem['op'], string> = {
   create_milestone: 'New Milestone',
 };
 
-const TASK_OPS = new Set<ProposalItem['op']>(['create_task', 'update_task', 'move_task', 'delete_task']);
+const TASK_OPS = new Set<ProposalItem['op']>([
+  'create_task',
+  'update_task',
+  'move_task',
+  'delete_task',
+]);
 
 type Draft = { item: ProposalItem; included: boolean; title: string };
 
@@ -223,43 +228,46 @@ export function ProposalModal() {
                       />
                     </dl>
                   ) : (
-                  <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
-                    <Field
-                      label={t('Project')}
-                      value={draft.item.display.projectName ?? t('Inbox')}
-                    />
-                    <Field label={t('Milestone')} value={draft.item.display.milestoneName ?? '—'} />
-                    <Field
-                      label={t('Status')}
-                      value={draft.item.display.statusName ?? t('To do')}
-                    />
-                    <Field
-                      label={t('Priority')}
-                      value={draft.item.fields.priority ? `P${draft.item.fields.priority}` : '—'}
-                    />
-                    <Field label={t('Due')} value={draft.item.fields.dueDate ?? '—'} />
-                    <Field
-                      label={t('Estimate')}
-                      value={
-                        draft.item.fields.estimateMinutes
-                          ? `${draft.item.fields.estimateMinutes}m`
-                          : '—'
-                      }
-                    />
-                    <Field label={t('Tags')} value={draft.item.fields.tags?.join(', ') ?? '—'} />
-                    <Field
-                      label={t('Link')}
-                      value={
-                        draft.item.fields.link ? (
-                          <LinkBadge href={draft.item.fields.link.url}>
-                            {draft.item.fields.link.label ?? draft.item.fields.link.url}
-                          </LinkBadge>
-                        ) : (
-                          '—'
-                        )
-                      }
-                    />
-                  </dl>
+                    <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
+                      <Field
+                        label={t('Project')}
+                        value={draft.item.display.projectName ?? t('Inbox')}
+                      />
+                      <Field
+                        label={t('Milestone')}
+                        value={draft.item.display.milestoneName ?? '—'}
+                      />
+                      <Field
+                        label={t('Status')}
+                        value={draft.item.display.statusName ?? t('To do')}
+                      />
+                      <Field
+                        label={t('Priority')}
+                        value={draft.item.fields.priority ? `P${draft.item.fields.priority}` : '—'}
+                      />
+                      <Field label={t('Due')} value={draft.item.fields.dueDate ?? '—'} />
+                      <Field
+                        label={t('Estimate')}
+                        value={
+                          draft.item.fields.estimateMinutes
+                            ? `${draft.item.fields.estimateMinutes}m`
+                            : '—'
+                        }
+                      />
+                      <Field label={t('Tags')} value={draft.item.fields.tags?.join(', ') ?? '—'} />
+                      <Field
+                        label={t('Link')}
+                        value={
+                          draft.item.fields.link ? (
+                            <LinkBadge href={draft.item.fields.link.url}>
+                              {draft.item.fields.link.label ?? draft.item.fields.link.url}
+                            </LinkBadge>
+                          ) : (
+                            '—'
+                          )
+                        }
+                      />
+                    </dl>
                   )}
 
                   {draft.item.aiNote && (

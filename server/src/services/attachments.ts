@@ -36,18 +36,23 @@ function safeFilename(name: string): string {
 
 /** Random on-disk name so two uploads called "notes.txt" never collide. */
 function storageNameFor(filename: string): string {
-  const extension = path.extname(filename).replace(/[^.\w-]/g, '').slice(0, 20);
+  const extension = path
+    .extname(filename)
+    .replace(/[^.\w-]/g, '')
+    .slice(0, 20);
   return `${randomUUID()}${extension}`;
 }
 
 export function listAttachments(db: Db, taskId: string): TaskAttachment[] {
-  return db
-    .select(attachmentSelection)
-    .from(taskAttachments)
-    .where(eq(taskAttachments.taskId, taskId))
-    // Uploads within the same millisecond keep insertion order (SQLite rowid).
-    .orderBy(asc(taskAttachments.createdAt), sql`rowid`)
-    .all();
+  return (
+    db
+      .select(attachmentSelection)
+      .from(taskAttachments)
+      .where(eq(taskAttachments.taskId, taskId))
+      // Uploads within the same millisecond keep insertion order (SQLite rowid).
+      .orderBy(asc(taskAttachments.createdAt), sql`rowid`)
+      .all()
+  );
 }
 
 /** `POST /api/tasks/:id/attachments` — bytes on disk, metadata in SQLite. */

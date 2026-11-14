@@ -89,7 +89,10 @@ export async function generateProjectSummary(
       : `Open tasks (${open.length}${open.length > shownOpen.length ? `, first ${shownOpen.length} shown` : ''}):\n${shownOpen.map(describeTask).join('\n')}`,
     recentlyCompleted.length > 0
       ? `Recently completed (newest first):\n${recentlyCompleted
-          .map((t) => `- ${t.title} [done ${t.completedAt ? localDateString(new Date(t.completedAt)) : ''}]`)
+          .map(
+            (t) =>
+              `- ${t.title} [done ${t.completedAt ? localDateString(new Date(t.completedAt)) : ''}]`,
+          )
           .join('\n')}`
       : 'Recently completed: none',
   ];

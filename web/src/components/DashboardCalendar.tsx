@@ -58,6 +58,7 @@ function DayTasksPopover({
               <li key={task.id}>
                 <button
                   type="button"
+                  data-task-id={task.id}
                   onClick={() => {
                     openTask(task);
                   }}
