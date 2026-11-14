@@ -73,7 +73,7 @@ export function ThemeToggle() {
           aria-label={t('Theme: {theme}. Open theme menu', { theme: label })}
           aria-haspopup="menu"
           aria-expanded={open}
-          className="inline-flex size-9 items-center justify-center rounded-full border border-zinc-200 bg-white/90 text-zinc-600 shadow-sm backdrop-blur transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+          className="inline-flex size-8 items-center justify-center rounded-full border border-zinc-200 bg-white/90 text-zinc-600 shadow-sm backdrop-blur transition-colors hover:bg-zinc-50 hover:text-zinc-900"
         >
           <ThemeIcon mode={mode} />
         </button>
@@ -83,7 +83,7 @@ export function ThemeToggle() {
         <div
           role="menu"
           aria-label={t('Theme')}
-          className="absolute top-11 right-0 w-44 rounded-xl border border-zinc-200 bg-white p-1 shadow-2xl"
+          className="absolute top-10 right-0 w-44 rounded-xl border border-zinc-200 bg-white p-1 shadow-2xl"
         >
           <p className="px-2 py-1 text-[10px] font-medium tracking-wide text-zinc-400 uppercase">
             {t('Theme')}

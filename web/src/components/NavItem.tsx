@@ -51,7 +51,7 @@ export function NavItem({
             <span className="relative inline-flex min-w-4 items-center justify-center tabular-nums">
               <span
                 aria-hidden="true"
-                className="absolute inline-flex size-full animate-ping rounded-full bg-zinc-400/50 [animation-duration:2.5s] motion-reduce:animate-none"
+                className="absolute inline-flex size-full animate-ping rounded-full bg-red-300/60 [animation-duration:2.5s] motion-reduce:animate-none"
               />
               <span className="relative text-xs text-zinc-500">{count}</span>
             </span>

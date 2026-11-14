@@ -90,7 +90,8 @@ export const common: Record<string, string> = {
   Yesterday: '昨天',
 
   // Empty and error states
-  'Nothing due.': '没有到期的任务。',
+  'Nothing due. Your to-do list is officially a to-done list.':
+    '没有到期的任务。你的待办清单已正式升级为“已办清单”。',
   'Nothing due today.': '今天没有到期的任务。',
   'Inbox is empty.': '收件箱是空的。',
   'No tasks yet.': '还没有任务。',

@@ -127,6 +127,8 @@ export const dialogs: Record<string, string> = {
   'for AI': 'AI 解析',
   'Thinking…': '正在思考…',
   'Add to Inbox': '添加到收件箱',
+  'Add multiple tasks': '连续添加多个任务',
+  'Added “{title}”.': '已添加“{title}”。',
 
   // Proposal modal
   'Could not add those tasks': '无法添加这些任务',

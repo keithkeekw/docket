@@ -31,15 +31,15 @@ export function lastWeeklySlot(now: Date, isoDay: number, time: string): Date {
  * first start after the scheduled time catches up once.
  */
 export function dueReviews(settings: ScheduleSettings, now: Date): ReviewKind[] {
-  const due: ReviewKind[] = [];
+  if (!settings.enabled) return [];
 
-  const dailySlot = atTime(now, settings.dailyTime);
-  const lastDaily = settings.lastDailyAt ? new Date(settings.lastDailyAt) : null;
-  if (now >= dailySlot && (!lastDaily || lastDaily < dailySlot)) due.push('daily');
+  if (settings.frequency === 'daily') {
+    const dailySlot = atTime(now, settings.dailyTime);
+    const lastDaily = settings.lastDailyAt ? new Date(settings.lastDailyAt) : null;
+    return now >= dailySlot && (!lastDaily || lastDaily < dailySlot) ? ['daily'] : [];
+  }
 
   const weeklySlot = lastWeeklySlot(now, settings.weeklyDay, settings.weeklyTime);
   const lastWeekly = settings.lastWeeklyAt ? new Date(settings.lastWeeklyAt) : null;
-  if (now >= weeklySlot && (!lastWeekly || lastWeekly < weeklySlot)) due.push('weekly');
-
-  return due;
+  return now >= weeklySlot && (!lastWeekly || lastWeekly < weeklySlot) ? ['weekly'] : [];
 }

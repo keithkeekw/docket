@@ -9,6 +9,12 @@ const FEATURE = { daily: 'review_daily', weekly: 'review_weekly' } as const;
 
 type ReviewKind = keyof typeof FEATURE;
 
+export type Scheduler = {
+  /** Re-read Settings → Reviews and replace the cron job. No catch-up runs. */
+  reschedule: () => void;
+  stop: () => void;
+};
+
 /** Reviews only run while the server runs (TECHSTACK §7). */
 async function run(db: Db, kind: ReviewKind, source: 'schedule' | 'catch-up'): Promise<void> {
   if (!featureConfig(db, FEATURE[kind])) return;
@@ -25,30 +31,48 @@ async function run(db: Db, kind: ReviewKind, source: 'schedule' | 'catch-up'): P
   }
 }
 
+function cronExpression(time: string, cronDay: string): string {
+  const [hours, minutes] = time.split(':').map(Number);
+  return `${minutes ?? 0} ${hours ?? 7} * * ${cronDay}`;
+}
+
 /**
- * Node-cron jobs for the times in `app_settings`, plus the catch-up sweep at
- * start. Returns a stop function so tests and shutdown can clear the timers.
+ * One node-cron job for the frequency chosen in Settings → Reviews, plus the
+ * catch-up sweep at start. Turning reviews off leaves no job at all.
  */
-export function startScheduler(db: Db, now: Date = new Date()): () => void {
-  const settings = readSchedule(db);
-  const [dailyHours, dailyMinutes] = settings.dailyTime.split(':').map(Number);
-  const [weeklyHours, weeklyMinutes] = settings.weeklyTime.split(':').map(Number);
-  const weeklyCronDay = settings.weeklyDay === 7 ? 0 : settings.weeklyDay;
+export function startScheduler(db: Db, now: Date = new Date()): Scheduler {
+  let job: ReturnType<typeof cron.schedule> | null = null;
 
-  const jobs = [
-    cron.schedule(`${dailyMinutes ?? 0} ${dailyHours ?? 7} * * *`, () => {
-      void run(db, 'daily', 'schedule');
-    }),
-    cron.schedule(`${weeklyMinutes ?? 0} ${weeklyHours ?? 7} * * ${weeklyCronDay}`, () => {
-      void run(db, 'weekly', 'schedule');
-    }),
-  ];
+  function reschedule(): void {
+    job?.stop();
+    job = null;
 
-  for (const kind of dueReviews(settings, now)) {
+    const settings = readSchedule(db);
+    if (!settings.enabled) return;
+
+    if (settings.frequency === 'daily') {
+      job = cron.schedule(cronExpression(settings.dailyTime, '*'), () => {
+        void run(db, 'daily', 'schedule');
+      });
+    } else {
+      const cronDay = settings.weeklyDay === 7 ? 0 : settings.weeklyDay;
+      job = cron.schedule(cronExpression(settings.weeklyTime, String(cronDay)), () => {
+        void run(db, 'weekly', 'schedule');
+      });
+    }
+  }
+
+  reschedule();
+
+  for (const kind of dueReviews(readSchedule(db), now)) {
     void run(db, kind, 'catch-up');
   }
 
-  return () => {
-    for (const job of jobs) job.stop();
+  return {
+    reschedule,
+    stop: () => {
+      job?.stop();
+      job = null;
+    },
   };
 }

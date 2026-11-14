@@ -374,6 +374,35 @@ describe('GET /api/tasks', () => {
     expect(response.status).toBe(400);
   });
 
+  it('bulk-restores completed tasks and skips ones that are already open', async () => {
+    const alpha = taskResponseSchema.parse((await createTask({ title: 'Alpha' })).body).task;
+    const beta = taskResponseSchema.parse((await createTask({ title: 'Beta' })).body).task;
+    const gamma = taskResponseSchema.parse((await createTask({ title: 'Gamma' })).body).task;
+
+    for (const id of [alpha.id, beta.id]) {
+      await app.request(`/api/tasks/${id}/complete`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ done: true }),
+      });
+    }
+
+    const response = await app.request('/api/tasks/bulk-restore', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ ids: [alpha.id, beta.id, gamma.id] }),
+    });
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ restored: 2 });
+    expect((await listTasks('?completed=only')).body.tasks).toEqual([]);
+    expect((await listTasks()).body.tasks.map((task) => task.title).sort()).toEqual([
+      'Alpha',
+      'Beta',
+      'Gamma',
+    ]);
+  });
+
   it('filters by due date and searches title and notes', async () => {
     await createTask({
       title: 'Reply on vendor escalation',

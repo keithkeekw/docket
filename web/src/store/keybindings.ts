@@ -14,11 +14,13 @@ export type KeyBinding = {
 
 const STORAGE_KEY = 'docket:keybindings';
 
+const RETIRED_ASK_ASSISTANT = 'ctrl+alt+shift+meta+a';
+
 const DEFAULT_BINDINGS: Record<string, string> = {
   quickCapture: 'mod+k',
   aiCapture: 'mod+enter',
   toggleSidebar: 'x',
-  askAssistant: 'ctrl+alt+shift+meta+a',
+  askAssistant: 'ctrl+a',
   shortcutHelp: 'shift+space',
   commandPalette: 'mod+p',
   ...Object.fromEntries(NAV_SHORTCUTS.map((shortcut) => [shortcut.id, shortcut.binding])),
@@ -28,7 +30,11 @@ function loadBindings(): Record<string, string> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULT_BINDINGS;
-    return { ...DEFAULT_BINDINGS, ...JSON.parse(raw) };
+    const saved = JSON.parse(raw) as Record<string, string>;
+    // Saving any binding stores the whole map, so an untouched old default
+    // would otherwise outlive a change to the default.
+    if (saved.askAssistant === RETIRED_ASK_ASSISTANT) delete saved.askAssistant;
+    return { ...DEFAULT_BINDINGS, ...saved };
   } catch {
     return DEFAULT_BINDINGS;
   }
@@ -98,14 +104,14 @@ export const ALL_SHORTCUTS: KeyBinding[] = [
     id: 'askAssistant',
     label: 'Ask Assistant',
     description: 'Open the assistant drawer from anywhere',
-    binding: 'ctrl+alt+shift+meta+a',
-    defaultBinding: 'ctrl+alt+shift+meta+a',
+    binding: 'ctrl+a',
+    defaultBinding: 'ctrl+a',
     configurable: true,
   },
   {
     id: 'commandPalette',
     label: 'Command Palette',
-    description: 'Search and jump to pages, projects and actions',
+    description: 'Search and jump to pages, projects, tasks and actions',
     binding: 'mod+p',
     defaultBinding: 'mod+p',
     configurable: true,

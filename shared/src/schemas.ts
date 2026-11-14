@@ -246,6 +246,13 @@ export const bulkDeleteTasksResponseSchema = z.object({
   deleted: z.number().int().nonnegative(),
 });
 
+/** Logbook: reopen completed tasks in one go. */
+export const bulkRestoreTasksBodySchema = bulkDeleteTasksBodySchema;
+
+export const bulkRestoreTasksResponseSchema = z.object({
+  restored: z.number().int().nonnegative(),
+});
+
 export const createChecklistItemBodySchema = z.strictObject({
   title: z.string().trim().min(1).max(500),
   position: z.number().int().nonnegative().optional(),
@@ -275,6 +282,7 @@ export type UpdateChecklistItemBody = z.infer<typeof updateChecklistItemBodySche
 export type CreateTaskLinkBody = z.infer<typeof createTaskLinkBodySchema>;
 export type ReorderTasksBody = z.infer<typeof reorderTasksBodySchema>;
 export type BulkDeleteTasksBody = z.infer<typeof bulkDeleteTasksBodySchema>;
+export type BulkRestoreTasksBody = z.infer<typeof bulkRestoreTasksBodySchema>;
 
 // ---------------------------------------------------------------------------
 // Projects (FR-6, FR-9) and milestones (FR-7)
@@ -425,6 +433,25 @@ export const generateReviewBodySchema = z.strictObject({
   kind: z.enum(['daily', 'weekly', 'manual']),
 });
 
+const clockTimeSchema = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a 24-hour HH:MM time');
+
+/**
+ * Settings → Reviews. Only the selected frequency is scheduled; each keeps its
+ * own time so switching back restores it. `weeklyDay` is ISO (Monday 1 … Sunday 7).
+ */
+export const reviewScheduleSchema = z.object({
+  enabled: z.boolean(),
+  frequency: z.enum(['daily', 'weekly']),
+  weeklyDay: z.number().int().min(1).max(7),
+  dailyTime: clockTimeSchema,
+  weeklyTime: clockTimeSchema,
+});
+
+export const updateReviewScheduleBodySchema = reviewScheduleSchema.partial().strict();
+
+export type ReviewSchedule = z.infer<typeof reviewScheduleSchema>;
+export type UpdateReviewScheduleBody = z.infer<typeof updateReviewScheduleBodySchema>;
+
 export type ReviewSummary = z.infer<typeof reviewSummarySchema>;
 export type ReviewList = z.infer<typeof reviewListSchema>;
 export type ReviewKind = z.infer<typeof reviewSchema.shape.kind>;
@@ -503,12 +530,37 @@ export const aiFeatureSchema = z.enum([
   'chat',
 ]);
 
-export const aiProviderSchema = z.enum(['deepseek', 'openrouter']);
+export const aiProviderSchema = z.enum([
+  'deepseek',
+  'openrouter',
+  'openai',
+  'gemini',
+  'anthropic',
+  'mistral',
+  'qwen',
+]);
 
-/** Which providers have a key on this machine. The key itself never leaves the server. */
+/** Display and settings order. */
+export const AI_PROVIDERS = aiProviderSchema.options;
+
+/**
+ * Which providers have a key on this machine. The key itself never leaves the
+ * server: `source` says where it came from and `hint` is its last 4 characters.
+ */
 export const aiProviderStatusSchema = z.object({
   provider: aiProviderSchema,
   configured: z.boolean(),
+  source: z.enum(['settings', 'env']).nullable(),
+  hint: z.string().nullable(),
+});
+
+export const updateAiProviderKeyBodySchema = z.strictObject({
+  apiKey: z
+    .string()
+    .trim()
+    .min(1)
+    .max(500)
+    .regex(/^\S+$/, 'An API key cannot contain spaces'),
 });
 
 /** `provider: null` means the feature is not configured. */
@@ -542,6 +594,7 @@ export type AiProviderStatus = z.infer<typeof aiProviderStatusSchema>;
 export type AiFeatureSetting = z.infer<typeof aiFeatureSettingSchema>;
 export type AiSettings = z.infer<typeof aiSettingsSchema>;
 export type UpdateAiSettingsBody = z.infer<typeof updateAiSettingsBodySchema>;
+export type UpdateAiProviderKeyBody = z.infer<typeof updateAiProviderKeyBodySchema>;
 
 /** Prompt catalogue shown in Settings → Prompt Management. */
 export const promptEntrySchema = z.object({
@@ -581,6 +634,7 @@ export const proposalOpSchema = z.enum([
   'update_task',
   'move_task',
   'delete_task',
+  'create_project',
   'create_milestone',
 ]);
 
@@ -597,6 +651,11 @@ export const proposalItemFieldsSchema = z.object({
   estimateMinutes: z.number().int().positive().nullable().optional(),
   /** A milestone proposed in the same proposal, referenced by name until it exists. */
   milestoneRef: z.string().min(1).max(200).nullable().optional(),
+  /** A project proposed in the same proposal, referenced by name until it exists. */
+  projectRef: z.string().min(1).max(200).nullable().optional(),
+  /** Only for `create_project`. */
+  description: z.string().max(5_000).optional(),
+  targetDate: localDateSchema.nullable().optional(),
   tags: z.array(z.string().min(1).max(40)).max(20).optional(),
   link: z
     .object({ url: z.string().min(1), label: z.string().min(1).max(40).optional() })
@@ -615,7 +674,7 @@ export const proposalItemSchema = z.object({
   id: z.string().min(1),
   op: proposalOpSchema,
   targetId: z.string().nullable().optional(),
-  /** Only for `create_milestone`: the name tasks in this proposal point at. */
+  /** For `create_project` and `create_milestone`: the name later items point at. */
   ref: z.string().min(1).max(200).nullable().optional(),
   fields: proposalItemFieldsSchema,
   display: proposalItemDisplaySchema,

@@ -9,3 +9,13 @@ export function localDateString(date: Date = new Date()): string {
   const day = String(date.getDate()).padStart(2, '0');
   return `${year}-${month}-${day}`;
 }
+
+/** English weekday name for a local date. Models miscount weekdays from a bare date. */
+export function localWeekday(date: Date = new Date()): string {
+  return date.toLocaleDateString('en-US', { weekday: 'long' });
+}
+
+/** "Friday, 13 November", for headings the model should copy rather than compute. */
+export function localDayLabel(date: Date = new Date()): string {
+  return date.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' });
+}

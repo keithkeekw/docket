@@ -1,16 +1,24 @@
 import {
   bulkDeleteTasksResponseSchema,
+  bulkRestoreTasksResponseSchema,
   reorderTasksResponseSchema,
   taskListSchema,
   taskResponseSchema,
   type BulkDeleteTasksBody,
+  type BulkRestoreTasksBody,
   type CreateTaskBody,
   type ReorderTasksBody,
   type Task,
   type TaskList,
   type UpdateTaskBody,
 } from '@app/shared';
-import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query';
 import { taskFilterQuery, type TaskFilter } from '../lib/taskFilters';
 import { apiDelete, apiGet, apiMutate } from './client';
 import { navQueryKey } from './nav';
@@ -29,11 +37,12 @@ export function taskFilterKey(filter: TaskFilter) {
   return [...TASKS_KEY, queryString(filter)] as const;
 }
 
-export function useTasks(filter: TaskFilter, enabled = true) {
+export function useTasks(filter: TaskFilter, enabled = true, keepPrevious = false) {
   return useQuery<TaskList>({
     queryKey: taskFilterKey(filter),
     queryFn: ({ signal }) => apiGet(`/api/tasks${queryString(filter)}`, taskListSchema, signal),
     enabled,
+    placeholderData: keepPrevious ? keepPreviousData : undefined,
   });
 }
 
@@ -188,6 +197,33 @@ export function useBulkDeleteTasks() {
   >({
     mutationFn: async (body) =>
       apiMutate('/api/tasks/bulk-delete', 'POST', body, bulkDeleteTasksResponseSchema),
+    onMutate: async ({ ids }) => {
+      await queryClient.cancelQueries({ queryKey: TASKS_KEY });
+      const snapshot = snapshotTaskLists(queryClient);
+      dropCachedTasks(queryClient, new Set(ids));
+      return { snapshot };
+    },
+    onError: (_error, _variables, context) => {
+      if (context) restoreTaskLists(queryClient, context.snapshot);
+    },
+    onSuccess: () => {
+      invalidateTaskData(queryClient);
+    },
+  });
+}
+
+/** Logbook "Restore": the rows leave the completed list at once. */
+export function useBulkRestoreTasks() {
+  const queryClient = useQueryClient();
+
+  return useMutation<
+    { restored: number },
+    Error,
+    BulkRestoreTasksBody,
+    { snapshot: TaskSnapshot }
+  >({
+    mutationFn: async (body) =>
+      apiMutate('/api/tasks/bulk-restore', 'POST', body, bulkRestoreTasksResponseSchema),
     onMutate: async ({ ids }) => {
       await queryClient.cancelQueries({ queryKey: TASKS_KEY });
       const snapshot = snapshotTaskLists(queryClient);

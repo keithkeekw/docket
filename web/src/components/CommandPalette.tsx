@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent, type MouseEve
 import { useHotkeys } from 'react-hotkeys-hook';
 import { useNavigate } from 'react-router';
 import { useNavSummary } from '../api/nav';
+import { useTasks } from '../api/tasks';
 import { cx } from '../lib/cx';
 import { useT } from '../lib/i18n';
 import { useKeybindingsStore } from '../store/keybindings';
@@ -14,12 +15,20 @@ type Command = {
   label: string;
   group: string;
   keywords?: string;
+  /** Right-hand hint; defaults to the group name. */
+  detail?: string;
+  done?: boolean;
   run: () => void;
 };
 
+const MIN_TASK_QUERY = 2;
+const MAX_TASK_RESULTS = 8;
+const TASK_SEARCH_DELAY_MS = 200;
+
 /**
  * Cmd/Ctrl + P: a searchable overlay over every destination in the app —
- * primary pages, the project list and a few creation actions. Arrow keys move
+ * primary pages, the project list, a few creation actions and, once the query
+ * has two characters, matching tasks (opened in the drawer). Arrow keys move
  * the highlight, Enter opens, Esc dismisses (native <dialog>).
  */
 export function CommandPalette() {
@@ -29,12 +38,32 @@ export function CommandPalette() {
   const openCapture = useUiStore((state) => state.openCapture);
   const openProjectDialog = useUiStore((state) => state.openProjectDialog);
   const openChat = useUiStore((state) => state.openChat);
+  const openTask = useUiStore((state) => state.openTask);
   const setThemeMode = useThemeStore((state) => state.setMode);
   const paletteKey = useKeybindingsStore((s) => s.bindings.commandPalette ?? 'mod+p');
 
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
+  const [taskQuery, setTaskQuery] = useState('');
+
+  // Pages and actions filter instantly; tasks come from the server, so wait
+  // for a pause in typing before asking.
+  useEffect(() => {
+    const term = query.trim();
+    const timer = window.setTimeout(() => {
+      setTaskQuery(term.length >= MIN_TASK_QUERY ? term : '');
+    }, TASK_SEARCH_DELAY_MS);
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [query]);
+
+  const taskSearch = useTasks(
+    { q: taskQuery, completed: 'all' },
+    isOpen && taskQuery !== '',
+    true,
+  );
 
   const dialogRef = useRef<HTMLDialogElement | null>(null);
   const inputRef = useRef<HTMLInputElement | null>(null);
@@ -110,13 +139,32 @@ export function CommandPalette() {
     ];
   }, [navigate, nav.data?.projects, openCapture, openProjectDialog, openChat, setThemeMode, t]);
 
+  const taskCommands = useMemo<Command[]>(() => {
+    if (taskQuery === '' || query.trim().length < MIN_TASK_QUERY) return [];
+
+    return (taskSearch.data?.tasks ?? []).slice(0, MAX_TASK_RESULTS).map((task) => ({
+      id: `task:${task.id}`,
+      label: task.title,
+      group: t('Tasks'),
+      detail: task.projectName ?? t('Inbox'),
+      done: task.statusCategory === 'done',
+      run: () => { openTask(task); },
+    }));
+  }, [taskQuery, query, taskSearch.data, openTask, t]);
+
   const filtered = useMemo(() => {
     const term = query.trim().toLowerCase();
     if (!term) return commands;
-    return commands.filter((command) =>
+    const matches = commands.filter((command) =>
       `${command.label} ${command.group} ${command.keywords ?? ''}`.toLowerCase().includes(term),
     );
-  }, [commands, query]);
+    return [...matches, ...taskCommands];
+  }, [commands, query, taskCommands]);
+
+  const searchingTasks =
+    query.trim().length >= MIN_TASK_QUERY &&
+    (taskQuery !== query.trim() || taskSearch.isFetching) &&
+    taskCommands.length === 0;
 
   useEffect(() => {
     const dialog = dialogRef.current;
@@ -131,17 +179,26 @@ export function CommandPalette() {
     }
   }, [isOpen]);
 
-  // Wait for the dialog to be in the top layer before moving the caret in;
-  // showModal() and the query reset both happen on the same frame.
+  // The caret must land in the search box however the palette was opened.
+  // A drawer or overlay that is closing can hand focus back to its trigger a
+  // beat later, so focus again after the next frame and after a short delay.
   useEffect(() => {
     if (!isOpen) return;
 
-    const frame = requestAnimationFrame(() => {
-      inputRef.current?.focus({ preventScroll: true });
-    });
+    const focusInput = () => {
+      const input = inputRef.current;
+      if (!input || document.activeElement === input) return;
+      input.focus({ preventScroll: true });
+      input.setSelectionRange(input.value.length, input.value.length);
+    };
+
+    focusInput();
+    const frame = requestAnimationFrame(focusInput);
+    const timer = window.setTimeout(focusInput, 60);
 
     return () => {
       cancelAnimationFrame(frame);
+      window.clearTimeout(timer);
     };
   }, [isOpen]);
 
@@ -211,13 +268,15 @@ export function CommandPalette() {
         </svg>
         <input
           ref={inputRef}
+          // showModal() focuses the [autofocus] element as the dialog opens.
+          autoFocus
           value={query}
           onChange={(event) => {
             setQuery(event.target.value);
             setActive(0);
           }}
           onKeyDown={handleInputKeyDown}
-          placeholder={t('Search Pages, Projects and Actions…')}
+          placeholder={t('Search Pages, Projects, Tasks and Actions…')}
           aria-label={t('Search Commands')}
           className="min-h-12 w-full border-0 bg-transparent px-0 text-sm text-zinc-900 placeholder:text-zinc-400 focus:outline-none focus:ring-0"
         />
@@ -225,7 +284,7 @@ export function CommandPalette() {
       </div>
 
       <ul className="max-h-[min(56vh,420px)] overflow-y-auto overscroll-contain p-2">
-        {filtered.length === 0 && (
+        {filtered.length === 0 && !searchingTasks && (
           <li className="px-3 py-6 text-center text-sm text-zinc-500">{t('No matches.')}</li>
         )}
 
@@ -250,12 +309,27 @@ export function CommandPalette() {
                   isActive ? 'bg-zinc-100' : 'hover:bg-zinc-50',
                 )}
               >
-                <span className="truncate text-sm text-zinc-900">{command.label}</span>
-                <span className="shrink-0 text-xs text-zinc-400">{command.group}</span>
+                <span
+                  className={cx(
+                    'truncate text-sm',
+                    command.done ? 'text-zinc-500 line-through' : 'text-zinc-900',
+                  )}
+                >
+                  {command.label}
+                </span>
+                <span className="max-w-[40%] shrink-0 truncate text-xs text-zinc-400">
+                  {command.detail ?? command.group}
+                </span>
               </button>
             </li>
           );
         })}
+
+        {searchingTasks && (
+          <li className="px-3 py-2 text-xs text-zinc-400" aria-live="polite">
+            {t('Searching tasks…')}
+          </li>
+        )}
       </ul>
 
       <div className="flex flex-wrap items-center gap-1.5 border-t border-zinc-200 px-4 py-3 text-xs text-zinc-500">

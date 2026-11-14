@@ -22,8 +22,8 @@ import { toTaskRow } from '../lib/taskRow';
 import { useUiStore } from '../store/ui';
 
 /**
- * DESIGN §5.1 Dashboard: capture bar, the date as the page title with a summary
- * line, then Overdue → Today → Inbox tasks beside the active projects (FR-17).
+ * DESIGN §5.1 Dashboard: the date as the page title, the capture bar, then
+ * Overdue → Today → Inbox tasks beside the active projects (FR-17).
  * "Ask assistant" and the review card wait for M2/M3 (D10).
  */
 export function DashboardRoute() {
@@ -42,16 +42,6 @@ export function DashboardRoute() {
   const data = dashboard.data;
   const day = data ? parse(data.date, 'yyyy-MM-dd', new Date()) : new Date();
 
-  const counts = data?.counts ?? { overdue: 0, today: 0, inbox: 0 };
-  const summary =
-    [
-      counts.today > 0 ? t('{count} due today', { count: counts.today }) : null,
-      counts.overdue > 0 ? t('{count} overdue', { count: counts.overdue }) : null,
-      counts.inbox > 0 ? t('{count} in inbox', { count: counts.inbox }) : null,
-    ]
-      .filter(Boolean)
-      .join(' · ') || t('Nothing due');
-
   const groups = [
     { label: t('Overdue'), tone: 'overdue' as const, tasks: data?.groups.overdue ?? [] },
     { label: t('Today'), tone: 'default' as const, tasks: data?.groups.today ?? [] },
@@ -62,7 +52,17 @@ export function DashboardRoute() {
 
   return (
     <div className="mx-auto max-w-[1120px]">
-      <div className="flex flex-wrap items-center gap-2">
+      <header>
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
+            {format(day, locale === 'zh' ? 'M月d日 EEEE' : 'EEEE, d MMMM', { locale: dateLocale })}
+          </h1>
+        </div>
+        <DashboardClocks />
+        <YearProgress />
+      </header>
+
+      <div className="mt-6 flex flex-wrap items-center gap-2">
         <div className="min-w-0 flex-1">
           <CaptureBar />
         </div>
@@ -73,19 +73,19 @@ export function DashboardRoute() {
             aria-label={t('Ask Assistant')}
             className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
           >
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 20 20"
-            fill="currentColor"
-            className="size-5"
-            aria-hidden="true"
-          >
-            <path
-              fillRule="evenodd"
-              d="M10 2c-4.418 0-8 3.134-8 7 0 1.979.94 3.765 2.45 5.053-.14.755-.51 1.664-1.194 2.366a.75.75 0 0 0 .59 1.266c1.492-.06 2.73-.55 3.61-1.11A9.36 9.36 0 0 0 10 16c4.418 0 8-3.134 8-7s-3.582-7-8-7Zm-3 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm3 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm3 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"
-              clipRule="evenodd"
-            />
-          </svg>
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="size-5"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M10 2c-4.418 0-8 3.134-8 7 0 1.979.94 3.765 2.45 5.053-.14.755-.51 1.664-1.194 2.366a.75.75 0 0 0 .59 1.266c1.492-.06 2.73-.55 3.61-1.11A9.36 9.36 0 0 0 10 16c4.418 0 8-3.134 8-7s-3.582-7-8-7Zm-3 6a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm3 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Zm3 0a1 1 0 1 0 0 2 1 1 0 0 0 0-2Z"
+                clipRule="evenodd"
+              />
+            </svg>
           </button>
         </PrelineTooltip>
         <PrelineTooltip label={editing ? t('Done Rearranging') : t('Rearrange Cards')}>
@@ -93,7 +93,7 @@ export function DashboardRoute() {
             type="button"
             onClick={() => {
               setEditing((current) => !current);
-          }}
+            }}
             disabled={!data}
             aria-label={editing ? t('Done Rearranging') : t('Rearrange Cards')}
             aria-pressed={editing}
@@ -104,35 +104,35 @@ export function DashboardRoute() {
                 : 'border-zinc-200 bg-white text-zinc-600 hover:bg-zinc-50 hover:text-zinc-900',
             )}
           >
-          {editing ? (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              className="size-5"
-              aria-hidden="true"
-            >
-              <path
-                fillRule="evenodd"
-                d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
-                clipRule="evenodd"
-              />
-            </svg>
-          ) : (
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 16 16"
-              fill="currentColor"
-              className="size-5"
-              aria-hidden="true"
-            >
-              <circle cx="6" cy="4" r="1" />
-              <circle cx="10" cy="4" r="1" />
-              <circle cx="6" cy="8" r="1" />
-              <circle cx="10" cy="8" r="1" />
-              <circle cx="6" cy="12" r="1" />
-              <circle cx="10" cy="12" r="1" />
-            </svg>
+            {editing ? (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="size-5"
+                aria-hidden="true"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            ) : (
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                className="size-5"
+                aria-hidden="true"
+              >
+                <circle cx="6" cy="4" r="1" />
+                <circle cx="10" cy="4" r="1" />
+                <circle cx="6" cy="8" r="1" />
+                <circle cx="10" cy="8" r="1" />
+                <circle cx="6" cy="12" r="1" />
+                <circle cx="10" cy="12" r="1" />
+              </svg>
             )}
           </button>
         </PrelineTooltip>
@@ -145,17 +145,6 @@ export function DashboardRoute() {
           )}
         </p>
       )}
-
-      <header className="mt-6">
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <h1 className="text-2xl font-semibold tracking-tight text-zinc-900">
-            {format(day, locale === 'zh' ? 'M月d日 EEEE' : 'EEEE, d MMMM', { locale: dateLocale })}
-          </h1>
-          <p className="text-xs text-zinc-500">{summary}</p>
-        </div>
-        <DashboardClocks />
-        <YearProgress />
-      </header>
 
       {dashboard.isLoading && <p className="mt-6 text-sm text-zinc-500">{t('Loading…')}</p>}
 
@@ -193,138 +182,141 @@ export function DashboardRoute() {
             {
               id: 'tasks',
               title: t('Tasks'),
+              defaultColumn: 'left',
               node: (
                 <section aria-labelledby="dashboard-tasks" className="min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 id="dashboard-tasks" className="text-[15px] font-semibold text-zinc-900">
-                      {t('Tasks')}
-                    </h2>
-                    <PrelineTooltip label={t('Open in Table')}>
-                      <Link
-                        to="/tasks"
-                        aria-label={t('Open in Table')}
-                        className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
-                      >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        className="size-4"
-                        aria-hidden="true"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M.99 5.24A2.25 2.25 0 0 1 3.25 3h13.5A2.25 2.25 0 0 1 19 5.25v9.5A2.25 2.25 0 0 1 16.75 17H3.25A2.25 2.25 0 0 1 1 14.75v-9.5ZM3.25 4.5a.75.75 0 0 0-.75.75v2.25h15V5.25a.75.75 0 0 0-.75-.75H3.25ZM18.25 9H15v3.5h3.25V9Zm0 5h-3.25v1.5h1.75a.75.75 0 0 0 .75-.75V14Zm-4.75 1.5V14H9.5v1.5h4ZM8 15.5V14H1.75v.75c0 .414.336.75.75.75H8Zm-6.25-3H8V9H1.75v3.5ZM9.5 9v3.5h4V9h-4Z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
-                    </Link>
-                    </PrelineTooltip>
-                  </div>
+                  <h2 id="dashboard-tasks" className="text-[15px] font-semibold text-zinc-900">
+                    {t('Tasks')}
+                  </h2>
 
-                  {groups.length === 0 ? (
-                    <p className="mt-3 rounded-xl border border-zinc-200 bg-white px-4 py-6 text-sm text-zinc-500">
-                      {t('Nothing due.')}
-                    </p>
-                  ) : (
-                    <div className="mt-3 overflow-hidden rounded-xl border border-zinc-200 bg-white pb-1">
-                      {groups.map((group) => (
-                        <section key={group.label}>
-                          <GroupHeader
-                            label={group.label}
-                            count={group.tasks.length}
-                            tone={group.tone}
-                          />
-                          <ul>
-                            {group.tasks.map((task) => (
-                              <TaskRow
-                                key={task.id}
-                                task={toTaskRow(task)}
-                                onOpen={() => {
-                                  openTask(task);
-                                }}
-                                onToggle={(done) => {
-                                  completeTask.mutate({ id: task.id, done });
-                                }}
-                              />
-                            ))}
-                          </ul>
-                        </section>
-                      ))}
-                    </div>
-                  )}
+                  <div className="relative mt-3 overflow-hidden rounded-xl border border-zinc-200 bg-white">
+                    <span className="absolute top-1.5 right-1.5 z-10">
+                      <PrelineTooltip label={t('Open in Table')}>
+                        <Link
+                          to="/tasks"
+                          aria-label={t('Open in Table')}
+                          className="inline-flex size-7 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+                        >
+                          <svg
+                            xmlns="http://www.w3.org/2000/svg"
+                            viewBox="0 0 20 20"
+                            fill="currentColor"
+                            className="size-4"
+                            aria-hidden="true"
+                          >
+                            <path
+                              fillRule="evenodd"
+                              d="M.99 5.24A2.25 2.25 0 0 1 3.25 3h13.5A2.25 2.25 0 0 1 19 5.25v9.5A2.25 2.25 0 0 1 16.75 17H3.25A2.25 2.25 0 0 1 1 14.75v-9.5ZM3.25 4.5a.75.75 0 0 0-.75.75v2.25h15V5.25a.75.75 0 0 0-.75-.75H3.25ZM18.25 9H15v3.5h3.25V9Zm0 5h-3.25v1.5h1.75a.75.75 0 0 0 .75-.75V14Zm-4.75 1.5V14H9.5v1.5h4ZM8 15.5V14H1.75v.75c0 .414.336.75.75.75H8Zm-6.25-3H8V9H1.75v3.5ZM9.5 9v3.5h4V9h-4Z"
+                              clipRule="evenodd"
+                            />
+                          </svg>
+                        </Link>
+                      </PrelineTooltip>
+                    </span>
+
+                    {groups.length === 0 ? (
+                      <p className="py-6 pr-12 pl-4 text-sm text-zinc-500">
+                        {t('Nothing due. Your to-do list is officially a to-done list.')}
+                      </p>
+                    ) : (
+                      <div className="pb-1">
+                        {groups.map((group) => (
+                          <section key={group.label}>
+                            <GroupHeader
+                              label={group.label}
+                              count={group.tasks.length}
+                              tone={group.tone}
+                            />
+                            <ul>
+                              {group.tasks.map((task) => (
+                                <TaskRow
+                                  key={task.id}
+                                  task={toTaskRow(task)}
+                                  onOpen={() => {
+                                    openTask(task);
+                                  }}
+                                  onToggle={(done) => {
+                                    completeTask.mutate({ id: task.id, done });
+                                  }}
+                                />
+                              ))}
+                            </ul>
+                          </section>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </section>
               ),
             },
             {
               id: 'calendar',
               title: t('Calendar'),
+              defaultColumn: 'right',
               node: <DashboardCalendar />,
             },
             {
               id: 'projects',
               title: t('Active Projects'),
-              fullWidth: true,
+              defaultColumn: 'left',
               node: (
                 <section aria-labelledby="dashboard-projects" className="min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <h2 id="dashboard-projects" className="text-[15px] font-semibold text-zinc-900">
-                      {t('Active Projects')}
-                    </h2>
-                    <PrelineTooltip label={t('New Project')}>
+                  <h2 id="dashboard-projects" className="text-[15px] font-semibold text-zinc-900">
+                    {t('Active Projects')}
+                  </h2>
+
+                  {data.activeProjects.length === 0 ? (
+                    <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white px-4 py-6">
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium text-zinc-700">
+                          {t('No active projects.')}
+                        </p>
+                        <p className="mt-1 text-sm text-zinc-500">
+                          {t(
+                            'Enjoy it while it lasts — an empty list is the only list that never needs a status update.',
+                          )}
+                        </p>
+                      </div>
                       <button
                         type="button"
-                        aria-label={t('New Project')}
-                        className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+                        className="inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-3 text-[13px] font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
                         onClick={() => {
                           openProjectDialog({ mode: 'create' });
                         }}
                       >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        viewBox="0 0 20 20"
-                        fill="currentColor"
-                        className="size-4"
-                        aria-hidden="true"
-                      >
-                        <path
-                          fillRule="evenodd"
-                          d="M10 3a.75.75 0 0 1 .75.75v5.5h5.5a.75.75 0 0 1 0 1.5h-5.5v5.5a.75.75 0 0 1-1.5 0v-5.5h-5.5a.75.75 0 0 1 0-1.5h5.5v-5.5A.75.75 0 0 1 10 3Z"
-                          clipRule="evenodd"
-                        />
-                      </svg>
+                        <PlusIcon />
+                        {t('New Project')}
                       </button>
-                    </PrelineTooltip>
-                  </div>
-
-                  {data.activeProjects.length === 0 ? (
-                    <div className="mt-3 rounded-xl border border-zinc-200 bg-white px-4 py-6">
-                      <p className="text-sm font-medium text-zinc-700">
-                        {t('No active projects.')}
-                      </p>
-                      <p className="mt-1 text-sm text-zinc-500">
-                        {t(
-                          'Enjoy it while it lasts — an empty list is the only list that never needs a status update.',
-                        )}
-                      </p>
                     </div>
                   ) : (
-                    <ul className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-2.5">
-                      {data.activeProjects.map((project) => (
-                        <li key={project.id}>
-                          <ProjectCard
-                            project={project}
-                            archiving={
-                              archiveProject.isPending &&
-                              archiveProject.variables?.id === project.id
-                            }
-                            onArchive={() => {
-                              archiveProject.mutate({ id: project.id });
-                            }}
-                          />
-                        </li>
-                      ))}
-                    </ul>
+                    <>
+                      <ul className="mt-3 grid grid-cols-1 gap-2.5">
+                        {data.activeProjects.map((project) => (
+                          <li key={project.id}>
+                            <ProjectCard
+                              project={project}
+                              archiving={
+                                archiveProject.isPending &&
+                                archiveProject.variables?.id === project.id
+                              }
+                              onArchive={() => {
+                                archiveProject.mutate({ id: project.id });
+                              }}
+                            />
+                          </li>
+                        ))}
+                      </ul>
+                      <button
+                        type="button"
+                        className="mt-2 inline-flex min-h-7 items-center gap-1 rounded-md border border-dashed border-zinc-300 px-2 text-xs font-medium text-zinc-500 transition-colors hover:border-zinc-400 hover:bg-white hover:text-zinc-900"
+                        onClick={() => {
+                          openProjectDialog({ mode: 'create' });
+                        }}
+                      >
+                        <PlusIcon className="size-3.5" />
+                        {t('New Project')}
+                      </button>
+                    </>
                   )}
                 </section>
               ),
@@ -337,5 +329,23 @@ export function DashboardRoute() {
         <p className="mt-2 text-xs text-zinc-700">{generateReview.error.message}</p>
       )}
     </div>
+  );
+}
+
+function PlusIcon({ className = 'size-4' }: { className?: string }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      viewBox="0 0 20 20"
+      fill="currentColor"
+      className={className}
+      aria-hidden="true"
+    >
+      <path
+        fillRule="evenodd"
+        d="M10 3a.75.75 0 0 1 .75.75v5.5h5.5a.75.75 0 0 1 0 1.5h-5.5v5.5a.75.75 0 0 1-1.5 0v-5.5h-5.5a.75.75 0 0 1 0-1.5h5.5v-5.5A.75.75 0 0 1 10 3Z"
+        clipRule="evenodd"
+      />
+    </svg>
   );
 }

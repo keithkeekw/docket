@@ -33,7 +33,12 @@ import { getNavSummary } from './services/nav';
  */
 export function createApp(
   db: Db,
-  options: { backupsDir?: string; staticDir?: string; uploadsDir?: string } = {},
+  options: {
+    backupsDir?: string;
+    staticDir?: string;
+    uploadsDir?: string;
+    onReviewScheduleChange?: () => void;
+  } = {},
 ): Hono {
   const app = new Hono();
 
@@ -89,16 +94,20 @@ export function createApp(
   registerAiSettingsRoutes(app, db);
   registerAiRoutes(app, db, uploadsDir);
   registerProposalRoutes(app, db);
-  registerReviewRoutes(app, db);
+  registerReviewRoutes(app, db, options.onReviewScheduleChange);
   registerExportRoutes(app, db);
   registerUndoRoutes(app, db);
   registerBackupRoutes(app, db, options.backupsDir);
   registerUpdateRoutes(app);
 
   // Production: serve the built frontend and fall back to index.html for SPA routing.
+  // Unknown /api paths must stay JSON 404s: an HTML fallback there can be cached
+  // by the browser and outlive the server version that sent it.
   if (options.staticDir) {
-    app.use('/*', serveStatic({ root: options.staticDir }));
-    app.get('/*', serveStatic({ root: options.staticDir, path: 'index.html' }));
+    const assets = serveStatic({ root: options.staticDir });
+    const spa = serveStatic({ root: options.staticDir, path: 'index.html' });
+    app.use('/*', (c, next) => (c.req.path.startsWith('/api/') ? next() : assets(c, next)));
+    app.get('/*', (c, next) => (c.req.path.startsWith('/api/') ? next() : spa(c, next)));
   }
 
   // Services throw ServiceError with the intended status; anything else is a bug

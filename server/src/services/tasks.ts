@@ -7,7 +7,7 @@ import type {
   TaskLink,
   UpdateTaskBody,
 } from '@app/shared';
-import { and, asc, desc, eq, inArray, isNull, like, or, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, inArray, isNotNull, isNull, like, or, sql } from 'drizzle-orm';
 import {
   checklistItems,
   milestones,
@@ -562,6 +562,24 @@ export function reorderTasks(db: Db, ids: string[]): number {
 }
 
 /** `POST /api/tasks/bulk-delete` — one transaction, one undo entry (FR-29). */
+/**
+ * `POST /api/tasks/bulk-restore` — the Logbook's "Restore": reopen completed
+ * tasks in one transaction. Tasks that are already open, or gone, are skipped.
+ */
+export function restoreTasks(db: Db, ids: string[]): number {
+  const unique = [...new Set(ids)];
+  const statusId = defaultOpenStatusId(db);
+  if (!statusId) throw new ServiceError('No statuses configured', 500);
+
+  const result = db
+    .update(tasks)
+    .set({ statusId, completedAt: null, updatedAt: new Date().toISOString() })
+    .where(and(inArray(tasks.id, unique), isNotNull(tasks.completedAt)))
+    .run();
+
+  return result.changes;
+}
+
 export function deleteTasks(db: Db, ids: string[]): number {
   const unique = [...new Set(ids)];
   const existing = db

@@ -177,13 +177,15 @@ export function DatePicker({
 
         picker.destroy();
 
-        // Vanilla Calendar swaps the input for a clone when destroying. Put
-        // React's node back so later renders and unmounts target the element
-        // that is actually in the tree.
-        if (parent && !el.isConnected) {
-          const clone = parent.querySelector('input.hs-datepicker');
-          if (clone && clone !== el) clone.replaceWith(el);
-          else parent.insertBefore(el, nextSibling);
+        // Destroying leaves up to two stand-ins: Vanilla Calendar swaps in its
+        // saved clone, then Preline inserts a fresh input because ours left
+        // the DOM. Drop both and put React's node back so later renders and
+        // unmounts target the element that is actually in the tree.
+        if (parent) {
+          parent.querySelectorAll(':scope > input.hs-datepicker').forEach((input) => {
+            if (input !== el) input.remove();
+          });
+          if (!el.isConnected) parent.insertBefore(el, nextSibling);
         }
       }
     };

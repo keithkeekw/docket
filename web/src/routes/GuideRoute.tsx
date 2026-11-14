@@ -4,7 +4,7 @@ import { Kbd } from '../components/Kbd';
 import { PageHeader } from '../components/PageHeader';
 import { PriorityLabel } from '../components/PriorityLabel';
 import { useT } from '../lib/i18n';
-import { bindingLabel, modKeyLabel } from '../lib/platform';
+import { bindingLabel } from '../lib/platform';
 import { ALL_SHORTCUTS, useKeybindingsStore } from '../store/keybindings';
 
 const SECTIONS = [
@@ -61,17 +61,30 @@ export function GuideRoute() {
         <div className="flex max-w-[760px] flex-col gap-4">
           <GuideSection id="getting-started" title={t('Getting Started')}>
             <p>
-              {t('Docket is a local task manager. Everything is stored on this machine, and the sidebar is your map: Dashboard, Inbox, Today, All Tasks, Reviews, Logbook, projects and Settings.')}
+              {t(
+                'Docket is a local task manager. Everything is stored on this machine, and the sidebar is your map: Dashboard, Inbox, Today, All Tasks, Reviews, Logbook, projects and Settings.',
+              )}
             </p>
             <p>
-              {t('The three circular buttons at the top right open this guide, choose the language, and choose a Light, Dark or Automatic theme. The floating arrow at the bottom right returns a long page to the top.')}
+              {t(
+                'The three circular buttons at the top right open this guide, choose the language, and choose a Light, Dark or Automatic theme. The floating arrow at the bottom right returns a long page to the top.',
+              )}
+            </p>
+            <p>
+              {t(
+                'At the bottom of the sidebar, the gear opens Settings and the panel icon beside it collapses the sidebar to a narrow icon rail; the same icon expands it again.',
+              )}{' '}
+              {t('You can also press')} <Kbd>{bindingLabel(bindings.toggleSidebar ?? 'x')}</Kbd>{' '}
+              {t('to toggle it.')}
             </p>
           </GuideSection>
 
           <GuideSection id="capture" title={t('Capturing Tasks')}>
             <p>
               {t('Press')} <Kbd>{bindingLabel(bindings.quickCapture ?? 'mod+k')}</Kbd>{' '}
-              {t('anywhere to open Quick Capture, or use the capture bar on the Dashboard. Type naturally and Docket picks out the details for you.')}
+              {t(
+                'anywhere to open Quick Capture, or use the capture bar on the Dashboard. Type naturally and Docket picks out the details for you.',
+              )}
             </p>
             <ul>
               <li>{t('“Call the plumber tomorrow p1” — title, date and priority.')}</li>
@@ -80,7 +93,9 @@ export function GuideRoute() {
               <li>{t('“Review invoices every 2 weeks” — a two-week interval.')}</li>
             </ul>
             <p>
-              {t('Enter saves straight away. From a project or a Kanban column, the new task lands in that project or status. For a preview of AI-parsed work, press')}{' '}
+              {t(
+                'Enter saves straight away. From a project or a Kanban column, the new task lands in that project or status. For a preview of AI-parsed work, press',
+              )}{' '}
               <Kbd>{bindingLabel(bindings.aiCapture ?? 'mod+enter')}</Kbd>{' '}
               {t('instead: nothing is created until you confirm the proposal.')}
             </p>
@@ -88,7 +103,9 @@ export function GuideRoute() {
 
           <GuideSection id="priorities" title={t('Priorities')}>
             <p>
-              {t('Every task has one of three priorities. They are a lens for deciding what to do next — they do not change due dates or move tasks automatically.')}
+              {t(
+                'Every task has one of three priorities. They are a lens for deciding what to do next — they do not change due dates or move tasks automatically.',
+              )}
             </p>
 
             <div className="flex flex-col gap-2">
@@ -99,7 +116,9 @@ export function GuideRoute() {
                 <div>
                   <p className="text-sm font-medium text-zinc-900">{t('P1 — Urgent, do next')}</p>
                   <p className="mt-0.5 text-sm text-zinc-600">
-                    {t('Something that needs attention now: a deadline today, a blocked colleague, or work that becomes expensive if it waits.')}
+                    {t(
+                      'Something that needs attention now: a deadline today, a blocked colleague, or work that becomes expensive if it waits.',
+                    )}
                   </p>
                 </div>
               </div>
@@ -109,9 +128,13 @@ export function GuideRoute() {
                   <PriorityLabel priority={2} />
                 </span>
                 <div>
-                  <p className="text-sm font-medium text-zinc-900">{t('P2 — Important, plan it in')}</p>
+                  <p className="text-sm font-medium text-zinc-900">
+                    {t('P2 — Important, plan it in')}
+                  </p>
                   <p className="mt-0.5 text-sm text-zinc-600">
-                    {t('Work that matters this week but is not on fire. Schedule it around your P1s.')}
+                    {t(
+                      'Work that matters this week but is not on fire. Schedule it around your P1s.',
+                    )}
                   </p>
                 </div>
               </div>
@@ -121,16 +144,22 @@ export function GuideRoute() {
                   <PriorityLabel priority={3} />
                 </span>
                 <div>
-                  <p className="text-sm font-medium text-zinc-900">{t('P3 — Normal, the default')}</p>
+                  <p className="text-sm font-medium text-zinc-900">
+                    {t('P3 — Normal, the default')}
+                  </p>
                   <p className="mt-0.5 text-sm text-zinc-600">
-                    {t('Everything else. New tasks start here unless you say otherwise; keep them here until a date or a person makes them urgent.')}
+                    {t(
+                      'Everything else. New tasks start here unless you say otherwise; keep them here until a date or a person makes them urgent.',
+                    )}
                   </p>
                 </div>
               </div>
             </div>
 
             <p>
-              {t('Type priorities naturally during capture (“pay rent tomorrow p1”), or pick one in the task drawer. The All Tasks filters and Table view can sort or narrow by priority. A useful rule: if everything is P1, nothing is.')}
+              {t(
+                'Type priorities naturally during capture (“pay rent tomorrow p1”), or pick one in the task drawer. The All Tasks filters and Table view can sort or narrow by priority. A useful rule: if everything is P1, nothing is.',
+              )}
             </p>
           </GuideSection>
 
@@ -146,53 +175,81 @@ export function GuideRoute() {
               </li>
               <li>
                 <strong>{t('All Tasks')}</strong>{' '}
-                {t('and projects offer List, Table and Kanban. Table columns sort; Kanban cards drag between statuses.')}
+                {t(
+                  'and projects offer List, Table and Kanban. Table columns sort; Kanban cards drag between statuses.',
+                )}
               </li>
               <li>
                 {t('In List view, drag the six-dot handle beside a task to change its order.')}
               </li>
               <li>
-                {t('Choose')} <strong>{t('Select Tasks')}</strong>{' '}
-                {t('for bulk selection, then delete the batch in one go. The Undo bar brings it back.')}
+                {t(
+                  'The Select Tasks button (a ticked box) starts bulk selection. Selection uses round checkboxes so it never looks like marking a task done; the trash icon deletes the batch and the Undo bar brings it back.',
+                )}
               </li>
               <li>
-                {t('A completed task stays in the list for three seconds while it fades, then moves to the Logbook.')}
+                {t(
+                  'A completed task stays in the list for three seconds while it fades, then moves to the Logbook.',
+                )}
               </li>
             </ul>
           </GuideSection>
 
           <GuideSection id="logbook" title={t('Logbook')}>
             <p>
-              {t('Finished work lives in the Logbook. Every row is checked and struck through. Uncheck one to reactivate it: the task clears its completion date, returns to its old collection and leaves the Logbook.')}
+              {t(
+                'Finished work lives in the Logbook. Every row is checked and struck through. Uncheck one to reactivate it: the task clears its completion date, returns to its old collection and leaves the Logbook.',
+              )}
+            </p>
+            <p>
+              {t(
+                'To handle many records at once, use the Select Tasks button above the list. Tick individual rows or Select All, then choose Restore Selected (the curved arrow) to reopen them all, or Delete Selected (the trash icon) to remove them. Deleting asks for confirmation and can be undone from the Undo bar.',
+              )}
             </p>
           </GuideSection>
 
           <GuideSection id="dashboard" title={t('Dashboard')}>
             <ul>
               <li>
-                {t('The review card shows the latest Daily or Weekly review, with buttons to regenerate it or open the full Reviews page.')}
+                {t(
+                  'The review card shows the latest Daily or Weekly review, with buttons to regenerate it or open the full Reviews page.',
+                )}
               </li>
               <li>
-                {t('Tasks are grouped into Overdue, Today and Inbox · Unsorted. “Open in Table” jumps to the full list.')}
+                {t(
+                  'Tasks are grouped into Overdue, Today and Inbox · Unsorted. The table icon in the corner of the card opens the full list.',
+                )}
               </li>
               <li>
-                {t('The month calendar highlights days with tasks due; use the arrows to look at another month.')}
+                {t(
+                  'The month calendar highlights days with tasks due; use the arrows to look at another month. Point at a highlighted day (or Tab to it) to see that day’s tasks, and click one to open it.',
+                )}
               </li>
               <li>
-                {t('Active Projects show progress and the next due task. A project at 100% offers an')}{' '}
-                <strong>{t('Archive')}</strong>{' '}
-                {t('button, moving it to Archived Projects.')}
+                {t(
+                  'Active Projects show progress and the next due task. A project at 100% offers an',
+                )}{' '}
+                <strong>{t('Archive')}</strong> {t('button, moving it to Archived Projects.')}{' '}
+                {t('The small New Project button sits below the project cards.')}
               </li>
               <li>
-                <strong>{t('Rearrange')}</strong>{' '}
-                {t('turns on drag handles so you can reorder the Dashboard cards. The order is remembered on this device.')}
+                {t(
+                  'The Rearrange Cards button (the dotted grid beside the capture bar) turns on drag handles. Cards sit in two columns: drop a card on the top or bottom half of another to place it above or below, or in a column’s empty space to send it to the bottom. A blue line or “Drop here” shows where it will land. The Review card stays across the top, and the layout is remembered on this device.',
+                )}
               </li>
             </ul>
           </GuideSection>
 
           <GuideSection id="projects" title={t('Projects')}>
             <p>
-              {t('Create a project from the sidebar or Dashboard, then give it a description, target date and optional milestones. The project screen gathers its tasks and progress. Projects can be archived when finished or deleted; deleted projects keep their tasks and move them to the Inbox.')}
+              {t(
+                'Create a project from the sidebar or Dashboard, then give it a description, target date and optional milestones. The project screen gathers its tasks and progress. Projects can be archived when finished or deleted; deleted projects keep their tasks and move them to the Inbox.',
+              )}
+            </p>
+            <p>
+              {t(
+                'You can also ask the assistant to create a project. It asks whether to generate milestones; if so, it asks for a short description and, when the idea is still vague, a few quick questions (never more than four) before proposing the project and its milestones for you to confirm.',
+              )}
             </p>
             <p>
               {t('Use')} <strong>{t('Exclude this project from AI')}</strong>{' '}
@@ -204,12 +261,18 @@ export function GuideRoute() {
             <p>{t('Click any task title to open the drawer. It contains:')}</p>
             <ul>
               <li>
-                {t('Title, notes (Markdown that formats inside the editor as you type), project, milestone, status, priority, due date, due time, estimate and repeat.')}
+                {t(
+                  'Title, notes (Markdown that formats inside the editor as you type), project, milestone, status, priority, due date, due time, estimate and repeat.',
+                )}
               </li>
               <li>
-                {t('A checklist with optional AI generation, links, tags and file uploads (up to 10 MB each). AI checklists read the task title, notes and readable attachments — text files and Word .doc/.docx — as context; binary files are skipped.')}
+                {t(
+                  'A checklist with optional AI generation, links, tags and file uploads (up to 10 MB each). AI checklists read the task title, notes and readable attachments — text files and Word .doc/.docx — as context; binary files are skipped.',
+                )}
               </li>
-              <li>{t('Download or remove uploaded files; every delete asks for confirmation first.')}</li>
+              <li>
+                {t('Download or remove uploaded files; every delete asks for confirmation first.')}
+              </li>
               <li>{t('Save, delete, or undo the last destructive action from the Undo bar.')}</li>
             </ul>
           </GuideSection>
@@ -217,9 +280,16 @@ export function GuideRoute() {
           <GuideSection id="ai" title={t('AI Features')}>
             <p>
               {t('The assistant opens with')}{' '}
-              <Kbd>{bindingLabel(bindings.askAssistant ?? 'ctrl+alt+shift+meta+a')}</Kbd>
+              <Kbd>{bindingLabel(bindings.askAssistant ?? 'ctrl+a')}</Kbd>
               {t(', or from')} <strong>{t('Ask Assistant')}</strong>{' '}
-              {t('on the Dashboard. It can answer questions about your work and propose changes; proposals are previewed before anything is written.')}
+              {t(
+                'on the Dashboard. It can answer questions about your work and propose changes; proposals are previewed before anything is written.',
+              )}
+            </p>
+            <p>
+              {t(
+                'When you ask it to add a task, it first asks which project (or the Inbox) it belongs to. All of its buttons are icons: hover one to see its name.',
+              )}
             </p>
             <p>{t('Other AI features include:')}</p>
             <ul>
@@ -227,23 +297,35 @@ export function GuideRoute() {
               <li>{t('Breakdown — turn a project into milestones and tasks.')}</li>
               <li>{t('Summarize — a prose status summary on a project screen.')}</li>
               <li>{t('Checklist generation inside a task.')}</li>
-              <li>{t('Daily and weekly reviews.')}</li>
+              <li>
+                {t(
+                  'Daily and weekly reviews, written on the schedule set in Settings → Reviews or on demand with the sparkle button on the Reviews page.',
+                )}
+              </li>
               <li>{t('Chat with your tasks, projects and reviews.')}</li>
             </ul>
             <p>
               {t('Configure a provider and model for each feature in')}{' '}
               <strong>{t('Settings → AI')}</strong>
-              {t('. API keys live in the server’s')} <code>.env</code>{' '}
-              {t('file and are never shown in the app.')}{' '}
+              {t(
+                '. Paste each provider’s API key there too (DeepSeek, OpenRouter, OpenAI, Google Gemini, Anthropic Claude, Mistral or Alibaba Qwen); keys stay on this computer and are never shown in full.',
+              )}{' '}
+              {t(
+                'A key takes effect as soon as it is saved, with no restart, and the model box then suggests that provider’s models.',
+              )}{' '}
               <strong>{t('Prompt Management')}</strong>{' '}
-              {t('lets you edit the instructions behind each feature or reset them to the built-in defaults.')}
+              {t(
+                'lets you edit the instructions behind each feature or reset them to the built-in defaults.',
+              )}
             </p>
           </GuideSection>
 
           <GuideSection id="shortcuts" title={t('Keyboard Shortcuts')}>
             <p>
               {t('Press')} <Kbd>{bindingLabel(bindings.shortcutHelp ?? 'shift+space')}</Kbd>{' '}
-              {t('for the full cheat sheet at any time. Every configurable binding can be changed in Settings → Key Bindings.')}
+              {t(
+                'for the full cheat sheet at any time. Every configurable binding can be changed in Settings → Key Bindings.',
+              )}
             </p>
             <ul className="not-prose">
               {ALL_SHORTCUTS.map((shortcut) => (
@@ -259,41 +341,68 @@ export function GuideRoute() {
             <ul>
               <li>
                 <strong>{t('Statuses')}</strong>{' '}
-                {t('— rename, recategorise and reorder the columns used by Kanban and the status picker.')}
+                {t(
+                  '— rename, recategorise and reorder the columns used by Kanban and the status picker.',
+                )}
               </li>
               <li>
-                <strong>{t('Key Bindings')}</strong>{' '}
-                {t('— click a shortcut to record a new one.')}
+                <strong>{t('Key Bindings')}</strong> {t('— click a shortcut to record a new one.')}
               </li>
               <li>
                 <strong>{t('AI')}</strong>{' '}
-                {t('— choose a provider and model per feature.')}
+                {t(
+                  '— paste, replace or remove each provider’s API key, then choose a provider and model per feature.',
+                )}
               </li>
               <li>
                 <strong>{t('Prompt Management')}</strong>{' '}
                 {t('— read, edit and reset the system prompts.')}
               </li>
               <li>
-                <strong>{t('Privacy')}</strong>{' '}
-                {t('— see which projects are excluded from AI.')}
+                <strong>{t('Reviews')}</strong>{' '}
+                {t(
+                  '— turn scheduled reviews on or off, pick Daily or Weekly, and set the time (and, for Weekly, the day).',
+                )}
+              </li>
+              <li>
+                <strong>{t('Clocks')}</strong>{' '}
+                {t('— add up to three world clocks, shown under the date on the Dashboard.')}
+              </li>
+              <li>
+                <strong>{t('Privacy')}</strong> {t('— see which projects are excluded from AI.')}
               </li>
               <li>
                 <strong>{t('Data')}</strong>{' '}
                 {t('— create and restore backups, and export everything as JSON or Markdown.')}
+              </li>
+              <li>
+                <strong>{t('About & Updates')}</strong>{' '}
+                {t('— check for a newer version and install it from here.')}
               </li>
             </ul>
           </GuideSection>
 
           <GuideSection id="data" title={t('Data and Privacy')}>
             <p>
-              {t('Docket runs on this machine. Tasks, projects, settings and reviews live in the local SQLite database; uploaded files are kept beside it. Nothing is synced to a cloud service.')}
+              {t(
+                'Docket runs on this machine. Tasks, projects, settings and reviews live in the local SQLite database; uploaded files are kept beside it. Nothing is synced to a cloud service.',
+              )}
             </p>
             <p>
-              {t('Backups are complete copies of the database. Export gives you a portable JSON or Markdown copy. If AI is not configured, it is never called.')}
+              {t(
+                'Backups are complete copies of the database. Export gives you a portable JSON or Markdown copy. If AI is not configured, it is never called.',
+              )}
             </p>
             <p>
-              {t('Tip: press')} <Kbd>{modKeyLabel()} P</Kbd>{' '}
-              {t('for the Command Palette to jump to any page, project or action.')}
+              {t(
+                'API keys saved in Settings → AI are left out of every export. Backups are whole-database copies, so they do include saved keys: keep backup files private.',
+              )}
+            </p>
+            <p>
+              {t('Tip: press')} <Kbd>{bindingLabel(bindings.commandPalette ?? 'mod+p')}</Kbd>{' '}
+              {t(
+                'for the Command Palette. The cursor starts in its search box: type to jump to any page, project or action, and after two letters it also finds matching tasks.',
+              )}
             </p>
           </GuideSection>
 
@@ -310,20 +419,9 @@ export function GuideRoute() {
   );
 }
 
-function GuideSection({
-  id,
-  title,
-  children,
-}: {
-  id: string;
-  title: string;
-  children: ReactNode;
-}) {
+function GuideSection({ id, title, children }: { id: string; title: string; children: ReactNode }) {
   return (
-    <section
-      id={id}
-      className="scroll-mt-6 rounded-xl border border-zinc-200 bg-white p-5"
-    >
+    <section id={id} className="scroll-mt-6 rounded-xl border border-zinc-200 bg-white p-5">
       <h2 className="text-[15px] font-semibold text-zinc-900">{title}</h2>
       <div className="mt-2 space-y-2 text-sm leading-relaxed text-zinc-600 [&_li]:my-1 [&_strong]:font-medium [&_strong]:text-zinc-900 [&_ul]:list-disc [&_ul]:pl-5">
         {children}

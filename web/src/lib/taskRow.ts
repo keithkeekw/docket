@@ -11,6 +11,8 @@ export function toTaskRow(task: Task): TaskRowTask {
     id: task.id,
     title: task.title,
     done: task.statusCategory === 'done',
+    projectName: task.projectName,
+    milestoneName: task.milestoneName,
     priority: task.priority,
     dueDate: task.dueDate,
     dueTime: task.dueTime,

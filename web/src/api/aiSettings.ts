@@ -82,6 +82,33 @@ export function useProviderModels(provider: AiProvider | '') {
   });
 }
 
+/** Write-only: the response carries presence and a 4-character hint, never the key. */
+export function useSaveProviderKey() {
+  const queryClient = useQueryClient();
+
+  return useMutation<AiSettings, Error, { provider: AiProvider; apiKey: string }>({
+    mutationFn: async ({ provider, apiKey }) =>
+      apiMutate(`/api/settings/ai/keys/${provider}`, 'PUT', { apiKey }, aiSettingsSchema),
+    onSuccess: (settings, { provider }) => {
+      queryClient.setQueryData(aiSettingsQueryKey, settings);
+      void queryClient.invalidateQueries({ queryKey: ['ai-models', provider] });
+    },
+  });
+}
+
+export function useRemoveProviderKey() {
+  const queryClient = useQueryClient();
+
+  return useMutation<AiSettings, Error, { provider: AiProvider }>({
+    mutationFn: async ({ provider }) =>
+      apiDeleteJson(`/api/settings/ai/keys/${provider}`, aiSettingsSchema),
+    onSuccess: (settings, { provider }) => {
+      queryClient.setQueryData(aiSettingsQueryKey, settings);
+      void queryClient.invalidateQueries({ queryKey: ['ai-models', provider] });
+    },
+  });
+}
+
 export function useUpdateAiSettings() {
   const queryClient = useQueryClient();
 

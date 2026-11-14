@@ -7,6 +7,7 @@ import { useCreateTask } from '../api/tasks';
 import { useT } from '../lib/i18n';
 import { parseTaskInput } from '../lib/parseTask';
 import { bindingLabel, matchesBinding } from '../lib/platform';
+import { useCaptureStore } from '../store/capture';
 import { useKeybindingsStore } from '../store/keybindings';
 import { useUiStore } from '../store/ui';
 import { Button } from './Button';
@@ -38,6 +39,9 @@ export function CaptureDialog() {
   const [error, setError] = useState<string | null>(null);
   const [needsSettings, setNeedsSettings] = useState(false);
   const [aiPending, setAiPending] = useState(false);
+  const [lastAdded, setLastAdded] = useState<string | null>(null);
+  const multiple = useCaptureStore((state) => state.multiple);
+  const setMultiple = useCaptureStore((state) => state.setMultiple);
   const createTask = useCreateTask();
   const captureWithAi = useCaptureWithAi();
 
@@ -63,6 +67,7 @@ export function CaptureDialog() {
         setTitle('');
         setError(null);
         setNeedsSettings(false);
+        setLastAdded(null);
         dialog.showModal();
       }
       inputRef.current?.focus();
@@ -80,13 +85,19 @@ export function CaptureDialog() {
     if (!trimmed || createTask.isPending) return;
 
     try {
-      await createTask.mutateAsync({
+      const task = await createTask.mutateAsync({
         ...parseTaskInput(trimmed),
         projectId: captureProjectId ?? undefined,
         statusId: captureStatusId ?? undefined,
         milestoneId: captureMilestoneId ?? undefined,
       });
-      closeCapture();
+      if (multiple && !closedRef.current) {
+        setTitle('');
+        setLastAdded(task.title);
+        inputRef.current?.focus();
+      } else {
+        closeCapture();
+      }
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : t('Could not save the task'));
     }
@@ -170,6 +181,24 @@ export function CaptureDialog() {
             }
           }}
         />
+
+        <div className="mt-2 flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
+          <label className="flex min-h-8 items-center gap-2 text-xs text-zinc-700">
+            <input
+              type="checkbox"
+              className="size-4 accent-blue-600"
+              checked={multiple}
+              onChange={(event) => {
+                setMultiple(event.target.checked);
+                inputRef.current?.focus();
+              }}
+            />
+            {t('Add multiple tasks')}
+          </label>
+          <p aria-live="polite" className="min-w-0 truncate text-xs text-zinc-500">
+            {lastAdded && t('Added “{title}”.', { title: lastAdded })}
+          </p>
+        </div>
 
         {error &&
           (needsSettings ? (

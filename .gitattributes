@@ -1,0 +1,7 @@
+# Keep LF in every checkout, including Windows, so line endings never show up
+# as local changes (the in-app updater refuses to run on a dirty tree).
+* text=auto eol=lf
+
+*.png binary
+*.woff2 binary
+*.db binary

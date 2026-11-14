@@ -14,12 +14,13 @@ import {
 } from '../db/schema';
 import type { Db } from '../db/types';
 import { localDateString } from '../lib/dates';
+import { AI_KEY_PREFIX } from './ai-settings';
 
 /**
  * FR-28: everything the app knows, in a shape that can be read without this
  * codebase. Statuses, projects, milestones, tasks with their tags/links/
- * checklist, reviews and settings. AI keys are not in the database, so nothing
- * sensitive can leak (NFR-2).
+ * checklist, reviews and settings. API keys saved in Settings are left out so
+ * nothing sensitive can leak (NFR-2).
  */
 export function exportJson(db: Db): Record<string, unknown> {
   const tagRows = db.select().from(tags).all();
@@ -48,7 +49,11 @@ export function exportJson(db: Db): Record<string, unknown> {
     })),
     reviews: db.select().from(reviews).all(),
     settings: {
-      app: db.select().from(appSettings).all(),
+      app: db
+        .select()
+        .from(appSettings)
+        .all()
+        .filter((row) => !row.key.startsWith(AI_KEY_PREFIX)),
       ai: db.select().from(aiSettings).all(),
     },
   };

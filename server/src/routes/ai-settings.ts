@@ -1,11 +1,23 @@
-import OpenAI from 'openai';
-import { updateAiSettingsBodySchema, updatePromptBodySchema } from '@app/shared';
+import {
+  aiProviderSchema,
+  updateAiProviderKeyBodySchema,
+  updateAiSettingsBodySchema,
+  updatePromptBodySchema,
+} from '@app/shared';
 import type { Hono } from 'hono';
-import { BASE_URLS, API_KEYS } from '../ai/client';
+import { providerClient } from '../ai/client';
 import { listPrompts, resetPrompt, savePrompt } from '../ai/prompts';
 import type { Db } from '../db/types';
 import { invalidBody, readJson } from '../lib/http';
-import { getAiSettings, updateAiSettings } from '../services/ai-settings';
+import {
+  clearProviderKey,
+  getAiSettings,
+  providerApiKey,
+  setProviderKey,
+  updateAiSettings,
+} from '../services/ai-settings';
+
+const providerError = { error: `provider must be one of ${aiProviderSchema.options.join(', ')}` };
 
 export function registerAiSettingsRoutes(app: Hono, db: Db): void {
   app.get('/api/settings/ai', (c) => c.json(getAiSettings(db)));
@@ -32,24 +44,40 @@ export function registerAiSettingsRoutes(app: Hono, db: Db): void {
     return c.json(updateAiSettings(db, parsed.data));
   });
 
+  // Write-only: the response reports presence and a 4-character hint, never the key.
+  app.put('/api/settings/ai/keys/:provider', async (c) => {
+    const provider = aiProviderSchema.safeParse(c.req.param('provider'));
+    if (!provider.success) return c.json(providerError, 400);
+
+    const parsed = updateAiProviderKeyBodySchema.safeParse(await readJson(c));
+    if (!parsed.success) return invalidBody(c, parsed.error);
+
+    return c.json(setProviderKey(db, provider.data, parsed.data.apiKey));
+  });
+
+  app.delete('/api/settings/ai/keys/:provider', (c) => {
+    const provider = aiProviderSchema.safeParse(c.req.param('provider'));
+    if (!provider.success) return c.json(providerError, 400);
+
+    return c.json(clearProviderKey(db, provider.data));
+  });
+
   // Returns the model list for a configured provider so the UI can offer a dropdown.
   app.get('/api/ai/models', async (c) => {
-    const provider = c.req.query('provider');
-    if (provider !== 'deepseek' && provider !== 'openrouter') {
-      return c.json({ error: 'provider must be deepseek or openrouter' }, 400);
-    }
+    const provider = aiProviderSchema.safeParse(c.req.query('provider'));
+    if (!provider.success) return c.json(providerError, 400);
 
-    const apiKey = API_KEYS[provider];
+    const apiKey = providerApiKey(db, provider.data);
     if (!apiKey) {
-      return c.json({ error: 'Provider is not configured — add its key to .env' }, 503);
+      return c.json({ error: 'Add an API key for this provider in Settings → AI' }, 503);
     }
 
     try {
-      const client = new OpenAI({ apiKey, baseURL: BASE_URLS[provider] });
-      const list = await client.models.list();
-      const models = list.data
-        .map((m) => m.id)
-        .sort((a, b) => a.localeCompare(b));
+      const list = await providerClient(provider.data, apiKey).models.list();
+      // Gemini lists ids as `models/gemini-…`; chat completions take the bare id.
+      const models = [...new Set(list.data.map((m) => m.id.replace(/^models\//, '')))].sort(
+        (a, b) => a.localeCompare(b),
+      );
       return c.json({ models });
     } catch (cause) {
       const detail = cause instanceof Error ? cause.message.slice(0, 200) : 'unknown error';

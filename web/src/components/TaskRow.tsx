@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import { Fragment, type CSSProperties, type ReactNode } from 'react';
 import { cx } from '../lib/cx';
 import { formatEstimate } from '../lib/estimate';
 import { useT } from '../lib/i18n';
@@ -11,6 +11,8 @@ export type TaskRowTask = {
   id: string;
   title: string;
   done?: boolean;
+  projectName?: string | null;
+  milestoneName?: string | null;
   priority?: Priority;
   dueDate?: string | null;
   dueTime?: string | null;
@@ -23,9 +25,10 @@ export type TaskRowTask = {
 };
 
 /**
- * DESIGN §4 TaskRow. Meta cluster order follows the spec (link, repeat,
- * estimate, priority, due, location) with checklist progress and tags added by
- * PROGRESS D9. The cluster wraps under the title when the row is narrow.
+ * DESIGN §4 TaskRow. The meta cluster leads with project | milestone | priority,
+ * then follows the spec (link, repeat, estimate, due, location) with checklist
+ * progress and tags added by PROGRESS D9. The cluster wraps under the title
+ * when the row is narrow.
  */
 export function TaskRow({
   task,
@@ -61,12 +64,31 @@ export function TaskRow({
   const checklist = task.checklist && task.checklist.total > 0 ? task.checklist : null;
   const tags = task.tags ?? [];
 
+  const context: ReactNode[] = [];
+  if (task.projectName) {
+    context.push(
+      <span key="project" className="max-w-[12rem] truncate text-zinc-600" title={task.projectName}>
+        {task.projectName}
+      </span>,
+    );
+  }
+  if (task.milestoneName) {
+    context.push(
+      <span key="milestone" className="max-w-[12rem] truncate" title={task.milestoneName}>
+        {task.milestoneName}
+      </span>,
+    );
+  }
+  if (task.priority) {
+    context.push(<PriorityLabel key="priority" priority={task.priority} />);
+  }
+
   const hasMeta = Boolean(
+    context.length > 0 ||
     task.link ||
     task.repeatLabel ||
     estimate ||
     checklist ||
-    task.priority ||
     task.dueDate ||
     task.location ||
     tags.length > 0,
@@ -94,6 +116,7 @@ export function TaskRow({
       <span className="flex h-5 items-center">
         {selectable ? (
           <Checkbox
+            round
             checked={selected}
             label={t('Select "{title}"', { title: task.title })}
             onChange={(checked) => {
@@ -133,6 +156,21 @@ export function TaskRow({
 
         {hasMeta && (
           <div className="flex flex-wrap items-center gap-2 text-xs text-zinc-500">
+            {context.length > 0 && (
+              <span className="inline-flex min-w-0 items-center gap-1.5">
+                {context.map((item, index) => (
+                  <Fragment key={index}>
+                    {index > 0 && (
+                      <span aria-hidden="true" className="text-zinc-300">
+                        |
+                      </span>
+                    )}
+                    {item}
+                  </Fragment>
+                ))}
+              </span>
+            )}
+
             {task.link && <LinkBadge href={task.link.url}>{task.link.label}</LinkBadge>}
 
             {task.repeatLabel && (
@@ -159,8 +197,6 @@ export function TaskRow({
                 <span aria-hidden="true">☑</span> {checklist.done}/{checklist.total}
               </span>
             )}
-
-            {task.priority && <PriorityLabel priority={task.priority} />}
 
             <DueLabel
               dueDate={task.dueDate ?? null}

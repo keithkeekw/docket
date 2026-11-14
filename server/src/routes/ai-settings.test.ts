@@ -1,10 +1,16 @@
-import { aiSettingsSchema, promptListSchema, promptResponseSchema } from '@app/shared';
+import {
+  AI_PROVIDERS,
+  aiSettingsSchema,
+  promptListSchema,
+  promptResponseSchema,
+  type AiProvider,
+} from '@app/shared';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { loadPrompt } from '../ai/prompts';
 import { createApp } from '../app';
 import type { Db } from '../db/types';
 import { env } from '../env';
-import { getAiSettings } from '../services/ai-settings';
+import { getAiSettings, providerApiKey, setProviderKey } from '../services/ai-settings';
 import { createTestDb } from '../test/helpers';
 
 let sqlite: ReturnType<typeof createTestDb>['sqlite'];
@@ -52,10 +58,9 @@ describe('GET /api/settings/ai', () => {
       { feature: 'chat', provider: null, model: null },
     ]);
 
-    expect(body.providers).toEqual([
-      { provider: 'deepseek', configured: configured(env.deepseekApiKey) },
-      { provider: 'openrouter', configured: configured(env.openrouterApiKey) },
-    ]);
+    expect(body.providers.map((entry) => [entry.provider, entry.configured])).toEqual(
+      AI_PROVIDERS.map((provider) => [provider, configured(env.apiKeys[provider])]),
+    );
   });
 
   it('never returns a key, only presence', async () => {
@@ -186,13 +191,99 @@ describe('GET /api/settings/prompts', () => {
   });
 });
 
-describe('getAiSettings', () => {
-  it('derives provider status from the keys it is given', () => {
-    const body = getAiSettings(db, { deepseek: 'present', openrouter: '  ' });
+const noEnvKeys = Object.fromEntries(AI_PROVIDERS.map((provider) => [provider, ''])) as Record<
+  AiProvider,
+  string
+>;
 
-    expect(body.providers).toEqual([
-      { provider: 'deepseek', configured: true },
-      { provider: 'openrouter', configured: false },
+describe('getAiSettings', () => {
+  it('derives provider status from the .env keys it is given', () => {
+    const body = getAiSettings(db, { ...noEnvKeys, deepseek: 'present', openrouter: '  ' });
+
+    expect(body.providers.slice(0, 2)).toEqual([
+      { provider: 'deepseek', configured: true, source: 'env', hint: null },
+      { provider: 'openrouter', configured: false, source: null, hint: null },
     ]);
+  });
+
+  it('prefers a key saved in Settings over .env', () => {
+    setProviderKey(db, 'openai', 'sk-saved-0000000000wxyz', noEnvKeys);
+
+    const body = getAiSettings(db, { ...noEnvKeys, openai: 'sk-env-00000000000abcd' });
+    expect(body.providers.find((entry) => entry.provider === 'openai')).toEqual({
+      provider: 'openai',
+      configured: true,
+      source: 'settings',
+      hint: 'wxyz',
+    });
+    expect(providerApiKey(db, 'openai', noEnvKeys)).toBe('sk-saved-0000000000wxyz');
+  });
+});
+
+describe('PUT/DELETE /api/settings/ai/keys/:provider', () => {
+  const key = 'sk-test-1234567890-secret-tail';
+
+  it('saves a key, reports only a hint, and removes it again', async () => {
+    const saved = await app.request('/api/settings/ai/keys/anthropic', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify({ apiKey: `  ${key}  ` }),
+    });
+    expect(saved.status).toBe(200);
+    const raw = await saved.text();
+    expect(raw).not.toContain(key);
+    expect(raw).not.toContain('secret');
+
+    const anthropic = aiSettingsSchema
+      .parse(JSON.parse(raw))
+      .providers.find((entry) => entry.provider === 'anthropic');
+    expect(anthropic).toEqual({
+      provider: 'anthropic',
+      configured: true,
+      source: 'settings',
+      hint: 'tail',
+    });
+    expect(providerApiKey(db, 'anthropic', noEnvKeys)).toBe(key);
+
+    const removed = await app.request('/api/settings/ai/keys/anthropic', { method: 'DELETE' });
+    expect(removed.status).toBe(200);
+    expect(providerApiKey(db, 'anthropic', noEnvKeys)).toBe('');
+  });
+
+  it('keeps saved keys out of the JSON export', async () => {
+    setProviderKey(db, 'mistral', key, noEnvKeys);
+
+    const exported = await app.request('/api/export?format=json');
+    expect(exported.status).toBe(200);
+    expect(await exported.text()).not.toContain(key);
+  });
+
+  it('rejects an unknown provider, an empty key and a key with spaces', async () => {
+    const unknown = await app.request('/api/settings/ai/keys/cohere', {
+      method: 'PUT',
+      headers: json,
+      body: JSON.stringify({ apiKey: key }),
+    });
+    expect(unknown.status).toBe(400);
+
+    for (const apiKey of ['   ', 'two words']) {
+      const response = await app.request('/api/settings/ai/keys/openai', {
+        method: 'PUT',
+        headers: json,
+        body: JSON.stringify({ apiKey }),
+      });
+      expect(response.status).toBe(400);
+    }
+  });
+
+  it('accepts the new providers for a feature', async () => {
+    const { response, body } = await put({
+      features: [{ feature: 'chat', provider: 'qwen', model: 'qwen-plus' }],
+    });
+    expect(response.status).toBe(200);
+    expect(aiSettingsSchema.parse(body).features[5]).toMatchObject({
+      provider: 'qwen',
+      model: 'qwen-plus',
+    });
   });
 });

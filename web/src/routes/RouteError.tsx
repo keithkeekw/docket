@@ -13,9 +13,11 @@ export function RouteError() {
 
   return (
     <main className="mx-auto max-w-[720px] px-8 pt-6 pb-12">
-      <PageHeader title={t('Something Went Wrong')} />
+      <PageHeader title={t('Well, That Wasn’t on the To-Do List')} />
       <EmptyState
-        message={t('This screen failed to render. Go back to the dashboard and try again.')}
+        message={t(
+          'This screen procrastinated so hard it never showed up. Your tasks are safe — head back to the Dashboard and try again. We’ll count this as a short break.',
+        )}
         action={
           <Link to="/" className={buttonClassName('secondary')}>
             {t('Go to Dashboard')}

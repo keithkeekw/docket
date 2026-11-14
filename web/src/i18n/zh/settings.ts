@@ -59,7 +59,7 @@ export const settings: Record<string, string> = {
   'Ask Assistant': '呼叫助手',
   'Open the assistant drawer from anywhere': '在任意位置打开助手面板',
   'Command Palette': '命令面板',
-  'Search and jump to pages, projects and actions': '搜索并跳转到页面、项目和操作',
+  'Search and jump to pages, projects, tasks and actions': '搜索并跳转到页面、项目、任务和操作',
   'Keyboard Shortcuts': '键盘快捷键',
   'Show the full list of shortcuts in an overlay': '在浮层中显示完整快捷键列表',
   'Open the capture dialog from anywhere': '在任意位置打开记录对话框',
@@ -86,26 +86,39 @@ export const settings: Record<string, string> = {
 
   // AI
   AI: 'AI',
-  'Nothing leaves this machine until a feature below is configured and its provider has a key. Keys are read from':
-    '只有下方功能完成配置且其提供商已设置密钥时，才会向外部发送数据。密钥在服务器启动时从',
-  'at server start and are never shown here.': '文件读取，且永远不会显示在这里。',
-  Configured: '已配置',
+  'Nothing leaves this machine until a feature below is configured and its provider has a key. Keys are stored on this computer and only their last four characters are ever shown again.':
+    '只有下方功能完成配置且其提供商已设置密钥时，才会向外部发送数据。密钥只保存在本机，之后只会显示最后四个字符。',
   'Not Configured': '未配置',
+  'API Keys': 'API 密钥',
+  Models: '模型',
+  'Paste a key for at least one provider to get started.': '至少为一个提供商粘贴密钥即可开始。',
+  'Get a Key': '获取密钥',
+  'API key for {provider}': '{provider}的 API 密钥',
+  'Paste API key': '粘贴 API 密钥',
+  'Save Key': '保存密钥',
+  'Replace Key': '更换密钥',
+  'Remove Key': '移除密钥',
+  'Removing…': '正在移除…',
+  'Remove API Key': '移除 API 密钥',
+  'Features that use {provider} will stop working until a new key is added.':
+    '使用 {provider} 的功能将无法使用，直到添加新的密钥。',
+  'From .env': '来自 .env',
+  Saved: '已保存',
+  'Could not save the API key': '无法保存 API 密钥',
+  'Could not remove the API key': '无法移除 API 密钥',
+  '{provider} (No Key)': '{provider}（无密钥）',
   Feature: '功能',
   Provider: '提供商',
   Model: '模型',
   'Provider for {feature}': '{feature}的提供商',
   'Model for {feature}': '{feature}的模型',
   'Loading models…': '正在加载模型…',
-  'e.g. deepseek-chat': '例如 deepseek-chat',
+  'e.g. {model}': '例如 {model}',
   'Enter a model for {feature}, or set it to Not Configured.':
     '请为{feature}填写模型，或将其设为未配置。',
   'AI settings saved.': 'AI 设置已保存。',
   'Could not save the AI settings': '无法保存 AI 设置',
   'Save AI Settings': '保存 AI 设置',
-  or: '或',
-  to: '到',
-  'and restart the server.': '并重启服务器。',
   Breakdown: '拆解',
   Summarize: '总结',
   Chat: '对话',
@@ -139,8 +152,14 @@ export const settings: Record<string, string> = {
   'Remove clock': '移除时钟',
   'Remove {name}': '移除 {name}',
   'Add a time zone': '添加时区',
-  'IANA name, for example Asia/Tokyo. {count} of {total} used.':
-    'IANA 名称，例如 Asia/Tokyo。已使用 {count}/{total}。',
+  'Search by city, region or offset (GMT+8). {count} of {total} used.':
+    '可按城市、地区或时差（GMT+8）搜索。已使用 {count}/{total}。',
+  'Search a city, region or offset': '搜索城市、地区或时差',
+  'Time zones': '时区',
+  'No time zones match “{query}”.': '没有与“{query}”匹配的时区。',
+  'Showing {shown} of {total}. Keep typing to narrow it down.':
+    '显示 {shown}/{total} 个。继续输入以缩小范围。',
+  Added: '已添加',
   'Maximum of {total} time zones reached. Remove one to add another.':
     '已达到 {total} 个时区的上限。移除一个后才能添加新的。',
 
@@ -202,4 +221,17 @@ export const settings: Record<string, string> = {
   'Version {version} is available.': '发现新版本 {version}。',
   'Update to {version}': '更新到 {version}',
   'Could not start the update.': '无法启动更新。',
+  'Have the assistant write a review for you on a schedule.': '让助手按计划为你撰写回顾。',
+  'Scheduled Reviews': '定时回顾',
+  'Reviews are only written when you press Generate Now on the Reviews page.':
+    '仅在回顾页面点击“立即生成”时才会撰写回顾。',
+  'A weekly review is written every {day} at {time} while Docket is running.':
+    'Docket 运行期间，每{day} {time} 撰写一次每周回顾。',
+  'A daily review is written every day at {time} while Docket is running.':
+    'Docket 运行期间，每天 {time} 撰写一次每日回顾。',
+  Frequency: '频率',
+  Day: '星期',
+  Time: '时间',
+  'Choose a model for {feature} in the AI section above, or no review will be written.':
+    '请在上方 AI 部分为“{feature}”选择模型，否则不会撰写回顾。',
 };

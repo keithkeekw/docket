@@ -5,10 +5,6 @@
  */
 export const dashboard: Record<string, string> = {
   // Page header and summary line
-  '{count} due today': '{count} 个今日到期',
-  '{count} overdue': '{count} 个已逾期',
-  '{count} in inbox': '{count} 个待整理',
-  'Nothing due': '暂无到期任务',
   'Inbox · Unsorted': '收件箱 · 未分类',
   'Ask Assistant': '询问助手',
   'Done Rearranging': '完成排列',
@@ -61,5 +57,7 @@ export const dashboard: Record<string, string> = {
 
   // Dashboard card reordering
   'Move {title}': '移动{title}',
+  'Drop here': '放到这里',
+  '+{count} more': '还有 {count} 项',
   'Drag to Reorder': '拖动排序',
 };

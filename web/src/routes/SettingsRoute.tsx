@@ -1,29 +1,37 @@
 import type {
   AiFeature,
   AiProvider,
+  AiProviderStatus,
   PromptEntry,
   Status,
   StatusCategory,
+  UpdateReviewScheduleBody,
 } from '@app/shared';
-import { format, parseISO } from 'date-fns';
-import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { addDays, format, parseISO } from 'date-fns';
+import { useEffect, useId, useRef, useState, type FormEvent } from 'react';
 import { Link } from 'react-router';
 import {
   useAiSettings,
   usePrompts,
   useProviderModels,
+  useRemoveProviderKey,
   useResetPrompt,
   useSavePrompt,
+  useSaveProviderKey,
   useUpdateAiSettings,
 } from '../api/aiSettings';
 import { useBackups, useCreateBackup, useRestoreBackup } from '../api/backups';
 import { useProjects } from '../api/projects';
+import { useReviewSchedule, useUpdateReviewSchedule } from '../api/reviews';
 import { useCreateStatus, useDeleteStatus, useStatuses, useUpdateStatus } from '../api/statuses';
 import { buttonClassName } from '../lib/button';
 import { Button } from '../components/Button';
 import { Field, Input, Select } from '../components/Field';
 import { InlineError } from '../components/InlineError';
 import { PageHeader } from '../components/PageHeader';
+import { PrelineTooltip } from '../components/PrelineTooltip';
+import { Switch } from '../components/Switch';
+import { TimeZonePicker } from '../components/TimeZonePicker';
 import { UpdatesSection } from '../components/UpdatesSection';
 import { Kbd } from '../components/Kbd';
 import {
@@ -32,6 +40,7 @@ import {
   formatClockTime,
   timeZoneLabel,
 } from '../lib/clocks';
+import { cx } from '../lib/cx';
 import { useLocale } from '../lib/i18n';
 import { useDateLocale, useT } from '../lib/i18n';
 import { bindingLabel } from '../lib/platform';
@@ -65,6 +74,7 @@ export function SettingsRoute() {
         <KeyBindingsSection />
         <AiSection />
         <PromptManagementSection />
+        <ReviewsSection />
         <ClocksSection />
         <PrivacySection />
         <DataSection />
@@ -537,10 +547,246 @@ const FEATURE_LABELS: ReadonlyArray<{ feature: AiFeature; label: string }> = [
   { feature: 'chat', label: 'Chat' },
 ];
 
-const PROVIDER_LABELS: Record<AiProvider, string> = {
-  deepseek: 'DeepSeek',
-  openrouter: 'OpenRouter',
+/** Brand names stay untranslated; `example` seeds the model placeholder. */
+const PROVIDERS: Record<AiProvider, { label: string; keyUrl: string; example: string }> = {
+  deepseek: {
+    label: 'DeepSeek',
+    keyUrl: 'https://platform.deepseek.com/api_keys',
+    example: 'deepseek-chat',
+  },
+  openrouter: {
+    label: 'OpenRouter',
+    keyUrl: 'https://openrouter.ai/keys',
+    example: 'openai/gpt-4o-mini',
+  },
+  openai: {
+    label: 'OpenAI',
+    keyUrl: 'https://platform.openai.com/api-keys',
+    example: 'gpt-4.1-mini',
+  },
+  gemini: {
+    label: 'Google Gemini',
+    keyUrl: 'https://aistudio.google.com/apikey',
+    example: 'gemini-2.5-flash',
+  },
+  anthropic: {
+    label: 'Anthropic Claude',
+    keyUrl: 'https://console.anthropic.com/settings/keys',
+    example: 'claude-sonnet-4-5',
+  },
+  mistral: {
+    label: 'Mistral',
+    keyUrl: 'https://console.mistral.ai/api-keys',
+    example: 'mistral-small-latest',
+  },
+  qwen: {
+    label: 'Alibaba Qwen',
+    keyUrl: 'https://www.alibabacloud.com/help/en/model-studio/get-api-key',
+    example: 'qwen-plus',
+  },
 };
+
+const ICON_BUTTON =
+  'inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900 disabled:cursor-not-allowed disabled:opacity-50';
+
+/**
+ * One provider's key. The key is write-only: once saved, only where it came
+ * from and its last four characters come back from the server (NFR-2).
+ */
+function ProviderKeyRow({ status }: { status: AiProviderStatus }) {
+  const t = useT();
+  const saveKey = useSaveProviderKey();
+  const removeKey = useRemoveProviderKey();
+  const [editing, setEditing] = useState(false);
+  const [value, setValue] = useState('');
+  const [error, setError] = useState<string | null>(null);
+
+  const meta = PROVIDERS[status.provider];
+  const showInput = editing || !status.configured;
+  const busy = saveKey.isPending || removeKey.isPending;
+
+  async function handleSave(event: FormEvent) {
+    event.preventDefault();
+    const apiKey = value.trim();
+    if (!apiKey) return;
+
+    setError(null);
+    try {
+      await saveKey.mutateAsync({ provider: status.provider, apiKey });
+      setValue('');
+      setEditing(false);
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('Could not save the API key'));
+    }
+  }
+
+  async function handleRemove() {
+    const confirmed = await confirmAction({
+      title: t('Remove API Key'),
+      message: t('Features that use {provider} will stop working until a new key is added.', {
+        provider: meta.label,
+      }),
+      confirmLabel: t('Remove Key'),
+    });
+    if (!confirmed) return;
+
+    setError(null);
+    try {
+      await removeKey.mutateAsync({ provider: status.provider });
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : t('Could not remove the API key'));
+    }
+  }
+
+  const masked = status.hint ? `••••${status.hint}` : '••••';
+
+  return (
+    <li className="grid grid-cols-[9rem_1fr] items-center gap-2 py-1.5 sm:grid-cols-[10rem_1fr]">
+      <div className="flex min-w-0 flex-col">
+        <span className="text-[13px] text-zinc-900">{meta.label}</span>
+        <a
+          href={meta.keyUrl}
+          target="_blank"
+          rel="noreferrer"
+          className="w-fit text-[11px] text-zinc-500 underline-offset-2 hover:text-zinc-800 hover:underline"
+        >
+          {t('Get a Key')}
+        </a>
+      </div>
+
+      {showInput ? (
+        <form onSubmit={handleSave} className="flex items-center gap-2">
+          <Input
+            type="password"
+            autoComplete="off"
+            spellCheck={false}
+            aria-label={t('API key for {provider}', { provider: meta.label })}
+            placeholder={t('Paste API key')}
+            value={value}
+            disabled={busy}
+            onChange={(event) => {
+              setValue(event.target.value);
+              setError(null);
+            }}
+            className="font-mono text-[12px]"
+          />
+          <PrelineTooltip label={saveKey.isPending ? t('Saving…') : t('Save Key')}>
+            <button
+              type="submit"
+              disabled={busy || value.trim() === ''}
+              aria-label={saveKey.isPending ? t('Saving…') : t('Save Key')}
+              className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className={cx(
+                  'size-4',
+                  saveKey.isPending && 'animate-pulse motion-reduce:animate-none',
+                )}
+                aria-hidden="true"
+              >
+                <path
+                  fillRule="evenodd"
+                  d="M16.704 4.153a.75.75 0 0 1 .143 1.052l-8 10.5a.75.75 0 0 1-1.127.075l-4.5-4.5a.75.75 0 0 1 1.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 0 1 1.05-.143Z"
+                  clipRule="evenodd"
+                />
+              </svg>
+            </button>
+          </PrelineTooltip>
+          {status.configured && (
+            <PrelineTooltip label={t('Cancel')}>
+              <button
+                type="button"
+                onClick={() => {
+                  setEditing(false);
+                  setValue('');
+                  setError(null);
+                }}
+                aria-label={t('Cancel')}
+                className={ICON_BUTTON}
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className="size-4"
+                  aria-hidden="true"
+                >
+                  <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+                </svg>
+              </button>
+            </PrelineTooltip>
+          )}
+        </form>
+      ) : (
+        <div className="flex items-center gap-2">
+          <span className="flex min-h-10 flex-1 items-center gap-2 rounded-[10px] border border-zinc-200 bg-zinc-50 px-3 text-[13px] text-zinc-700">
+            <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
+            <span className="font-mono text-[12px] text-zinc-600">{masked}</span>
+            <span className="ml-auto text-[11px] text-zinc-500">
+              {status.source === 'env' ? t('From .env') : t('Saved')}
+            </span>
+          </span>
+          <PrelineTooltip label={t('Replace Key')}>
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(true);
+              }}
+              aria-label={t('Replace Key')}
+              className={ICON_BUTTON}
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                className="size-4"
+                aria-hidden="true"
+              >
+                <path d="m5.433 13.917 1.262-3.155A4 4 0 0 1 7.58 9.42l6.92-6.918a2.121 2.121 0 0 1 3 3l-6.92 6.918c-.383.383-.84.685-1.343.886l-3.154 1.262a.5.5 0 0 1-.65-.65Z" />
+                <path d="M3.5 5.75c0-.69.56-1.25 1.25-1.25H10A.75.75 0 0 0 10 3H4.75A2.75 2.75 0 0 0 2 5.75v9.5A2.75 2.75 0 0 0 4.75 18h9.5A2.75 2.75 0 0 0 17 15.25V10a.75.75 0 0 0-1.5 0v5.25c0 .69-.56 1.25-1.25 1.25h-9.5c-.69 0-1.25-.56-1.25-1.25v-9.5Z" />
+              </svg>
+            </button>
+          </PrelineTooltip>
+          {status.source === 'settings' && (
+            <PrelineTooltip label={removeKey.isPending ? t('Removing…') : t('Remove Key')}>
+              <button
+                type="button"
+                onClick={() => {
+                  void handleRemove();
+                }}
+                disabled={busy}
+                aria-label={removeKey.isPending ? t('Removing…') : t('Remove Key')}
+                className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition-colors hover:bg-red-100 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className={cx(
+                    'size-4',
+                    removeKey.isPending && 'animate-pulse motion-reduce:animate-none',
+                  )}
+                  aria-hidden="true"
+                >
+                  <path
+                    fillRule="evenodd"
+                    d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z"
+                    clipRule="evenodd"
+                  />
+                </svg>
+              </button>
+            </PrelineTooltip>
+          )}
+        </div>
+      )}
+
+      {error && <p className="col-start-2 text-xs text-red-600">{error}</p>}
+    </li>
+  );
+}
 
 type Draft = Record<AiFeature, { provider: AiProvider | ''; model: string }>;
 
@@ -560,16 +806,18 @@ function ModelInput({
   label,
   value,
   disabled,
+  hasKey,
   onChange,
 }: {
   provider: AiProvider | '';
   label: string;
   value: string;
   disabled: boolean;
+  hasKey: boolean;
   onChange: (value: string) => void;
 }) {
   const t = useT();
-  const models = useProviderModels(provider);
+  const models = useProviderModels(hasKey ? provider : '');
   const listId = `models-${label.toLowerCase().replace(/\s+/g, '-')}`;
 
   return (
@@ -577,7 +825,11 @@ function ModelInput({
       <input
         list={models.data?.length ? listId : undefined}
         aria-label={t('Model for {feature}', { feature: t(label) })}
-        placeholder={models.isPending ? t('Loading models…') : t('e.g. deepseek-chat')}
+        placeholder={
+          models.isFetching
+            ? t('Loading models…')
+            : t('e.g. {model}', { model: PROVIDERS[provider || 'deepseek'].example })
+        }
         disabled={disabled}
         value={value}
         onChange={(event) => {
@@ -600,9 +852,9 @@ function ModelInput({
 }
 
 /**
- * DESIGN §5.5 *AI providers* and *AI features* (FR-24, FR-26). Keys live in
- * `.env` and are only ever reported as present/absent (NFR-2, D48); the model
- * is free text because TECHSTACK §6.1 says not to hard-code model IDs.
+ * DESIGN §5.5 *AI providers* and *AI features* (FR-24, FR-26). Keys are pasted
+ * here (or read from `.env` as a fallback) and are never sent back (NFR-2, D48);
+ * the model is free text because TECHSTACK §6.1 says not to hard-code model IDs.
  */
 function AiSection() {
   const t = useT();
@@ -678,9 +930,8 @@ function AiSection() {
       <h2 className="text-[15px] font-semibold text-zinc-900">{t('AI')}</h2>
       <p className="mt-1 max-w-[560px] text-xs text-zinc-500">
         {t(
-          'Nothing leaves this machine until a feature below is configured and its provider has a key. Keys are read from',
-        )}{' '}
-        <code>.env</code> {t('at server start and are never shown here.')}
+          'Nothing leaves this machine until a feature below is configured and its provider has a key. Keys are stored on this computer and only their last four characters are ever shown again.',
+        )}
       </p>
 
       {ai.isLoading && <p className="mt-3 text-sm text-zinc-500">{t('Loading…')}</p>}
@@ -696,29 +947,23 @@ function AiSection() {
 
       {ai.data && (
         <>
-          <ul className="mt-3 flex flex-wrap gap-x-6 gap-y-1 text-xs text-zinc-600">
-            {ai.data.providers.map((provider) => (
-              <li key={provider.provider} className="flex items-center gap-1.5">
-                <span className="font-medium text-zinc-700">
-                  {PROVIDER_LABELS[provider.provider]}
-                </span>
-                <span className={provider.configured ? 'text-zinc-600' : 'text-zinc-500'}>
-                  {provider.configured ? t('Configured') : t('Not Configured')}
-                </span>
-              </li>
+          <h3 className="mt-4 text-[13px] font-medium text-zinc-900">{t('API Keys')}</h3>
+          {!ai.data.providers.some((provider) => provider.configured) && (
+            <p className="mt-1 text-xs text-zinc-500">
+              {t('Paste a key for at least one provider to get started.')}
+            </p>
+          )}
+          <ul className="mt-1 divide-y divide-zinc-100">
+            {ai.data.providers.map((status) => (
+              <ProviderKeyRow key={status.provider} status={status} />
             ))}
           </ul>
 
-          {!ai.data.providers.some((provider) => provider.configured) && (
-            <p className="mt-2 text-xs text-zinc-500">
-              {t('Add')} <code>DEEPSEEK_API_KEY</code> {t('or')} <code>OPENROUTER_API_KEY</code>{' '}
-              {t('to')} <code>.env</code> {t('and restart the server.')}
-            </p>
-          )}
+          <h3 className="mt-5 text-[13px] font-medium text-zinc-900">{t('Models')}</h3>
 
           {draft && (
             <div className="mt-4">
-              <div className="grid grid-cols-[7rem_9rem_1fr] items-center gap-2 pb-1 text-[11px] text-zinc-500">
+              <div className="grid grid-cols-[7rem_12rem_1fr] items-center gap-2 pb-1 text-[11px] text-zinc-500">
                 <span>{t('Feature')}</span>
                 <span>{t('Provider')}</span>
                 <span>{t('Model')}</span>
@@ -726,7 +971,7 @@ function AiSection() {
 
               <div className="flex flex-col gap-2">
                 {FEATURE_LABELS.map(({ feature, label }) => (
-                  <div key={feature} className="grid grid-cols-[7rem_9rem_1fr] items-center gap-2">
+                  <div key={feature} className="grid grid-cols-[7rem_12rem_1fr] items-center gap-2">
                     <span className="text-[13px] text-zinc-900">{t(label)}</span>
 
                     <Select
@@ -739,14 +984,24 @@ function AiSection() {
                       }}
                     >
                       <option value="">{t('Not Configured')}</option>
-                      <option value="deepseek">DeepSeek</option>
-                      <option value="openrouter">OpenRouter</option>
+                      {ai.data.providers.map((status) => (
+                        <option key={status.provider} value={status.provider}>
+                          {status.configured
+                            ? PROVIDERS[status.provider].label
+                            : t('{provider} (No Key)', {
+                                provider: PROVIDERS[status.provider].label,
+                              })}
+                        </option>
+                      ))}
                     </Select>
 
                     <ModelInput
                       provider={draft[feature].provider}
                       label={label}
                       disabled={draft[feature].provider === ''}
+                      hasKey={ai.data.providers.some(
+                        (status) => status.provider === draft[feature].provider && status.configured,
+                      )}
                       value={draft[feature].model}
                       onChange={(model) => {
                         setDraft({ ...draft, [feature]: { ...draft[feature], model } });
@@ -911,16 +1166,155 @@ function PromptEditor({ prompt }: { prompt: PromptEntry }) {
   );
 }
 
-const TIME_ZONE_SUGGESTIONS: ReadonlyArray<string> = (() => {
-  try {
-    const supported = (
-      Intl as unknown as { supportedValuesOf?: (key: string) => string[] }
-    ).supportedValuesOf?.('timeZone');
-    return supported ?? [];
-  } catch {
-    return [];
+const ISO_WEEKDAYS = [1, 2, 3, 4, 5, 6, 7] as const;
+/** Monday 9 November 2026; adding `isoDay - 1` days gives that weekday's name. */
+const A_MONDAY = new Date(2026, 10, 9);
+const TIME_PATTERN = /^([01]\d|2[0-3]):[0-5]\d$/;
+
+/** Settings → Reviews: whether reviews are written on a schedule, how often and when. */
+function ReviewsSection() {
+  const t = useT();
+  const dateLocale = useDateLocale();
+  const schedule = useReviewSchedule();
+  const update = useUpdateReviewSchedule();
+  const aiSettings = useAiSettings();
+  const switchId = useId();
+
+  const weekdayName = (isoDay: number) =>
+    format(addDays(A_MONDAY, isoDay - 1), 'EEEE', { locale: dateLocale });
+
+  function save(body: UpdateReviewScheduleBody) {
+    update.mutate(body);
   }
-})();
+
+  const data = schedule.data;
+  const weekly = data?.frequency === 'weekly';
+  const time = data ? (weekly ? data.weeklyTime : data.dailyTime) : '';
+
+  const feature: AiFeature = weekly ? 'review_weekly' : 'review_daily';
+  const featureSetting = aiSettings.data?.features.find((entry) => entry.feature === feature);
+  const providerReady = aiSettings.data?.providers.some(
+    (entry) => entry.provider === featureSetting?.provider && entry.configured,
+  );
+  const needsModel =
+    Boolean(data?.enabled) &&
+    aiSettings.data !== undefined &&
+    !(featureSetting?.provider && featureSetting.model && providerReady);
+
+  let summary = '';
+  if (data && !data.enabled) {
+    summary = t('Reviews are only written when you press Generate Now on the Reviews page.');
+  } else if (data && weekly) {
+    summary = t('A weekly review is written every {day} at {time} while Docket is running.', {
+      day: weekdayName(data.weeklyDay),
+      time,
+    });
+  } else if (data) {
+    summary = t('A daily review is written every day at {time} while Docket is running.', {
+      time,
+    });
+  }
+
+  return (
+    <section className="mt-8 border-t border-zinc-200 pt-5">
+      <h2 className="text-[15px] font-semibold text-zinc-900">{t('Reviews')}</h2>
+      <p className="mt-1 max-w-[560px] text-xs text-zinc-500">
+        {t('Have the assistant write a review for you on a schedule.')}
+      </p>
+
+      {schedule.error && (
+        <InlineError
+          message={schedule.error.message}
+          onRetry={() => {
+            void schedule.refetch();
+          }}
+        />
+      )}
+      {update.error && <InlineError message={t(update.error.message)} />}
+
+      {schedule.isLoading && <p className="mt-3 text-sm text-zinc-500">{t('Loading…')}</p>}
+
+      {data && (
+        <div className="mt-3 rounded-xl border border-zinc-200 bg-white">
+          <div className="flex items-center justify-between gap-4 px-4 py-3">
+            <div className="min-w-0">
+              <label htmlFor={switchId} className="text-[13px] font-medium text-zinc-900">
+                {t('Scheduled Reviews')}
+              </label>
+              <p className="mt-0.5 text-xs text-zinc-500">{summary}</p>
+            </div>
+            <Switch
+              id={switchId}
+              checked={data.enabled}
+              onChange={(enabled) => {
+                save({ enabled });
+              }}
+            />
+          </div>
+
+          <div
+            className={cx(
+              'grid gap-3 border-t border-zinc-100 px-4 py-3',
+              weekly ? 'sm:grid-cols-3' : 'sm:grid-cols-2',
+            )}
+          >
+            <Field label={t('Frequency')}>
+              <Select
+                value={data.frequency}
+                disabled={!data.enabled}
+                onChange={(event) => {
+                  save({ frequency: event.target.value === 'weekly' ? 'weekly' : 'daily' });
+                }}
+              >
+                <option value="daily">{t('Daily')}</option>
+                <option value="weekly">{t('Weekly')}</option>
+              </Select>
+            </Field>
+
+            {weekly && (
+              <Field label={t('Day')}>
+                <Select
+                  value={String(data.weeklyDay)}
+                  disabled={!data.enabled}
+                  onChange={(event) => {
+                    save({ weeklyDay: Number(event.target.value) });
+                  }}
+                >
+                  {ISO_WEEKDAYS.map((day) => (
+                    <option key={day} value={String(day)}>
+                      {weekdayName(day)}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+            )}
+
+            <Field label={t('Time')}>
+              <Input
+                type="time"
+                value={time}
+                disabled={!data.enabled}
+                onChange={(event) => {
+                  const next = event.target.value;
+                  if (!TIME_PATTERN.test(next)) return;
+                  save(weekly ? { weeklyTime: next } : { dailyTime: next });
+                }}
+              />
+            </Field>
+          </div>
+
+          {needsModel && (
+            <p className="border-t border-zinc-100 px-4 py-3 text-xs text-orange-700">
+              {t('Choose a model for {feature} in the AI section above, or no review will be written.', {
+                feature: weekly ? t('Weekly Review') : t('Daily Review'),
+              })}
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
 
 function ClocksSection() {
   const t = useT();
@@ -929,14 +1323,19 @@ function ClocksSection() {
   const [error, setError] = useState<string | null>(null);
   const now = useNow();
   const intlLocale = useLocale() === 'zh' ? 'zh-CN' : 'en';
+  const pickerId = useId();
 
   const atLimit = zones.length >= MAX_CLOCKS;
 
   function handleSubmit(event: FormEvent) {
     event.preventDefault();
+    addClock(draft);
+  }
+
+  function addClock(zone: string) {
     setError(null);
 
-    const trimmed = draft.trim();
+    const trimmed = zone.trim();
     if (trimmed === '') {
       setError(t('Enter a time zone, for example Asia/Tokyo.'));
       return;
@@ -1020,35 +1419,36 @@ function ClocksSection() {
         </ul>
       )}
 
-      <form onSubmit={handleSubmit} className="mt-3 flex flex-wrap items-end gap-2">
-        <div className="min-w-[240px] flex-1">
-          <Field
-            label={t('Add a time zone')}
-            hint={t('IANA name, for example Asia/Tokyo. {count} of {total} used.', {
-              count: zones.length,
-              total: MAX_CLOCKS,
-            })}
-          >
-            <Input
-              list="clock-time-zones"
+      <form onSubmit={handleSubmit} className="mt-3 flex flex-col gap-1.5">
+        <label htmlFor={pickerId} className="text-[11px] text-zinc-500">
+          {t('Add a time zone')}
+        </label>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="min-w-[240px] flex-1">
+            <TimeZonePicker
+              id={pickerId}
               value={draft}
-              onChange={(event) => {
-                setDraft(event.target.value);
+              onChange={(next) => {
+                setDraft(next);
                 setError(null);
               }}
-              placeholder="Asia/Tokyo"
+              onPick={addClock}
+              added={zones}
+              now={now}
+              locale={intlLocale}
               disabled={atLimit}
             />
-          </Field>
-          <datalist id="clock-time-zones">
-            {TIME_ZONE_SUGGESTIONS.map((zone) => (
-              <option key={zone} value={zone} />
-            ))}
-          </datalist>
+          </div>
+          <Button type="submit" variant="primary" disabled={atLimit || draft.trim() === ''}>
+            {t('Add Clock')}
+          </Button>
         </div>
-        <Button type="submit" variant="primary" disabled={atLimit || draft.trim() === ''}>
-          {t('Add Clock')}
-        </Button>
+        <span className="text-[11px] text-zinc-500">
+          {t('Search by city, region or offset (GMT+8). {count} of {total} used.', {
+            count: zones.length,
+            total: MAX_CLOCKS,
+          })}
+        </span>
       </form>
 
       {atLimit && (

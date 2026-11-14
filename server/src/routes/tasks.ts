@@ -1,5 +1,6 @@
 import {
   bulkDeleteTasksBodySchema,
+  bulkRestoreTasksBodySchema,
   completeTaskBodySchema,
   createTaskBodySchema,
   moveTaskBodySchema,
@@ -17,6 +18,7 @@ import {
   listTasks,
   moveTask,
   reorderTasks,
+  restoreTasks,
   setTaskDone,
   updateTask,
 } from '../services/tasks';
@@ -80,6 +82,13 @@ export function registerTaskRoutes(app: Hono, db: Db): void {
     if (!parsed.success) return invalidBody(c, parsed.error);
 
     return c.json({ deleted: deleteTasks(db, parsed.data.ids) });
+  });
+
+  app.post('/api/tasks/bulk-restore', async (c) => {
+    const parsed = bulkRestoreTasksBodySchema.safeParse(await readJson(c));
+    if (!parsed.success) return invalidBody(c, parsed.error);
+
+    return c.json({ restored: restoreTasks(db, parsed.data.ids) });
   });
 
   app.patch('/api/tasks/:id', async (c) => {

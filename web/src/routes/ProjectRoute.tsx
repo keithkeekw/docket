@@ -244,7 +244,7 @@ export function ProjectRoute() {
         {t('Projects')} / {data.name}
       </p>
 
-      <div className="mt-1">
+      <div className="mt-3">
         <PageHeader
           title={data.name}
           description={data.description || undefined}

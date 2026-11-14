@@ -3,6 +3,8 @@ import { dueReviews, isoDayOfWeek, lastWeeklySlot } from './schedule';
 import type { ScheduleSettings } from './settings';
 
 const SETTINGS: ScheduleSettings = {
+  enabled: true,
+  frequency: 'daily',
   dailyTime: '07:30',
   weeklyDay: 1,
   weeklyTime: '07:30',
@@ -54,21 +56,28 @@ describe('dueReviews', () => {
     expect(due).toEqual([]);
   });
 
-  it('catches up the daily review when nothing has run today', () => {
+  it('catches up only the daily review when the frequency is daily', () => {
     expect(dueReviews({ ...SETTINGS, weeklyDay: 5 }, new Date(2026, 10, 13, 9, 0))).toEqual([
       'daily',
-      'weekly',
     ]);
   });
 
-  it('is quiet once both slots have a watermark after them', () => {
+  it('catches up only the weekly review when the frequency is weekly', () => {
+    expect(
+      dueReviews({ ...SETTINGS, frequency: 'weekly', weeklyDay: 5 }, new Date(2026, 10, 13, 9, 0)),
+    ).toEqual(['weekly']);
+  });
+
+  it('finds nothing when scheduled reviews are turned off', () => {
+    expect(dueReviews({ ...SETTINGS, enabled: false }, new Date(2026, 10, 13, 9, 0))).toEqual([]);
+    expect(
+      dueReviews({ ...SETTINGS, enabled: false, frequency: 'weekly' }, new Date(2026, 10, 13, 9, 0)),
+    ).toEqual([]);
+  });
+
+  it('is quiet once the daily slot has a watermark after it', () => {
     const due = dueReviews(
-      {
-        ...SETTINGS,
-        weeklyDay: 5,
-        lastDailyAt: new Date(2026, 10, 13, 7, 30).toISOString(),
-        lastWeeklyAt: new Date(2026, 10, 13, 7, 30).toISOString(),
-      },
+      { ...SETTINGS, lastDailyAt: new Date(2026, 10, 13, 7, 30).toISOString() },
       new Date(2026, 10, 13, 9, 0),
     );
 
@@ -77,11 +86,29 @@ describe('dueReviews', () => {
 
   it('catches up a missed weekly review on another day', () => {
     const due = dueReviews(
-      { ...SETTINGS, lastDailyAt: new Date(2026, 10, 13, 7, 30).toISOString() },
+      {
+        ...SETTINGS,
+        frequency: 'weekly',
+        lastDailyAt: new Date(2026, 10, 13, 7, 30).toISOString(),
+      },
       new Date(2026, 10, 13, 9, 0),
     );
 
     expect(due).toEqual(['weekly']);
+  });
+
+  it('is quiet once the weekly slot has a watermark after it', () => {
+    const due = dueReviews(
+      {
+        ...SETTINGS,
+        frequency: 'weekly',
+        weeklyDay: 5,
+        lastWeeklyAt: new Date(2026, 10, 13, 7, 30).toISOString(),
+      },
+      new Date(2026, 10, 13, 9, 0),
+    );
+
+    expect(due).toEqual([]);
   });
 
   it('does not rerun a daily review stamped yesterday', () => {

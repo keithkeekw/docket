@@ -21,7 +21,6 @@ import { toTaskRow } from '../lib/taskRow';
 import { localDateString } from '../lib/today';
 import { confirmAction } from '../store/confirm';
 import { useUiStore } from '../store/ui';
-import { Button } from './Button';
 import { EmptyState } from './EmptyState';
 import { GroupHeader } from './GroupHeader';
 import { InlineError } from './InlineError';
@@ -229,13 +228,31 @@ export function TaskListPanel({
             <span className="text-xs text-zinc-600">
               {t('{count} selected', { count: selectedCount })}
             </span>
-            <Button
-              onClick={() => { void deleteSelected(); }}
-              disabled={selectedCount === 0 || bulkDelete.isPending}
-            >
-              {bulkDelete.isPending ? t('Deleting…') : t('Delete Selected')}
-            </Button>
-            <Button onClick={cancelSelection}>{t('Cancel')}</Button>
+            <PrelineTooltip label={bulkDelete.isPending ? t('Deleting…') : t('Delete Selected')}>
+              <button
+                type="button"
+                onClick={() => { void deleteSelected(); }}
+                disabled={selectedCount === 0 || bulkDelete.isPending}
+                aria-label={bulkDelete.isPending ? t('Deleting…') : t('Delete Selected')}
+                className="inline-flex size-10 items-center justify-center rounded-lg border border-red-200 bg-red-50 text-red-700 transition-colors hover:bg-red-100 hover:text-red-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className={cx('size-4', bulkDelete.isPending && 'animate-pulse motion-reduce:animate-none')} aria-hidden="true">
+                <path fillRule="evenodd" d="M8.75 1A2.75 2.75 0 0 0 6 3.75v.443c-.795.077-1.584.176-2.365.298a.75.75 0 1 0 .23 1.482l.149-.022.841 10.518A2.75 2.75 0 0 0 7.596 19h4.807a2.75 2.75 0 0 0 2.742-2.53l.841-10.52.149.023a.75.75 0 0 0 .23-1.482A41.03 41.03 0 0 0 14 4.193V3.75A2.75 2.75 0 0 0 11.25 1h-2.5ZM10 4c.84 0 1.673.025 2.5.075V3.75c0-.69-.56-1.25-1.25-1.25h-2.5c-.69 0-1.25.56-1.25 1.25v.325C8.327 4.025 9.16 4 10 4ZM8.58 7.72a.75.75 0 0 0-1.5.06l.3 7.5a.75.75 0 1 0 1.5-.06l-.3-7.5Zm4.34.06a.75.75 0 1 0-1.5-.06l-.3 7.5a.75.75 0 1 0 1.5.06l.3-7.5Z" clipRule="evenodd" />
+              </svg>
+              </button>
+            </PrelineTooltip>
+            <PrelineTooltip label={t('Cancel')}>
+              <button
+                type="button"
+                onClick={cancelSelection}
+                aria-label={t('Cancel')}
+                className="inline-flex size-10 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+              >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-4" aria-hidden="true">
+                <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+              </svg>
+              </button>
+            </PrelineTooltip>
           </>
         ) : (
           <>

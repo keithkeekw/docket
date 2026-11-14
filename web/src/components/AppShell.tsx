@@ -23,18 +23,21 @@ export function AppShell() {
   const openChat = useUiStore((state) => state.openChat);
   const toggleSidebarKey = useKeybindingsStore((s) => s.bindings.toggleSidebar ?? 'x');
   const askAssistantKey = useKeybindingsStore(
-    (s) => s.bindings.askAssistant ?? 'ctrl+alt+shift+meta+a',
+    (s) => s.bindings.askAssistant ?? 'ctrl+a',
   );
+  const askAssistantIsSelectAll = /^(ctrl|mod|meta)\+a$/.test(askAssistantKey);
 
   // Bare keys stay inert inside form fields, so typing "x" never collapses the
   // sidebar mid-sentence.
   useHotkeys(toggleSidebarKey, () => { toggleSidebar(); }, { preventDefault: true });
 
-  // The assistant opens from anywhere, including while another field has focus.
+  // The assistant opens from anywhere, including while another field has focus,
+  // unless the binding is a select-all combo that text fields need for themselves.
   useHotkeys(
     askAssistantKey,
     () => { openChat(); },
-    { preventDefault: true, enableOnFormTags: true },
+    { preventDefault: true, enableOnFormTags: !askAssistantIsSelectAll },
+    [askAssistantIsSelectAll],
   );
 
   return (

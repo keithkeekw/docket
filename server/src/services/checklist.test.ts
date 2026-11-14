@@ -7,7 +7,7 @@ import { taskAttachments, statuses, tasks } from '../db/schema';
 import type { Db } from '../db/types';
 import { createTestDb } from '../test/helpers';
 import { extractAttachmentText } from './attachment-text';
-import { generateChecklist } from './checklist';
+import { addChecklistItem, generateChecklist } from './checklist';
 
 vi.mock('word-extractor', () => ({
   default: class {
@@ -99,5 +99,35 @@ describe('attachment text for checklist context', () => {
     expect(capturedUser).toContain('Vendor quote: 3 units at RM 40.');
     expect(capturedUser).toContain('--- quote.txt ---');
     expect(capturedUser).toContain('reference only');
+  });
+
+  it('sends existing items and drops suggestions that repeat them', async () => {
+    const task = createTask('Prepare the vendor form');
+    addChecklistItem(db, task.id, { title: 'Read the quote' });
+
+    let capturedUser = '';
+    const items = await generateChecklist(db, task.id, uploadsDir, {
+      complete: async ({ user }) => {
+        capturedUser = user;
+        return {
+          text: '{"items":["read the quote.","Draft the vendor form","Draft the vendor form"]}',
+          model: 'stub',
+        };
+      },
+    });
+
+    expect(capturedUser).toContain('Existing checklist items:\n- Read the quote');
+    expect(items.items).toEqual(['Draft the vendor form']);
+  });
+
+  it('caps a generated checklist at 12 items', async () => {
+    const task = createTask('Plan the offsite');
+    const many = Array.from({ length: 20 }, (_, index) => `Step ${index + 1}`);
+
+    const items = await generateChecklist(db, task.id, uploadsDir, {
+      complete: async () => ({ text: JSON.stringify({ items: many }), model: 'stub' }),
+    });
+
+    expect(items.items).toHaveLength(12);
   });
 });

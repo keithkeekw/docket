@@ -4,7 +4,7 @@ import { makeCompletion, type Completion } from '../ai/client';
 import { loadPrompt } from '../ai/prompts';
 import { projects, reviews, tasks } from '../db/schema';
 import type { Db } from '../db/types';
-import { localDateString } from '../lib/dates';
+import { localDateString, localDayLabel } from '../lib/dates';
 import { ServiceError } from '../lib/errors';
 import { listProjects } from './projects';
 import { setAppSetting } from './settings';
@@ -35,8 +35,11 @@ type NamedTask = { title: string; project: string | null; date: string | null };
  */
 export type ReviewContext = {
   kind: ReviewKind;
+  today: string;
   periodStart: string;
   periodEnd: string;
+  /** Heading text the model copies, so it never has to work out a weekday. */
+  periodLabel: string;
   counts: { open: number; overdue: number; dueToday: number; inbox: number; completed: number };
   completed: NamedTask[];
   overdue: NamedTask[];
@@ -118,10 +121,17 @@ export function buildReviewContext(
 
   const activeProjects = listProjects(db).filter((project) => !project.aiExcluded);
 
+  const periodLabel =
+    kind === 'weekly'
+      ? `${localDayLabel(addDays(now, -(WEEK_DAYS - 1)))} – ${localDayLabel(now)}`
+      : localDayLabel(now);
+
   return {
     kind,
+    today,
     periodStart,
     periodEnd,
+    periodLabel,
     counts: {
       open: Number(countsRow?.open ?? 0),
       overdue: Number(countsRow?.overdue ?? 0),

@@ -25,7 +25,8 @@ export const misc: Record<string, string> = {
   'Automatic Theme': '自动主题',
   Pages: '页面',
   Appearance: '外观',
-  'Search Pages, Projects and Actions…': '搜索页面、项目和操作…',
+  'Search Pages, Projects, Tasks and Actions…': '搜索页面、项目、任务和操作…',
+  'Searching tasks…': '正在搜索任务…',
   'Search Commands': '搜索命令',
   'No matches.': '没有匹配项。',
   'to navigate': '导航',
@@ -55,7 +56,7 @@ export const misc: Record<string, string> = {
   'Toggle the sidebar between full width and the icon rail':
     '在完整宽度和图标栏之间切换侧边栏',
   'Open the assistant drawer from anywhere': '在任意位置打开助手抽屉',
-  'Search and jump to pages, projects and actions': '搜索并跳转到页面、项目和操作',
+  'Search and jump to pages, projects, tasks and actions': '搜索并跳转到页面、项目、任务和操作',
   'Show the full list of shortcuts in an overlay': '在浮层中显示完整快捷键列表',
   'Open the Dashboard': '打开仪表板',
   'Open the Inbox': '打开收件箱',
@@ -75,7 +76,7 @@ export const misc: Record<string, string> = {
   Manual: '手动',
   Review: '回顾',
   '{kind} Review': '{kind}回顾',
-  'What moved, what stalled, and what is next.': '哪些有进展，哪些停滞，接下来做什么。',
+  'Proof you did more than move tasks to tomorrow.': '证明你做的不只是把任务推到明天。',
   'Generating…': '正在生成…',
   'Generate Now': '立即生成',
   'Past Reviews': '过往回顾',
@@ -106,7 +107,7 @@ export const misc: Record<string, string> = {
   'to search every page instead.': '即可改为搜索所有页面。',
 
   // Router error
-  'Something Went Wrong': '出了点问题',
-  'This screen failed to render. Go back to the dashboard and try again.':
-    '此页面渲染失败。请返回仪表板后重试。',
+  'Well, That Wasn’t on the To-Do List': '这可不在待办清单上',
+  'This screen procrastinated so hard it never showed up. Your tasks are safe — head back to the Dashboard and try again. We’ll count this as a short break.':
+    '这个页面拖延得太厉害，干脆没露面。你的任务都安然无恙——返回仪表板再试一次吧。就当是小休片刻。',
 };

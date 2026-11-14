@@ -5,17 +5,7 @@ import { aiSettings } from '../db/schema';
 import type { Db } from '../db/types';
 import { env } from '../env';
 import { ServiceError } from '../lib/errors';
-
-/** TECHSTACK §6.1 base URLs, overridable for a proxy or a test stub (D51). */
-export const BASE_URLS: Record<AiProvider, string> = {
-  deepseek: env.deepseekBaseUrl,
-  openrouter: env.openrouterBaseUrl,
-};
-
-export const API_KEYS: Record<AiProvider, string> = {
-  deepseek: env.deepseekApiKey,
-  openrouter: env.openrouterApiKey,
-};
+import { providerApiKey } from '../services/ai-settings';
 
 export type FeatureConfig = {
   provider: AiProvider;
@@ -24,15 +14,34 @@ export type FeatureConfig = {
   baseURL: string;
 };
 
+/**
+ * Every provider is called through its OpenAI-compatible endpoint (base URLs
+ * in `env.ts`, overridable for a proxy or a test stub — D51).
+ */
+export function providerClient(provider: AiProvider, apiKey: string): OpenAI {
+  return new OpenAI({
+    apiKey,
+    baseURL: env.baseUrls[provider],
+    // Anthropic's native endpoints (e.g. the model list) authenticate with x-api-key.
+    defaultHeaders:
+      provider === 'anthropic' ? { 'x-api-key': apiKey, 'anthropic-version': '2023-06-01' } : {},
+  });
+}
+
 /** Null when the feature has no provider/model or that provider has no key. */
 export function featureConfig(db: Db, feature: AiFeature): FeatureConfig | null {
   const row = db.select().from(aiSettings).where(eq(aiSettings.feature, feature)).get();
   if (!row) return null;
 
-  const apiKey = API_KEYS[row.provider];
+  const apiKey = providerApiKey(db, row.provider);
   if (!apiKey) return null;
 
-  return { provider: row.provider, model: row.model, apiKey, baseURL: BASE_URLS[row.provider] };
+  return {
+    provider: row.provider,
+    model: row.model,
+    apiKey,
+    baseURL: env.baseUrls[row.provider],
+  };
 }
 
 /** FR-26: the app says clearly when AI cannot run, rather than failing oddly. */
@@ -40,7 +49,7 @@ export function requireFeatureConfig(db: Db, feature: AiFeature): FeatureConfig 
   const config = featureConfig(db, feature);
   if (!config) {
     throw new ServiceError(
-      'AI is not set up for this yet. Add a provider and model in Settings, and a key in .env.',
+      'AI is not set up for this yet. In Settings → AI, add the provider’s API key and choose a model.',
       503,
     );
   }
@@ -62,7 +71,7 @@ export type Completion = (request: CompletionRequest) => Promise<CompletionResul
 export function makeCompletion(db: Db): Completion {
   return async (request) => {
     const config = requireFeatureConfig(db, request.feature);
-    const client = new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL });
+    const client = providerClient(config.provider, config.apiKey);
 
     let text: string;
     try {
@@ -131,7 +140,7 @@ export type ToolChat = (input: {
 export function makeToolChat(db: Db): ToolChat {
   return async ({ feature, messages, tools }) => {
     const config = requireFeatureConfig(db, feature);
-    const client = new OpenAI({ apiKey: config.apiKey, baseURL: config.baseURL });
+    const client = providerClient(config.provider, config.apiKey);
 
     try {
       const response = await client.chat.completions.create({

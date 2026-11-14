@@ -69,6 +69,16 @@ function clearRequest() {
   }
 }
 
+/**
+ * Line-ending and file-mode differences are not local edits. Windows checkouts
+ * and copied folders routinely show every file as modified because of them.
+ */
+const STATUS_CONFIG = [
+  '-c',
+  'core.fileMode=false',
+  ...(process.platform === 'win32' ? ['-c', 'core.autocrlf=true'] : []),
+];
+
 async function git(args) {
   const { stdout } = await execFileAsync('git', args, {
     cwd: REPO_ROOT,
@@ -164,7 +174,7 @@ export async function applyUpdate() {
   let checkoutStarted = false;
 
   try {
-    const dirty = await git(['status', '--porcelain', '--untracked-files=no']);
+    const dirty = await git([...STATUS_CONFIG, 'status', '--porcelain', '--untracked-files=no']);
     if (dirty) {
       const preview = dirty.split('\n').slice(0, 8).join('\n');
       throw new Error(`Local changes block the update. Commit or stash them first:\n${preview}`);
@@ -186,7 +196,9 @@ export async function applyUpdate() {
 
     console.log(`Checking out ${tag}…`);
     checkoutStarted = true;
-    await git(['checkout', '--detach', tag]);
+    // The tree has no real edits (checked above), so --force only discards
+    // line-ending and mode noise that would otherwise block the checkout.
+    await git(['checkout', '--force', '--detach', tag]);
 
     console.log('Installing dependencies…');
     await runNpm(['ci', '--include=dev']);
@@ -208,7 +220,7 @@ export async function applyUpdate() {
     if (checkoutStarted && previousRef) {
       try {
         console.log('Rolling back to the previous checkout…');
-        await git(['checkout', previousBranch || previousRef]);
+        await git(['checkout', '--force', previousBranch || previousRef]);
         await runNpm(['ci', '--include=dev']);
         await runNpm(['run', 'build']);
       } catch (rollbackError) {

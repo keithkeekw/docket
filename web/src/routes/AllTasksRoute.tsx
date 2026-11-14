@@ -121,7 +121,7 @@ export function AllTasksRoute() {
           value={search}
           aria-label={t('Search Tasks')}
           placeholder={t('Search Tasks')}
-          className="min-h-10 w-[240px] rounded-[10px] border border-zinc-200 bg-white px-3 text-[13px] text-zinc-900 placeholder:text-zinc-500"
+          className="min-h-10 min-w-[240px] flex-1 rounded-[10px] border border-zinc-200 bg-white px-3 text-[13px] text-zinc-900 placeholder:text-zinc-500"
           onChange={(event) => {
             setSearch(event.target.value);
           }}

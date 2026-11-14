@@ -18,8 +18,11 @@ const OP_LABEL: Record<ProposalItem['op'], string> = {
   update_task: 'Update',
   move_task: 'Move',
   delete_task: 'Delete',
+  create_project: 'New Project',
   create_milestone: 'New Milestone',
 };
+
+const TASK_OPS = new Set<ProposalItem['op']>(['create_task', 'update_task', 'move_task', 'delete_task']);
 
 type Draft = { item: ProposalItem; included: boolean; title: string };
 
@@ -78,8 +81,8 @@ export function ProposalModal() {
 
   const included = drafts.filter((draft) => draft.included);
   const count = included.length;
-  const hasMilestones = included.some((draft) => draft.item.op === 'create_milestone');
-  const noun = hasMilestones ? 'item' : 'task';
+  const isPlan = drafts.some((draft) => !TASK_OPS.has(draft.item.op));
+  const noun = isPlan ? 'item' : 'task';
   const countNoun = count === 1 ? noun : `${noun}s`;
   const totalNoun = drafts.length === 1 ? noun : `${noun}s`;
 
@@ -139,7 +142,7 @@ export function ProposalModal() {
       <div className="flex max-h-[calc(100vh-2rem)] flex-col">
         <header className="flex flex-wrap items-baseline justify-between gap-2 px-5 pt-5 pb-2">
           <h2 id="proposal-title" className="text-[15px] font-semibold text-zinc-900">
-            {proposal.feature === 'breakdown' ? t('Proposed Plan') : t('Proposed Tasks')}
+            {proposal.feature === 'breakdown' || isPlan ? t('Proposed Plan') : t('Proposed Tasks')}
           </h2>
           <p className="text-xs text-zinc-500">
             {t('Parsed by: {feature} model', {
@@ -202,6 +205,24 @@ export function ProposalModal() {
                     <Badge>{t(OP_LABEL[draft.item.op])}</Badge>
                   </div>
 
+                  {draft.item.op === 'create_project' ? (
+                    <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
+                      <div className="col-span-2 min-w-0 sm:col-span-3">
+                        <dt className="text-[11px] text-zinc-500">{t('Description')}</dt>
+                        <dd className="text-[13px] whitespace-pre-line text-zinc-900">
+                          {draft.item.fields.description || '—'}
+                        </dd>
+                      </div>
+                      <Field label={t('Target Date')} value={draft.item.fields.targetDate ?? '—'} />
+                    </dl>
+                  ) : draft.item.op === 'create_milestone' ? (
+                    <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
+                      <Field
+                        label={t('Project')}
+                        value={draft.item.display.projectName ?? t('Inbox')}
+                      />
+                    </dl>
+                  ) : (
                   <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1.5 sm:grid-cols-4">
                     <Field
                       label={t('Project')}
@@ -239,6 +260,7 @@ export function ProposalModal() {
                       }
                     />
                   </dl>
+                  )}
 
                   {draft.item.aiNote && (
                     <p className="mt-2 rounded-lg bg-zinc-50 px-2.5 py-1.5 text-xs text-zinc-700">

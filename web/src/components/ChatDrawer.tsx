@@ -8,8 +8,8 @@ import { cx } from '../lib/cx';
 import { useT } from '../lib/i18n';
 import { compactMarkdownClass } from '../lib/markdown';
 import { useUiStore } from '../store/ui';
-import { Button } from './Button';
 import { InlineError } from './InlineError';
+import { PrelineTooltip } from './PrelineTooltip';
 
 /**
  * DESIGN §5.5 Chat: a 420 px right drawer, messages as text blocks (assistant
@@ -94,7 +94,18 @@ export function ChatDrawer() {
               {t('Answers from your tasks, projects and reviews.')}
             </p>
           </div>
-          <Button onClick={closeChat}>{t('Close')}</Button>
+          <PrelineTooltip label={t('Close')}>
+            <button
+              type="button"
+              onClick={closeChat}
+              aria-label={t('Close')}
+              className="inline-flex size-9 shrink-0 items-center justify-center rounded-lg border border-zinc-200 bg-white text-zinc-600 transition-colors hover:bg-zinc-50 hover:text-zinc-900"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="size-4" aria-hidden="true">
+                <path d="M6.28 5.22a.75.75 0 0 0-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 1 0 1.06 1.06L10 11.06l3.72 3.72a.75.75 0 1 0 1.06-1.06L11.06 10l3.72-3.72a.75.75 0 0 0-1.06-1.06L10 8.94 6.28 5.22Z" />
+              </svg>
+            </button>
+          </PrelineTooltip>
         </header>
 
         <div ref={listRef} className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4">
@@ -163,9 +174,24 @@ export function ChatDrawer() {
                 }
               }}
             />
-            <Button type="submit" variant="primary" disabled={!draft.trim() || chat.isPending}>
-              {chat.isPending ? t('Thinking…') : t('Send')}
-            </Button>
+            <PrelineTooltip label={chat.isPending ? t('Thinking…') : t('Send')}>
+              <button
+                type="submit"
+                disabled={!draft.trim() || chat.isPending}
+                aria-label={chat.isPending ? t('Thinking…') : t('Send')}
+                className="inline-flex size-10 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-white transition-colors hover:bg-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 20 20"
+                  fill="currentColor"
+                  className={cx('size-4', chat.isPending && 'animate-pulse motion-reduce:animate-none')}
+                  aria-hidden="true"
+                >
+                  <path d="M3.105 2.288a.75.75 0 0 0-.826.95l1.414 4.926A1.5 1.5 0 0 0 5.135 9.25h6.115a.75.75 0 0 1 0 1.5H5.135a1.5 1.5 0 0 0-1.442 1.086l-1.414 4.926a.75.75 0 0 0 .826.95 28.897 28.897 0 0 0 15.293-7.155.75.75 0 0 0 0-1.114A28.897 28.897 0 0 0 3.105 2.288Z" />
+                </svg>
+              </button>
+            </PrelineTooltip>
           </div>
           <p className="mt-1 text-[11px] text-zinc-500">
             {t('Enter to send · Shift Enter for a new line')}

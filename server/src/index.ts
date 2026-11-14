@@ -18,9 +18,9 @@ const uploadsDir = path.join(REPO_ROOT, 'data/uploads');
 // files that no longer have a row before serving requests.
 pruneOrphanAttachmentFiles(db, uploadsDir);
 
-const app = createApp(db, { staticDir, uploadsDir });
 // FR-19/FR-20: scheduled reviews plus a catch-up sweep for missed slots.
-startScheduler(db);
+const scheduler = startScheduler(db);
+const app = createApp(db, { staticDir, uploadsDir, onReviewScheduleChange: scheduler.reschedule });
 
 // NFR-3: bind to loopback only — never 0.0.0.0.
 serve({ fetch: app.fetch, hostname: '127.0.0.1', port: env.port }, (info) => {

@@ -8,17 +8,18 @@ import {
   type ProposalItemFields,
   type ProposalItemDisplay,
 } from '@app/shared';
-import { eq } from 'drizzle-orm';
+import { and, asc, eq, isNull } from 'drizzle-orm';
 import { z } from 'zod';
 import { extractJson, makeCompletion, type Completion } from '../ai/client';
 import { loadPrompt } from '../ai/prompts';
-import { milestones, projects, proposals as proposalsTable } from '../db/schema';
+import { milestones, projects, proposals as proposalsTable, tasks } from '../db/schema';
 import type { Db } from '../db/types';
-import { localDateString } from '../lib/dates';
+import { localDateString, localWeekday } from '../lib/dates';
 import { ServiceError } from '../lib/errors';
 import { deriveLinkLabel } from '../lib/link-label';
 import { addLink } from './links';
 import { createMilestone } from './milestones';
+import { createProject } from './projects';
 import { listStatuses } from './statuses';
 import { setTaskTags } from './tags';
 import { createTask, deleteTask, moveTask, updateTask } from './tasks';
@@ -65,6 +66,16 @@ const modelBreakdownSchema = z.object({
 
 type ModelBreakdown = z.infer<typeof modelBreakdownSchema>;
 
+const modelProjectSchema = z.object({
+  name: z.string().trim().min(1).max(200),
+  description: z.string().trim().max(5_000).nullish(),
+  targetDate: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .nullish(),
+  milestones: z.array(z.string().trim().min(1).max(200)).max(12).nullish(),
+});
+
 const storedPayloadSchema = z.object({
   items: z.array(proposalItemSchema),
 });
@@ -75,6 +86,7 @@ const storedPayloadSchema = z.object({
 
 type CaptureContext = {
   today: string;
+  weekday: string;
   statuses: string[];
   projects: Array<{ name: string; milestones: string[] }>;
   /** Names only, never tasks or descriptions, so a note can explain a miss. */
@@ -111,6 +123,7 @@ function captureContext(now: Date, lookups: Lookups): CaptureContext {
 
   return {
     today: localDateString(now),
+    weekday: localWeekday(now),
     statuses: lookups.statuses.map((status) => status.name),
     projects: usable.map((project) => ({
       name: project.name,
@@ -401,11 +414,69 @@ export function proposalFromRawTasks(
   return { proposal: storeProposal(db, feature, inputText, items), count: items.length };
 }
 
+/**
+ * A new project, optionally with milestones, as one pending proposal (chat tool).
+ * Milestones point at the project by name; apply creates the project first.
+ */
+export function proposalFromRawProject(
+  db: Db,
+  feature: ProposalFeature,
+  inputText: string,
+  raw: unknown,
+): { proposal: Proposal; milestoneCount: number } {
+  const parsed = modelProjectSchema.safeParse(raw);
+  if (!parsed.success) throw new ServiceError('That project was not valid.', 400);
+
+  const { name, description, targetDate } = parsed.data;
+  const taken = loadLookups(db).projects.some(
+    (project) => !project.archived && normalise(project.name) === normalise(name),
+  );
+  if (taken) throw new ServiceError(`A project called "${name}" already exists.`, 409);
+
+  const items: ProposalItem[] = [
+    {
+      id: randomUUID(),
+      op: 'create_project',
+      ref: name,
+      fields: {
+        title: name,
+        ...(description ? { description } : {}),
+        ...(targetDate ? { targetDate } : {}),
+      },
+      display: { projectName: name, milestoneName: null, statusName: null },
+      aiNote: null,
+    },
+  ];
+
+  const seen = new Set<string>();
+  for (const milestone of parsed.data.milestones ?? []) {
+    const key = normalise(milestone);
+    if (seen.has(key)) continue;
+    seen.add(key);
+
+    items.push({
+      id: randomUUID(),
+      op: 'create_milestone',
+      ref: milestone,
+      fields: { title: milestone, projectRef: name },
+      display: { projectName: name, milestoneName: milestone, statusName: null },
+      aiNote: null,
+    });
+  }
+
+  return {
+    proposal: storeProposal(db, feature, inputText, items),
+    milestoneCount: items.length - 1,
+  };
+}
+
 // ---------------------------------------------------------------------------
 // Breakdown (FR-18)
 // ---------------------------------------------------------------------------
 
 export type BreakdownOptions = { complete?: Completion; now?: Date };
+
+const MAX_EXISTING_TASKS = 60;
 
 function buildBreakdownItems(
   project: { id: string; name: string },
@@ -480,14 +551,24 @@ export async function breakdownProposal(
   const existing = lookups.milestones.filter((milestone) => milestone.projectId === project.id);
   const context = captureContext(options.now ?? new Date(), lookups);
 
+  const openTasks = db
+    .select({ title: tasks.title })
+    .from(tasks)
+    .where(and(eq(tasks.projectId, project.id), isNull(tasks.completedAt)))
+    .orderBy(asc(tasks.position))
+    .all();
+
   const data = {
     today: context.today,
+    weekday: context.weekday,
     project: {
       name: project.name,
       description: project.description,
       targetDate: project.targetDate,
     },
     existingMilestones: existing.map((milestone) => milestone.name),
+    existingOpenTasks: openTasks.slice(0, MAX_EXISTING_TASKS).map((task) => task.title),
+    ...(openTasks.length > MAX_EXISTING_TASKS ? { existingOpenTaskCount: openTasks.length } : {}),
     statuses: context.statuses,
   };
 
@@ -564,8 +645,13 @@ export function getProposal(db: Db, id: string): Proposal {
   };
 }
 
-function applyItem(db: Db, item: ProposalItem, createdMilestones: Map<string, string>): void {
+type Created = { projects: Map<string, string>; milestones: Map<string, string> };
+
+function applyItem(db: Db, item: ProposalItem, created: Created): void {
   const fields = item.fields;
+  const proposedProjectId = fields.projectRef
+    ? created.projects.get(normalise(fields.projectRef))
+    : undefined;
 
   switch (item.op) {
     case 'create_task': {
@@ -575,12 +661,12 @@ function applyItem(db: Db, item: ProposalItem, createdMilestones: Map<string, st
       // unticked it, the task simply lands at project level (D55).
       const milestoneId =
         fields.milestoneId ??
-        (fields.milestoneRef ? createdMilestones.get(normalise(fields.milestoneRef)) : undefined);
+        (fields.milestoneRef ? created.milestones.get(normalise(fields.milestoneRef)) : undefined);
 
       const task = createTask(db, {
         title: fields.title,
         notes: fields.notes ?? undefined,
-        projectId: fields.projectId ?? undefined,
+        projectId: fields.projectId ?? proposedProjectId,
         milestoneId,
         statusId: fields.statusId ?? undefined,
         priority: fields.priority ?? undefined,
@@ -630,16 +716,41 @@ function applyItem(db: Db, item: ProposalItem, createdMilestones: Map<string, st
       return;
     }
 
+    case 'create_project': {
+      if (!fields.title) throw new ServiceError('A project needs a name.', 400);
+
+      const project = createProject(db, {
+        name: fields.title,
+        description: fields.description,
+        targetDate: fields.targetDate ?? null,
+      });
+      if (item.ref) created.projects.set(normalise(item.ref), project.id);
+      return;
+    }
+
     case 'create_milestone': {
-      if (!fields.projectId) throw new ServiceError('A milestone needs a project.', 400);
+      const projectId = fields.projectId ?? proposedProjectId;
+      if (!projectId) {
+        throw new ServiceError(
+          fields.projectRef
+            ? `Tick the new project "${fields.projectRef}" too, or untick its milestones.`
+            : 'A milestone needs a project.',
+          400,
+        );
+      }
       if (!fields.title) throw new ServiceError('A milestone needs a name.', 400);
 
-      const milestone = createMilestone(db, fields.projectId, { name: fields.title });
-      if (item.ref) createdMilestones.set(normalise(item.ref), milestone.id);
+      const milestone = createMilestone(db, projectId, { name: fields.title });
+      if (item.ref) created.milestones.set(normalise(item.ref), milestone.id);
       return;
     }
   }
 }
+
+const APPLY_ORDER: Partial<Record<ProposalItem['op'], number>> = {
+  create_project: 0,
+  create_milestone: 1,
+};
 
 /**
  * `POST /api/proposals/:id/apply` (FR-23). Everything lands in one transaction,
@@ -654,18 +765,17 @@ export function applyProposal(db: Db, id: string, items: ProposalItem[]): Propos
   const stored = new Map(proposal.items.map((item) => [item.id, item]));
   let editedCount = 0;
 
-  // Milestones must exist before the tasks that point at them (FR-18). The sort
-  // is stable, so everything else keeps the order the user saw.
-  const ordered = [...items].sort(
-    (a, b) => Number(b.op === 'create_milestone') - Number(a.op === 'create_milestone'),
-  );
-  const createdMilestones = new Map<string, string>();
+  // Projects, then milestones, must exist before the items that point at them
+  // (FR-18). The sort is stable, so everything else keeps the order the user saw.
+  const rank = (item: ProposalItem) => APPLY_ORDER[item.op] ?? 2;
+  const ordered = [...items].sort((a, b) => rank(a) - rank(b));
+  const created: Created = { projects: new Map(), milestones: new Map() };
 
   db.transaction(() => {
     for (const item of ordered) {
       const original = stored.get(item.id);
       if (original && original.fields.title !== item.fields.title) editedCount += 1;
-      applyItem(db, item, createdMilestones);
+      applyItem(db, item, created);
     }
 
     db.update(proposalsTable)

@@ -12,6 +12,7 @@ import {
   captureProposal,
   discardProposal,
   getProposal,
+  proposalFromRawProject,
 } from '../services/proposals';
 
 let sqlite: ReturnType<typeof createTestDb>['sqlite'];
@@ -280,6 +281,76 @@ describe('applyProposal', () => {
   });
 });
 
+describe('proposalFromRawProject', () => {
+  it('proposes the project first, then its milestones, without writing anything', () => {
+    const { proposal, milestoneCount } = proposalFromRawProject(db, 'chat', 'Chat', {
+      name: 'Kitchen Renovation',
+      description: 'Redo the kitchen before the holidays.',
+      targetDate: '2026-12-20',
+      milestones: ['Design', 'Demolition', 'design', 'Fit-out'],
+    });
+
+    expect(milestoneCount).toBe(3);
+    expect(proposal.items.map((item) => [item.op, item.fields.title])).toEqual([
+      ['create_project', 'Kitchen Renovation'],
+      ['create_milestone', 'Design'],
+      ['create_milestone', 'Demolition'],
+      ['create_milestone', 'Fit-out'],
+    ]);
+    expect(proposal.items[1]?.fields.projectRef).toBe('Kitchen Renovation');
+    expect(db.select().from(projects).all()).toHaveLength(0);
+  });
+
+  it('refuses a name that an active project already uses', () => {
+    db.insert(projects).values({ name: 'Kitchen Renovation' }).run();
+
+    expect(() => proposalFromRawProject(db, 'chat', 'Chat', { name: 'kitchen renovation' })).toThrow(
+      /already exists/,
+    );
+  });
+
+  it('applies the project before the milestones that point at it', () => {
+    const { proposal } = proposalFromRawProject(db, 'chat', 'Chat', {
+      name: 'Kitchen Renovation',
+      description: 'Redo the kitchen.',
+      targetDate: '2026-12-20',
+      milestones: ['Design', 'Fit-out'],
+    });
+
+    // The user renamed the project in the preview and the milestones still follow it.
+    const items = [...proposal.items].reverse().map((item) =>
+      item.op === 'create_project'
+        ? { ...item, fields: { ...item.fields, title: 'New Kitchen' } }
+        : item,
+    );
+    applyProposal(db, proposal.id, items);
+
+    const project = db.select().from(projects).get();
+    expect(project).toMatchObject({
+      name: 'New Kitchen',
+      description: 'Redo the kitchen.',
+      targetDate: '2026-12-20',
+    });
+    const names = db
+      .select({ name: milestones.name, projectId: milestones.projectId })
+      .from(milestones)
+      .all();
+    expect(names).toHaveLength(2);
+    expect(names.every((row) => row.projectId === project?.id)).toBe(true);
+  });
+
+  it('explains when milestones are kept but their new project was unticked', () => {
+    const { proposal } = proposalFromRawProject(db, 'chat', 'Chat', {
+      name: 'Kitchen Renovation',
+      milestones: ['Design'],
+    });
+    const milestonesOnly = proposal.items.filter((item) => item.op === 'create_milestone');
+
+    expect(() => applyProposal(db, proposal.id, milestonesOnly)).toThrow(/Tick the new project/);
+    expect(db.select().from(milestones).all()).toHaveLength(0);
+  });
+});
+
 describe('discardProposal', () => {
   it('marks the proposal discarded and writes nothing', async () => {
     const { complete } = stub([{ title: 'Never mind' }]);
@@ -337,6 +408,39 @@ describe('breakdownProposal', () => {
   async function project(name = 'Onboarding', aiExcluded = false) {
     return db.insert(projects).values({ name, aiExcluded }).returning().get();
   }
+
+  it('sends the weekday and the open tasks already in the project', async () => {
+    const row = await project();
+    const status = db.select().from(statuses).get();
+    if (!status) throw new Error('Statuses are not seeded');
+    db.insert(tasks)
+      .values([
+        { title: 'Book the venue', statusId: status.id, projectId: row.id },
+        {
+          title: 'Old finished task',
+          statusId: status.id,
+          projectId: row.id,
+          completedAt: NOW.toISOString(),
+        },
+      ])
+      .run();
+
+    let user = '';
+    await breakdownProposal(db, row.id, {
+      complete: async (request) => {
+        user = request.user;
+        return { text: JSON.stringify(breakdownReply), model: 'stub-model' };
+      },
+      now: NOW,
+    });
+
+    const data = JSON.parse(user.slice(user.indexOf('{'), user.lastIndexOf('}') + 1)) as {
+      weekday: string;
+      existingOpenTasks: string[];
+    };
+    expect(data.weekday).toBe(NOW.toLocaleDateString('en-US', { weekday: 'long' }));
+    expect(data.existingOpenTasks).toEqual(['Book the venue']);
+  });
 
   it('proposes milestones first, then tasks that point at them', async () => {
     const row = await project();

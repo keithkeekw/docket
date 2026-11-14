@@ -9,6 +9,7 @@ import {
 import { CHAT_TOOLS, chatContextSummary, runChatTool } from '../ai/chat-tools';
 import { loadPrompt } from '../ai/prompts';
 import type { Db } from '../db/types';
+import { localDateString, localWeekday } from '../lib/dates';
 import { ServiceError } from '../lib/errors';
 
 const MAX_ROUNDS = 4;
@@ -26,7 +27,8 @@ export async function chat(
   messages: ChatMessage[],
   options: ChatOptions = {},
 ): Promise<ChatResult> {
-  const system = loadPrompt(db, 'chat');
+  const now = new Date();
+  const system = `${loadPrompt(db, 'chat')}\n\nToday is ${localDateString(now)} (${localWeekday(now)}).`;
   let proposal: Proposal | null = null;
 
   try {

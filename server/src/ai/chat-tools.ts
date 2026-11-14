@@ -4,7 +4,7 @@ import { milestones, projects, reviews, statuses, tasks } from '../db/schema';
 import type { Db } from '../db/types';
 import { localDateString } from '../lib/dates';
 import { ServiceError } from '../lib/errors';
-import { proposalFromRawTasks } from '../services/proposals';
+import { proposalFromRawProject, proposalFromRawTasks } from '../services/proposals';
 import { listProjects } from '../services/projects';
 import { listStatuses } from '../services/statuses';
 import { listTasks } from '../services/tasks';
@@ -97,6 +97,31 @@ export const CHAT_TOOLS = [
           },
         },
         required: ['tasks'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'propose_project',
+      description:
+        'Prepare a new project, optionally with milestones, for the user to confirm. Nothing is saved until they approve the preview. Only include milestones when the user said yes to generating them.',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string' },
+          description: {
+            type: 'string',
+            description: 'What the project is for, in the user’s words, tidied up',
+          },
+          targetDate: { type: 'string', description: 'YYYY-MM-DD, only if the user gave one' },
+          milestones: {
+            type: 'array',
+            description: 'Milestone names in order, 3 to 6 is typical, at most 12',
+            items: { type: 'string' },
+          },
+        },
+        required: ['name'],
       },
     },
   },
@@ -264,6 +289,24 @@ export function runChatTool(db: Db, name: string, rawArgs: string): ToolRun {
       } catch (cause) {
         return {
           content: cause instanceof ServiceError ? cause.message : 'Those tasks were not valid.',
+        };
+      }
+    }
+
+    case 'propose_project': {
+      try {
+        const { proposal, milestoneCount } = proposalFromRawProject(db, 'chat', 'Chat', args);
+        const milestones =
+          milestoneCount === 0
+            ? 'no milestones'
+            : `${milestoneCount} ${milestoneCount === 1 ? 'milestone' : 'milestones'}`;
+        return {
+          content: `Prepared the project with ${milestones} for the user to confirm.`,
+          proposal,
+        };
+      } catch (cause) {
+        return {
+          content: cause instanceof ServiceError ? cause.message : 'That project was not valid.',
         };
       }
     }

@@ -1,3 +1,6 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { navSummarySchema } from '@app/shared';
 import { eq } from 'drizzle-orm';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -35,6 +38,34 @@ describe('GET /api/health', () => {
       ok: true,
       database: { ready: true, statuses: 5 },
     });
+  });
+});
+
+describe('serving the built frontend', () => {
+  let staticDir: string;
+
+  beforeEach(() => {
+    staticDir = mkdtempSync(path.join(tmpdir(), 'docket-static-'));
+    writeFileSync(path.join(staticDir, 'index.html'), '<!doctype html><title>Docket</title>');
+    app = createApp(db, { staticDir });
+  });
+
+  afterEach(() => {
+    rmSync(staticDir, { recursive: true, force: true });
+  });
+
+  it('falls back to index.html for app routes', async () => {
+    const response = await app.request('/projects/abc');
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get('content-type')).toContain('text/html');
+  });
+
+  it('keeps unknown API paths as JSON 404s instead of the app page', async () => {
+    const response = await app.request('/api/not-a-route');
+
+    expect(response.status).toBe(404);
+    await expect(response.json()).resolves.toEqual({ error: 'Not found' });
   });
 });
 

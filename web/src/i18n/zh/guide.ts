@@ -1,7 +1,6 @@
 export const guide: Record<string, string> = {
   // Page frame and contents
-  'Everything Docket can do, from capture to the Logbook.':
-    'Docket 的全部功能，从记录到日志。',
+  'Everything Docket can do, from capture to the Logbook.': 'Docket 的全部功能，从记录到日志。',
   Contents: '目录',
   'Guide Contents': '指南目录',
 
@@ -19,6 +18,10 @@ export const guide: Record<string, string> = {
     'Docket 是一款本地任务管理器。所有数据都保存在这台机器上，侧边栏就是你的地图：仪表板、收件箱、今天、所有任务、回顾、日志、项目和设置。',
   'The three circular buttons at the top right open this guide, choose the language, and choose a Light, Dark or Automatic theme. The floating arrow at the bottom right returns a long page to the top.':
     '右上角的三个圆形按钮分别可以打开本指南、切换语言，以及选择浅色、深色或自动主题。右下角的悬浮箭头可将长页面返回顶部。',
+  'At the bottom of the sidebar, the gear opens Settings and the panel icon beside it collapses the sidebar to a narrow icon rail; the same icon expands it again.':
+    '侧边栏底部的齿轮图标可打开设置，旁边的面板图标可将侧边栏收起为窄图标栏；再次点击同一图标即可展开。',
+  'You can also press': '也可以按',
+  'to toggle it.': '进行切换。',
 
   // Capturing Tasks
   Press: '按',
@@ -30,8 +33,7 @@ export const guide: Record<string, string> = {
     '“每月 9 点交房租”——标题、重复和时间。',
   '“Team sync every Monday” — weekly task anchored to Monday.':
     '“每周一团队同步”——锚定到周一的每周任务。',
-  '“Review invoices every 2 weeks” — a two-week interval.':
-    '“每 2 周审核发票”——两周的间隔。',
+  '“Review invoices every 2 weeks” — a two-week interval.': '“每 2 周审核发票”——两周的间隔。',
   'Enter saves straight away. From a project or a Kanban column, the new task lands in that project or status. For a preview of AI-parsed work, press':
     '按 Enter 会立即保存。在项目或看板列中，新任务会落在该项目或状态里。如果想预览 AI 解析结果，请按',
   'instead: nothing is created until you confirm the proposal.':
@@ -53,42 +55,42 @@ export const guide: Record<string, string> = {
     '记录时自然输入优先级（“明天交房租 p1”），或在任务抽屉中选择。所有任务的筛选器和表格视图可以按优先级排序或缩小范围。一条有用的规则：如果一切都是 P1，那就没有 P1。',
 
   // Lists and Views
-  'shows work with no project, in List or Table view.':
-    '显示没有项目的任务，支持列表和表格视图。',
-  'combines overdue work with everything due today.':
-    '将逾期工作和今天到期的所有事项合并在一起。',
+  'shows work with no project, in List or Table view.': '显示没有项目的任务，支持列表和表格视图。',
+  'combines overdue work with everything due today.': '将逾期工作和今天到期的所有事项合并在一起。',
   'and projects offer List, Table and Kanban. Table columns sort; Kanban cards drag between statuses.':
     '和项目提供列表、表格和看板视图。表格列可以排序；看板卡片可在状态之间拖动。',
   'In List view, drag the six-dot handle beside a task to change its order.':
     '在列表视图中，拖动任务旁的六点手柄可调整顺序。',
-  Choose: '选择',
-  'Select Tasks': '“选择任务”',
-  'for bulk selection, then delete the batch in one go. The Undo bar brings it back.':
-    '即可批量选择，然后一次性删除整批任务。撤销栏可以将其恢复。',
+  'The Select Tasks button (a ticked box) starts bulk selection. Selection uses round checkboxes so it never looks like marking a task done; the trash icon deletes the batch and the Undo bar brings it back.':
+    '“选择任务”按钮（带勾的方框）可开始批量选择。选择时使用圆形复选框，避免与标记完成混淆；垃圾桶图标会删除整批任务，撤销栏可以将其恢复。',
   'A completed task stays in the list for three seconds while it fades, then moves to the Logbook.':
     '已完成的任务会在列表中停留三秒并淡出，然后移入日志。',
 
   // Logbook
   'Finished work lives in the Logbook. Every row is checked and struck through. Uncheck one to reactivate it: the task clears its completion date, returns to its old collection and leaves the Logbook.':
     '完成的工作都存放在日志里。每一行都已勾选并划掉。取消勾选即可重新激活：任务会清除完成日期，回到原来的集合，并离开日志。',
+  'To handle many records at once, use the Select Tasks button above the list. Tick individual rows or Select All, then choose Restore Selected (the curved arrow) to reopen them all, or Delete Selected (the trash icon) to remove them. Deleting asks for confirmation and can be undone from the Undo bar.':
+    '如需一次处理多条记录，请使用列表上方的“选择任务”按钮。勾选单独的行或“全选”，然后选择“恢复所选”（弯曲箭头）将它们全部重新打开，或选择“删除所选”（垃圾桶图标）将其移除。删除前会请求确认，并可在撤销栏中撤销。',
 
   // Dashboard
   'The review card shows the latest Daily or Weekly review, with buttons to regenerate it or open the full Reviews page.':
     '回顾卡片显示最新的每日或每周回顾，并提供重新生成或打开完整回顾页面的按钮。',
-  'Tasks are grouped into Overdue, Today and Inbox · Unsorted. “Open in Table” jumps to the full list.':
-    '任务分为已逾期、今天和收件箱 · 未分类。“在表格中打开”会跳转到完整列表。',
-  'The month calendar highlights days with tasks due; use the arrows to look at another month.':
-    '月历会高亮有任务到期的日期；用箭头查看其他月份。',
+  'Tasks are grouped into Overdue, Today and Inbox · Unsorted. The table icon in the corner of the card opens the full list.':
+    '任务分为已逾期、今天和收件箱 · 未分类。卡片角落的表格图标可打开完整列表。',
+  'The month calendar highlights days with tasks due; use the arrows to look at another month. Point at a highlighted day (or Tab to it) to see that day’s tasks, and click one to open it.':
+    '月历会高亮有任务到期的日期；用箭头查看其他月份。将鼠标指向高亮的日期（或用 Tab 键移到该日期）即可查看当天的任务，点击其中一项即可打开。',
+  'The small New Project button sits below the project cards.':
+    '小巧的“新建项目”按钮位于项目卡片下方。',
+  'The Rearrange Cards button (the dotted grid beside the capture bar) turns on drag handles. Cards sit in two columns: drop a card on the top or bottom half of another to place it above or below, or in a column’s empty space to send it to the bottom. A blue line or “Drop here” shows where it will land. The Review card stays across the top, and the layout is remembered on this device.':
+    '“重新排列卡片”按钮（记录栏旁的点阵图标）会显示拖动手柄。卡片分为两列：把卡片放到另一张卡片的上半部或下半部，即可放在其上方或下方；放到某列的空白处则会移到该列底部。蓝色线条或“放到这里”会提示落点。回顾卡片始终横跨顶部，布局会保存在本设备上。',
   'Active Projects show progress and the next due task. A project at 100% offers an':
     '进行中的项目会显示进度和下一个到期任务。进度达到 100% 的项目会显示',
   'button, moving it to Archived Projects.': '按钮，点击后移入已归档项目。',
-  Rearrange: '重新排列',
-  'turns on drag handles so you can reorder the Dashboard cards. The order is remembered on this device.':
-    '会显示拖动手柄，让你重新排列仪表板卡片。顺序会保存在本设备上。',
-
   // Projects
   'Create a project from the sidebar or Dashboard, then give it a description, target date and optional milestones. The project screen gathers its tasks and progress. Projects can be archived when finished or deleted; deleted projects keep their tasks and move them to the Inbox.':
     '从侧边栏或仪表板创建项目，然后填写描述、目标日期和可选的里程碑。项目页面会汇总它的任务和进度。项目可以在完成后归档或删除；删除项目时任务会保留并移入收件箱。',
+  'You can also ask the assistant to create a project. It asks whether to generate milestones; if so, it asks for a short description and, when the idea is still vague, a few quick questions (never more than four) before proposing the project and its milestones for you to confirm.':
+    '你也可以让助手创建项目。它会先询问是否自动生成里程碑；如果需要，会请你提供简短描述，若想法仍不够清晰，还会再问几个简短问题（最多四个），然后提出项目及其里程碑供你确认。',
   Use: '使用',
   'Exclude this project from AI': '“将该项目排除在 AI 之外”',
   'when its name and tasks should never be sent to an AI provider.':
@@ -111,21 +113,23 @@ export const guide: Record<string, string> = {
   ', or from': '，或使用仪表板上的',
   'on the Dashboard. It can answer questions about your work and propose changes; proposals are previewed before anything is written.':
     '即可打开助手。它可以回答关于你工作的问题并提出修改建议；任何内容写入前都会先预览提案。',
+  'When you ask it to add a task, it first asks which project (or the Inbox) it belongs to. All of its buttons are icons: hover one to see its name.':
+    '当你让它添加任务时，它会先询问任务属于哪个项目（或收件箱）。助手的所有按钮都是图标：将鼠标悬停在图标上即可看到名称。',
   'Other AI features include:': '其他 AI 功能包括：',
-  'Capture — turn text into one or more proposed tasks.':
-    '记录——把文本转换为一个或多个建议任务。',
-  'Breakdown — turn a project into milestones and tasks.':
-    '拆解——把一个项目拆成里程碑和任务。',
+  'Capture — turn text into one or more proposed tasks.': '记录——把文本转换为一个或多个建议任务。',
+  'Breakdown — turn a project into milestones and tasks.': '拆解——把一个项目拆成里程碑和任务。',
   'Summarize — a prose status summary on a project screen.':
     '总结——在项目页面生成一段文字状态摘要。',
   'Checklist generation inside a task.': '在任务内生成清单。',
-  'Daily and weekly reviews.': '每日和每周回顾。',
+  'Daily and weekly reviews, written on the schedule set in Settings → Reviews or on demand with the sparkle button on the Reviews page.':
+    '每日和每周回顾，按设置 → 回顾中的计划自动生成，也可以在回顾页面点击闪光按钮随时生成。',
   'Chat with your tasks, projects and reviews.': '与你的任务、项目和回顾对话。',
-  'Configure a provider and model for each feature in':
-    '在以下位置为每项功能配置提供商和模型：',
+  'Configure a provider and model for each feature in': '在以下位置为每项功能配置提供商和模型：',
   'Settings → AI': '设置 → AI',
-  '. API keys live in the server’s': '。API 密钥保存在服务器的',
-  'file and are never shown in the app.': '文件中，绝不会在应用里显示。',
+  '. Paste each provider’s API key there too (DeepSeek, OpenRouter, OpenAI, Google Gemini, Anthropic Claude, Mistral or Alibaba Qwen); keys stay on this computer and are never shown in full.':
+    '。也在那里粘贴各提供商的 API 密钥（DeepSeek、OpenRouter、OpenAI、Google Gemini、Anthropic Claude、Mistral 或阿里云通义千问）；密钥只保存在本机，且绝不会完整显示。',
+  'A key takes effect as soon as it is saved, with no restart, and the model box then suggests that provider’s models.':
+    '密钥保存后立即生效，无需重启，模型输入框随后会推荐该提供商的模型。',
   'Prompt Management': '提示词管理',
   'lets you edit the instructions behind each feature or reset them to the built-in defaults.':
     '让你可以编辑每项功能背后的指令，或将它们重置为内置默认值。',
@@ -139,16 +143,18 @@ export const guide: Record<string, string> = {
   '— rename, recategorise and reorder the columns used by Kanban and the status picker.':
     '——重命名、重新分类并调整看板和状态选择器中各列的排序。',
   'Key Bindings': '键盘绑定',
-  '— click a shortcut to record a new one.':
-    '——点击一个快捷键即可录制新的绑定。',
+  '— click a shortcut to record a new one.': '——点击一个快捷键即可录制新的绑定。',
   AI: 'AI',
-  '— choose a provider and model per feature.':
-    '——为每项功能选择提供商和模型。',
-  '— read, edit and reset the system prompts.':
-    '——查看、编辑并重置系统提示词。',
+  '— paste, replace or remove each provider’s API key, then choose a provider and model per feature.':
+    '——粘贴、更换或移除各提供商的 API 密钥，然后为每项功能选择提供商和模型。',
+  '— read, edit and reset the system prompts.': '——查看、编辑并重置系统提示词。',
+  '— turn scheduled reviews on or off, pick Daily or Weekly, and set the time (and, for Weekly, the day).':
+    '——开启或关闭定时回顾，选择每日或每周，并设置时间（每周回顾还可选择星期几）。',
+  '— add up to three world clocks, shown under the date on the Dashboard.':
+    '——最多添加三个世界时钟，显示在仪表板的日期下方。',
+  '— check for a newer version and install it from here.': '——检查是否有新版本，并在此处安装。',
   Privacy: '隐私',
-  '— see which projects are excluded from AI.':
-    '——查看哪些项目被排除在 AI 之外。',
+  '— see which projects are excluded from AI.': '——查看哪些项目被排除在 AI 之外。',
   Data: '数据',
   '— create and restore backups, and export everything as JSON or Markdown.':
     '——创建和恢复备份，并将所有内容导出为 JSON 或 Markdown。',
@@ -158,8 +164,10 @@ export const guide: Record<string, string> = {
     'Docket 在这台机器上运行。任务、项目、设置和回顾都保存在本地 SQLite 数据库中；上传的文件存放在它旁边。不会同步到任何云服务。',
   'Backups are complete copies of the database. Export gives you a portable JSON or Markdown copy. If AI is not configured, it is never called.':
     '备份是数据库的完整副本。导出会生成可移植的 JSON 或 Markdown 副本。如果没有配置 AI，就永远不会调用它。',
-  'for the Command Palette to jump to any page, project or action.':
-    '打开命令面板，即可跳转到任意页面、项目或操作。',
+  'API keys saved in Settings → AI are left out of every export. Backups are whole-database copies, so they do include saved keys: keep backup files private.':
+    '保存在设置 → AI 中的 API 密钥不会出现在任何导出文件中。备份是整个数据库的副本，因此会包含已保存的密钥：请妥善保管备份文件。',
+  'for the Command Palette. The cursor starts in its search box: type to jump to any page, project or action, and after two letters it also finds matching tasks.':
+    '打开命令面板。光标会直接位于搜索框中：输入即可跳转到任意页面、项目或操作，输入两个字符后还会搜索匹配的任务。',
   'Need to get back to work?': '需要回去继续工作？',
   'Return to the Dashboard': '返回仪表板',
 };
