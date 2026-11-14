@@ -799,6 +799,8 @@ export const updateInfoSchema = z.object({
   latest: updateReleaseSchema.nullable(),
   /** A network/rate-limit failure while checking; the app remains usable. */
   checkError: z.string().nullable(),
+  /** In-app updates check out release tags, so a downloaded copy without `.git` cannot install them. */
+  gitCheckout: z.boolean(),
 });
 
 export type UpdateRelease = z.infer<typeof updateReleaseSchema>;

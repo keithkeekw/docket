@@ -45,6 +45,13 @@ export function registerUpdateRoutes(app: Hono): void {
       return c.json({ error: 'Start Docket with "npm start" to enable in-app updates.' }, 400);
     }
 
+    if (!info.gitCheckout) {
+      return c.json(
+        { error: 'In-app updates need a git clone of Docket. This copy has no .git folder.' },
+        400,
+      );
+    }
+
     writeUpdateRequest(parsed.data.tag);
     writeUpdateStatus({
       state: 'requested',

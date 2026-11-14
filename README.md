@@ -5,7 +5,7 @@ projects, with an optional AI assistant that never changes data without your
 confirmation.
 
 Local-only: one SQLite file, one API bound to `127.0.0.1`, no cloud sync.
-Current version: **1.3.0**.
+Current version: **1.3.1**.
 
 ## Contents
 
@@ -84,7 +84,7 @@ npm start
 - App: <http://127.0.0.1:9000>
 - Builds the web app, starts the API and static server, and supervises it so
   the in-app updater can restart it after an update.
-- The sidebar shows the running version (`v1.3.0`) above **Shortcuts**.
+- The sidebar shows the running version (`v1.3.1`) above **Shortcuts**.
 - Stop it with `Ctrl+C`.
 
 ### Run in development
@@ -171,6 +171,9 @@ Docket reads the latest public GitHub Release for
 ### Requirements and caveats
 
 - Start the app with `npm start`, not `npm run dev`.
+- Docket must be a `git clone`. A downloaded copy (for example a source zip) has
+  no `.git` folder, so **About → Updates** shows the commands that turn it into a
+  clone instead of the Update button.
 - The checkout must be clean. Commit or stash changes before updating.
 - Git must be installed and available on `PATH`.
 - macOS and Windows are supported. The updater uses Node APIs and `npm.cmd` on

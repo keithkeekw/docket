@@ -174,6 +174,12 @@ export async function applyUpdate() {
   let checkoutStarted = false;
 
   try {
+    if (!fs.existsSync(path.join(REPO_ROOT, '.git'))) {
+      throw new Error(
+        'In-app updates need a git clone of Docket. This copy has no .git folder; see About → Updates for how to fix it.',
+      );
+    }
+
     const dirty = await git([...STATUS_CONFIG, 'status', '--porcelain', '--untracked-files=no']);
     if (dirty) {
       const preview = dirty.split('\n').slice(0, 8).join('\n');

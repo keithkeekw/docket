@@ -9,6 +9,39 @@ import { Button } from './Button';
 import { InlineError } from './InlineError';
 
 /**
+ * A downloaded copy has no `.git`, and the updater works by checking out
+ * release tags. These commands turn the folder into a clone of the version it
+ * already is; data/, .env and node_modules are git-ignored, so they stay.
+ */
+function GitSetupSteps({ repository, version }: { repository: string; version: string }) {
+  const t = useT();
+  const commands = [
+    'git init',
+    `git remote add origin https://github.com/${repository}.git`,
+    'git fetch --tags origin',
+    `git reset --hard v${version}`,
+  ].join('\n');
+
+  return (
+    <div className="mt-2 text-xs text-zinc-600">
+      <p>
+        {t(
+          'This copy of Docket was not installed with git, so it cannot update itself. To turn on in-app updates, open a terminal in the Docket folder and run:',
+        )}
+      </p>
+      <pre className="mt-2 overflow-x-auto rounded-lg bg-white p-2.5 font-mono text-[11px] leading-relaxed text-zinc-800">
+        {commands}
+      </pre>
+      <p className="mt-2">
+        {t(
+          'Your tasks and settings in the data folder are kept. Then restart Docket with npm start and update from here.',
+        )}
+      </p>
+    </div>
+  );
+}
+
+/**
  * About → Updates. The check is read-only; applying hands the server
  * over to the supervisor, so the page polls until the new version answers.
  */
@@ -202,16 +235,21 @@ export function UpdatesSection() {
               <p className="text-sm font-medium text-zinc-900">
                 {t('Version {version} is available.', { version: latest.tag })}
               </p>
-              <Button
-                variant="primary"
-                onClick={() => {
-                  void handleUpdate();
-                }}
-                disabled={apply.isPending}
-              >
-                {t('Update to {version}', { version: latest.tag })}
-              </Button>
+              {data.gitCheckout && (
+                <Button
+                  variant="primary"
+                  onClick={() => {
+                    void handleUpdate();
+                  }}
+                  disabled={apply.isPending}
+                >
+                  {t('Update to {version}', { version: latest.tag })}
+                </Button>
+              )}
             </div>
+            {!data.gitCheckout && (
+              <GitSetupSteps repository={data.repository} version={data.currentVersion} />
+            )}
             <p className="mt-0.5 text-[11px] text-zinc-500">
               {latest.name}
               {latest.publishedAt && (

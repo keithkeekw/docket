@@ -220,6 +220,10 @@ export const settings: Record<string, string> = {
   "You're on the latest release.": '你正在使用最新版本。',
   'No releases have been published yet.': '尚未发布任何版本。',
   'Version {version} is available.': '发现新版本 {version}。',
+  'This copy of Docket was not installed with git, so it cannot update itself. To turn on in-app updates, open a terminal in the Docket folder and run:':
+    '此 Docket 副本不是通过 git 安装的，因此无法自动更新。要启用应用内更新，请在 Docket 文件夹中打开终端并运行：',
+  'Your tasks and settings in the data folder are kept. Then restart Docket with npm start and update from here.':
+    'data 文件夹中的任务和设置会保留。然后用 npm start 重新启动 Docket，再在这里更新。',
   'Update to {version}': '更新到 {version}',
   'Could not start the update.': '无法启动更新。',
   'Have the assistant write a review for you on a schedule.': '让助手按计划为你撰写回顾。',

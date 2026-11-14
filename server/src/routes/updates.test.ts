@@ -147,4 +147,48 @@ describe('POST /api/updates/apply', () => {
       error: expect.stringContaining('npm start'),
     });
   });
+
+  it('refuses to update a copy that is not a git clone', async () => {
+    process.env.DOCKET_SUPERVISED = '1';
+    process.env.DOCKET_CHECKOUT_DIR = dataDir;
+    try {
+      const response = await app().request('/api/updates/apply', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ tag: 'v99.0.0' }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(await response.json()).toMatchObject({
+        error: expect.stringContaining('git clone'),
+      });
+      expect(fs.existsSync(path.join(dataDir, 'update-request.json'))).toBe(false);
+    } finally {
+      delete process.env.DOCKET_CHECKOUT_DIR;
+    }
+  });
+});
+
+describe('git checkout detection', () => {
+  it('reports whether the app folder is a git clone', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(JSON.stringify(release), { status: 200 })),
+    );
+    process.env.DOCKET_CHECKOUT_DIR = dataDir;
+    try {
+      const plain = (await (await app().request('/api/updates')).json()) as {
+        gitCheckout: boolean;
+      };
+      expect(plain.gitCheckout).toBe(false);
+
+      fs.mkdirSync(path.join(dataDir, '.git'));
+      const cloned = (await (await app().request('/api/updates')).json()) as {
+        gitCheckout: boolean;
+      };
+      expect(cloned.gitCheckout).toBe(true);
+    } finally {
+      delete process.env.DOCKET_CHECKOUT_DIR;
+    }
+  });
 });

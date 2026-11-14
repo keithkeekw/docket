@@ -32,6 +32,14 @@ export function updateDataDir(): string {
     : path.join(REPO_ROOT, 'data');
 }
 
+/** Tests override the folder; production checks the app's own root. */
+export function isGitCheckout(): boolean {
+  const root = process.env.DOCKET_CHECKOUT_DIR
+    ? path.resolve(process.env.DOCKET_CHECKOUT_DIR)
+    : REPO_ROOT;
+  return fs.existsSync(path.join(root, '.git'));
+}
+
 function stateFile(): string {
   return path.join(updateDataDir(), 'update-state.json');
 }
@@ -122,7 +130,7 @@ async function fetchLatestRelease(): Promise<UpdateInfo['latest']> {
 export async function getUpdateInfo(): Promise<UpdateInfo> {
   const now = Date.now();
   if (cache && now - cache.at < (cache.info.checkError ? ERROR_CACHE_MS : CACHE_MS)) {
-    return cache.info;
+    return { ...cache.info, gitCheckout: isGitCheckout() };
   }
 
   const currentVersion = readCurrentVersion();
@@ -142,6 +150,7 @@ export async function getUpdateInfo(): Promise<UpdateInfo> {
     updateAvailable: latest ? compareVersions(latest.version, currentVersion) > 0 : false,
     latest,
     checkError,
+    gitCheckout: isGitCheckout(),
   };
 
   cache = { at: now, info };
