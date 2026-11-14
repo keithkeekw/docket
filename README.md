@@ -5,7 +5,7 @@ projects, with an optional AI assistant that never changes data without your
 confirmation.
 
 Local-only: one SQLite file, one API bound to `127.0.0.1`, no cloud sync.
-Current version: **1.1.0**.
+Current version: **1.2.0**.
 
 ## Contents
 
@@ -84,7 +84,7 @@ npm start
 - App: <http://127.0.0.1:9000>
 - Builds the web app, starts the API and static server, and supervises it so
   the in-app updater can restart it after an update.
-- The sidebar shows the running version (`v1.1.0`) above **Shortcuts**.
+- The sidebar shows the running version (`v1.2.0`) above **Shortcuts**.
 - Stop it with `Ctrl+C`.
 
 ### Run in development
@@ -227,12 +227,12 @@ mockups/  Screen mockups and logo sheet
 Bump the root `package.json` version, commit, then tag and push:
 
 ```bash
-npm version 1.2.0 --no-git-tag-version
+npm version 1.3.0 --no-git-tag-version
 git add -A
-git commit -m "Release 1.2.0"
-git tag v1.2.0
+git commit -m "Release 1.3.0"
+git tag v1.3.0
 git push origin master
-git push origin v1.2.0
+git push origin v1.3.0
 ```
 
 The `Release` workflow (`.github/workflows/release.yml`) runs tests, builds the
